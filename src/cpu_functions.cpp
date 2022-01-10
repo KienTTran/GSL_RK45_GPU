@@ -4,12 +4,6 @@
 #include "cpu_functions.h"
 
 int function(double t, const double y[], double dydt[], const int dim){
-
-    //1 dim
-//    for (int i = 0; i < dim; i++) {
-//        dydt[i] = y[i] - pow(t, 2) + 1;
-//    }
-
     // 2 dim
     const double m = 5.2;		// Mass of pendulum
     const double g = -9.81;		// g
@@ -49,26 +43,28 @@ int rk45_gsl_cpu_adjust_h(double y[],double y_err[], double dydt_out[], double* 
 
     double r_max = DBL_MIN;
 
-    printf("[adjust] begin\n");
-    printf(" eps_abs = %.10f  eps_rel = %.10f a_y = %.10f a_dydt = %.10f h_old = %.10f ord = %d r_max = %.10f\n",eps_abs,eps_rel,a_y,a_dydt,h_old,ord,r_max);
-    for (int i = 0; i < dim; i++) {
-        printf("  y[%d] = %.10f\n",i,y[i]);
+    printf("    [adjust h] begin\n");
+    for (int i = 0; i < dim; i ++)
+    {
+        printf("      y[%d] = %.10f\n",i,y[i]);
     }
-    for (int i = 0; i < dim; i++) {
-        printf("  y_err[%d] = %.10f\n",i,y_err[i]);
+    for (int i = 0; i < dim; i ++)
+    {
+        printf("      y_err[%d] = %.10f\n",i,y_err[i]);
     }
-    for (int i = 0; i < dim; i++) {
-        printf("  dydt_out[%d] = %.10f\n",i,dydt_out[i]);
+    for (int i = 0; i < dim; i ++)
+    {
+        printf("      dydt_out[%d] = %.10f\n",i,dydt_out[i]);
     }
 
     for(int i=0; i<dim; i++) {
         const double D0 = eps_rel * (a_y * fabs(y[i]) + a_dydt * fabs(h_old * dydt_out[i])) + eps_abs * scale_abs[i];
         const double r  = fabs(y_err[i]) / fabs(D0);
-        printf("  compare r = %.10f r_max = %.10f\n",r,r_max);
+        printf("      compare r = %.10f r_max = %.10f\n",r,r_max);
         r_max = std::max(r, r_max);
     }
 
-    printf("  r_max = %.10f\n",r_max);
+    printf("      r_max = %.10f\n",r_max);
 
     if(r_max > 1.1) {
         /* decrease step, no more than factor of 5, but a fraction S more
@@ -80,14 +76,15 @@ int rk45_gsl_cpu_adjust_h(double y[],double y_err[], double dydt_out[], double* 
 
         *h = r * h_old;
 
-        printf("  decrease by %.10f, h_old is %.10f new h is %.10f\n",r,h_old,*h);
+        printf("      decrease by %.10f, h_old is %.10f new h is %.10f\n", r, h_old, *h);
+        printf("    [adjust h] end\n");
         return -1;
     }
     else if(r_max < 0.5) {
         /* increase step, no more than factor of 5 */
         double r = S / pow(r_max, 1.0/(ord+1.0));
 
-        printf("  r = %.10f\n",r);
+//        printf("  r = %.10f\n",r);
 
         if (r > 5.0)
             r = 5.0;
@@ -97,12 +94,14 @@ int rk45_gsl_cpu_adjust_h(double y[],double y_err[], double dydt_out[], double* 
 
         *h = r * h_old;
 
-        printf("  increase by %.10f, h_old is %.10f new h is %.10f\n",r,h_old,*h);
+        printf("      increase by %.10f, h_old is %.10f new h is %.10f\n", r, h_old, *h);
+        printf("    [adjust h] end\n");
         return 1;
     }
     else {
         /* no change */
         printf("  no change\n");
+        printf("    [adjust h] end\n");
         return 0;
     }
 }
@@ -136,59 +135,55 @@ int rk45_gsl_cpu_step_apply(double t, double h, double y[], double y_err[], doub
     double* k5 = new double[dim]();
     double* k6 = new double[dim]();
 
-    printf("  [step_apply] before\n");
-    printf("    t = %.10f h = %.10f\n",t,h);
-    for (int i = 0; i < dim; i++) {
-        printf("    y[%d] = %.10f\n",i,y[i]);
-    }
-    for (int i = 0; i < dim; i++) {
-        printf("    y_err[%d] = %.10f\n",i,y_err[i]);
-    }
-    for (int i = 0; i < dim; i++) {
-        printf("    dydt_out[%d] = %.10f\n",i,dydt_out[i]);
+    printf("    [step apply] start\n");
+    printf("      t = %.10f h = %.10f\n",t,h);
+    for (int i = 0; i < dim; i ++)
+    {
+        printf("      y[%d] = %.10f\n",i,y[i]);
+        printf("      y_err[%d] = %.10f\n",i,y_err[i]);
+        printf("      dydt_out[%d] = %.10f\n",i,dydt_out[i]);
     }
 
-    printf("  [step_apply] calculate k1 - k6\n");
     /* k1 */
     bool s = function(t,y,k1,dim);
     if(s != 0) return s;
     for (int i = 0; i < dim; i++){
-        printf("    k1[%d] = %.10f\n",i,k1[i]);
+        printf("      k1[%d] = %.10f\n",i,k1[i]);
         y_tmp[i] = y[i] +  ah[0] * h * k1[i];
     }
     /* k2 */
     s = function(t + ah[0] * h, y_tmp,k2,dim);
     if(s != 0) return s;
     for (int i = 0; i < dim; i++){
-        printf("    k2[%d] = %.10f\n",i,k2[i]);
+        printf("      k2[%d] = %.10f\n",i,k2[i]);
         y_tmp[i] = y[i] + h * (b3[0] * k1[i] + b3[1] * k2[i]);
     }
     /* k3 */
     s = function(t + ah[1] * h, y_tmp,k3,dim);
     if(s != 0) return s;
     for (int i = 0; i < dim; i++){
-        printf("    k3[%d] = %.10f\n",i,k3[i]);
+        printf("      k3[%d] = %.10f\n",i,k3[i]);
         y_tmp[i] = y[i] + h * (b4[0] * k1[i] + b4[1] * k2[i] + b4[2] * k3[i]);
     }
     /* k4 */
     s = function(t + ah[2] * h, y_tmp,k4,dim);
     if(s != 0) return s;
     for (int i = 0; i < dim; i++){
-        printf("    k4[%d] = %.10f\n",i,k4[i]);
+        printf("      k4[%d] = %.10f\n",i,k4[i]);
         y_tmp[i] = y[i] + h * (b5[0] * k1[i] + b5[1] * k2[i] + b5[2] * k3[i] + b5[3] * k4[i]);
     }
     /* k5 */
     s = function(t + ah[3] * h, y_tmp,k5,dim);
     if(s != 0) return s;
     for (int i = 0; i < dim; i++){
-        printf("    k5[%d] = %.10f\n",i,k5[i]);
+        printf("      k5[%d] = %.10f\n",i,k5[i]);
         y_tmp[i] = y[i] + h * (b6[0] * k1[i] + b6[1] * k2[i] + b6[2] * k3[i] + b6[3] * k4[i] + b6[4] * k5[i]);
     }
     /* k6 */
     s = function(t + ah[4] * h, y_tmp,k6,dim);
     if(s != 0) return s;
     for (int i = 0; i < dim; i++){
-        printf("    k6[%d] = %.10f\n",i,k6[i]);
+        printf("      k6[%d] = %.10f\n",i,k6[i]);
         y_tmp[i] = y[i] + h * (b6[0] * k1[i] + b6[1] * k2[i] + b6[2] * k3[i] + b6[3] * k4[i] + b6[4] * k5[i]);
     }
     /* final sum */
@@ -203,71 +198,54 @@ int rk45_gsl_cpu_step_apply(double t, double h, double y[], double y_err[], doub
     for (int i = 0; i < dim; i++){
         y_err[i] = h * (ec[1] * k1[i] + ec[3] * k3[i] + ec[4] * k4[i] + ec[5] * k5[i] + ec[6] * k6[i]);
     }
-
-    printf("  [step_apply] after\n");
     for (int i = 0; i < dim; i++) {
-        printf("    y[%d] = %.10f\n",i,y[i]);
+        printf("      y[%d] = %.10f\n",i,y[i]);
     }
     for (int i = 0; i < dim; i++) {
-        printf("    y_err[%d] = %.10f\n",i,y_err[i]);
+        printf("      y_err[%d] = %.10f\n",i,y_err[i]);
     }
     for (int i = 0; i < dim; i++) {
-        printf("    dydt_out[%d] = %.10f\n",i,dydt_out[i]);
+        printf("      dydt_out[%d] = %.10f\n",i,dydt_out[i]);
     }
+    printf("    [step apply] end\n");
     return 0;
 }
 
 int rk45_gsl_cpu_evolve_apply(double* t, double t1, double *h, double y[], const int dim,
                               double eps_abs, double eps_rel, double a_y, double a_dydt, unsigned int ord, double scale_abs[]){
-    const double t0 = *t;
-    double h0 = *h;
+    const double t_0 = *t;
+    double h_0 = *h;
     int step_status;
     int final_step = 0;
-    double dt = t1 - t0;  /* remaining time, possibly less than h */
+    double dt = t1 - t_0;  /* remaining time, possibly less than h */
     double* y0 = new double[dim]();
     double* y_err = new double[dim]();
     double* dydt_out = new double[dim]();
 
-    printf("\n[evolve_apply] before step apply and adjust *h = %.10f h0 = %.10f *t = %.10f t0 = %.10f t1 = %.10f dt = %.10f\n",*h,h0,*t,t0,t1,dt);
+    printf("  [evolve apply] start\n");
 
-    printf("before y0 = y\n");
-    for (int i = 0; i < dim; i++){
-        printf(" y[%d] = %.10f\n",i,y[i]);
-    }
-    for (int i = 0; i < dim; i++){
-        printf(" y0[%d] = %.10f\n",i,y0[i]);
-    }
     for (int i = 0; i < dim; i++) {
         y0[i] = y[i];
-    }
-    printf("after y0 = y\n");
-    for (int i = 0; i < dim; i++){
-        printf(" y[%d] = %.10f\n",i,y[i]);
-    }
-    for (int i = 0; i < dim; i++){
-        printf(" y0[%d] = %.10f\n",i,y0[i]);
     }
 
     int h_adjust_status;
     while(true){
-        if ((dt >= 0.0 && h0 > dt) || (dt < 0.0 && h0 < dt))
+        if ((dt >= 0.0 && h_0 > dt) || (dt < 0.0 && h_0 < dt))
         {
-            h0 = dt;
+            h_0 = dt;
             final_step = 1;
-            printf("    final step = 1 h0 = %.10f\n",h0);
         }
         else
         {
             final_step = 0;
-            printf("    final step = 0\n");
         }
 
-        step_status = rk45_gsl_cpu_step_apply(t0, h0, y, y_err, dydt_out, dim);
+        step_status = rk45_gsl_cpu_step_apply(t_0, h_0, y, y_err, dydt_out, dim);
 
         if (step_status != 0)
         {
-            *h = h0;  /* notify user of step-size which caused the failure */
-            *t = t0;  /* restore original t value */
+            *h = h_0;  /* notify user of step-size which caused the failure */
+            *t = t_0;  /* restore original t value */
             return step_status;
         }
 
@@ -277,67 +255,50 @@ int rk45_gsl_cpu_evolve_apply(double* t, double t1, double *h, double y[], const
         }
         else
         {
-            *t = t0 + h0;
+            *t = t_0 + h_0;
         }
 
+        double h_old = h_0;
 
-        printf("    final step = %d, before h_old = h_0 h_0 = %.10f\n",final_step,h0);
+        printf("    after adjust t = %.10f t_0 = %.10f  h = %.10f h_0 = %.10f h_old = %.10f\n",*t,t_0,*h,h_0,h_old);
+        
+        h_adjust_status = rk45_gsl_cpu_adjust_h(y, y_err, dydt_out, &h_0, dim, eps_abs, eps_rel, a_y, a_dydt, ord, scale_abs);
 
-        double h_old = h0;
-
-        printf("    final step = %d, after h_old = h_0 h_0 = %.10f h_old = %.10f\n",final_step,h0,h_old);
-
-        printf("[evolve_apply] before adjust h0 = %.10f\n",h0);
-        printf("[evolve_apply] before adjust *h = %.10f\n",*h);
-        h_adjust_status = rk45_gsl_cpu_adjust_h(y, y_err, dydt_out, &h0, dim, eps_abs, eps_rel, a_y, a_dydt, ord, scale_abs);
-        printf("[evolve_apply] after adjust h0 = %.10f\n",h0);
-        printf("[evolve_apply] after adjust *h = %.10f\n",*h);
+        printf("    after adjust t = %.10f t_0 = %.10f  h = %.10f h_0 = %.10f h_old = %.10f\n",*t,t_0,*h,h_0,h_old);
 
         if (h_adjust_status == -1)
         {
             double t_curr = *t;
-            double t_next = (*t) + h0;
+            double t_next = (*t) + h_0;
 
-            if (fabs(h0) < fabs(h_old) && t_next != t_curr)
+            if (fabs(h_0) < fabs(h_old) && t_next != t_curr)
             {
-                /* Step was decreased. Undo step, and try again with new h0. */
-                printf("step decreased, before y = y0\n");
-                for (int i = 0; i < dim; i++){
-                    printf(" y[%d] = %.10f\n",i,y[i]);
-                }
-                for (int i = 0; i < dim; i++){
-                    printf(" y0[%d] = %.10f\n",i,y0[i]);
-                }
+                /* Step was decreased. Undo step, and try again with new h_0. */
+                printf("  [evolve apply] step decreased, y = y0\n");
                 for (int i = 0; i < dim; i++) {
                     y[i] = y0[i];
-                }
-                printf("step decreased, after y = y0\n");
-                for (int i = 0; i < dim; i++){
-                    printf(" y[%d] = %.10f\n",i,y[i]);
-                }
-                for (int i = 0; i < dim; i++){
-                    printf(" y0[%d] = %.10f\n",i,y0[i]);
                 }
             }
             else
             {
-                h0 = h_old; /* keep current step size */
+                printf("  [evolve apply] step decreased h_0 = h_old\n");
+                h_0 = h_old; /* keep current step size */
                 break;
             }
         }
         else{
-            printf("step increased or no change\n");
-            for (int i = 0; i < dim; i++){
-                printf(" y[%d] = %.10f\n",i,y[i]);
-            }
-            for (int i = 0; i < dim; i++){
-                printf(" y0[%d] = %.10f\n",i,y0[i]);
-            }
+            printf("  [evolve apply] step increased or no change\n");
             break;
         }
     }
-    *h = h0;  /* suggest step size for next time-step */
-    printf("[evolve_apply] after step apply and adjust *h = %.10f h0 = %.10f *t = %.10f t0 = %.10f t1 = %.10f dt = %.10f\n",*h,h0,*t,t0,t1,dt);
+    *h = h_0;  /* suggest step size for next time-step */
+    printf("    t = %.10f t_0 = %.10f  h = %.10f h_0 = %.10f dt = %.10f\n",*t,t_0,*h,h_0,dt);
+    printf("    ");
+    for (int i = 0; i < dim; i++){
+        printf("y[%d] = %.10f\t",i,y[i]);
+    }
+    printf("\n");
+    printf("  [evolve apply] end\n");
     return step_status;
 }
 
@@ -363,12 +324,20 @@ bool rk45_gsl_cpu_simulate(){
     double t1 = 2.0;
     double h = 0.2;
 
+//    auto start_cpu = std::chrono::high_resolution_clock::now();
+    int step_count = 0;
     while(t < t1){
+        printf ("\n[main cpu] step %d\n", step_count);
         rk45_gsl_cpu_evolve_apply(&t, t1, &h, y, dim, eps_abs, eps_rel, a_y, a_dydt, ord, scale_abs);
-//         1 dim
-//        printf ("after evolve: %.10f %.10f %.10f\n", t, h, y[0]);
-        // 2 dim
-        printf ("after evolve: %.10f %.10f %.10f %.10f\n", t, h, y[0], y[1]);
+        printf ("[main cpu] step %d t = %.10f \t  h = %.10f\n", step_count, t, h);
+        for (int i = 0; i < dim; i++){
+            printf("\t y = %.10f",y[i]);
+        }
+        printf("\n");
+        step_count++;
     }
+//    auto stop_cpu = std::chrono::high_resolution_clock::now();
+//    auto duration_cpu = std::chrono::duration_cast<std::chrono::microseconds>(stop_cpu - start_cpu);
+//    printf("cpu time: %d micro seconds which is %.10f seconds\n",duration_cpu.count(),(duration_cpu.count()/1e6));
     return true;
 }
