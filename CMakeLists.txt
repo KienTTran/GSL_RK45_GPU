@@ -8,3 +8,4 @@ set_target_properties(
         PROPERTIES
         CUDA_SEPARABLE_COMPILATION ON)
 set_target_properties(rk45_cuda PROPERTIES CUDA_ARCHITECTURES "52")
+#set_target_properties(rk45_cuda PROPERTIES CUDA_CODE "52")
