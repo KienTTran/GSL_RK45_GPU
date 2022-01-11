@@ -63,7 +63,7 @@ void rk45_gsl_gpu_adjust_h(double eps_abs, double eps_rel, double a_y, double a_
 //        printf("      dydt_out[%d] = %.10f\n",i,dydt_out[i]);
 //    }
 
-    double r_max = 0.0;
+    double r_max = 2.2250738585072014e-308;
     for (int i = 0; i < dim; i ++)
     {
         const double D0 = eps_rel * (a_y * fabs(y[i]) + a_dydt * fabs((h_old) * dydt_out[i])) + eps_abs * scale_abs[i];

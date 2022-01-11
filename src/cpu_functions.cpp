@@ -41,7 +41,7 @@ int rk45_gsl_cpu_adjust_h(double y[],double y_err[], double dydt_out[], double* 
     const double S = 0.9;
     const double h_old = *h;
 
-    double r_max = DBL_MIN;
+    double r_max = 2.2250738585072014e-308;
 
 //    printf("    [adjust h] begin\n");
 //    for (int i = 0; i < dim; i ++)
