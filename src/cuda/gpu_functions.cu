@@ -362,47 +362,47 @@ bool rk45_gsl_gpu_simulate(){
         cudaMalloc((int**)&h_adjust_status[i], sizeof(int));
     }
 
-//    cudaMallocManaged(&y, dim * sizeof(double));
-//    cudaMallocManaged(&y_0, dim * sizeof(double));
-//    cudaMallocManaged(&y_tmp, dim * sizeof(double));
-//    cudaMallocManaged(&y_err, dim * sizeof(double));
-//    cudaMallocManaged(&dydt_out, dim * sizeof(double));
-//    cudaMallocManaged(&scale_abs, dim * sizeof(double));
-//    cudaMallocManaged(&k1, dim * sizeof(double));
-//    cudaMallocManaged(&k2, dim * sizeof(double));
-//    cudaMallocManaged(&k3, dim * sizeof(double));
-//    cudaMallocManaged(&k4, dim * sizeof(double));
-//    cudaMallocManaged(&k5, dim * sizeof(double));
-//    cudaMallocManaged(&k6, dim * sizeof(double));
-//    cudaMallocManaged(&temp, dim * sizeof(double));
-    cudaMallocManaged((double***)&y, gpu_thread * dim * sizeof(double*));
-    cudaMallocManaged((double***)&y_0, gpu_thread * dim * sizeof(double*));
-    cudaMallocManaged((double***)&y_tmp, gpu_thread * dim * sizeof(double*));
-    cudaMallocManaged((double***)&y_err, gpu_thread * dim * sizeof(double*));
-    cudaMallocManaged((double***)&dydt_out, gpu_thread * dim * sizeof(double*));
-    cudaMallocManaged((double***)&scale_abs, gpu_thread * dim * sizeof(double*));
-    cudaMallocManaged((double***)&k1, gpu_thread * dim * sizeof(double*));
-    cudaMallocManaged((double***)&k2, gpu_thread * dim * sizeof(double*));
-    cudaMallocManaged((double***)&k3, gpu_thread * dim * sizeof(double*));
-    cudaMallocManaged((double***)&k4, gpu_thread * dim * sizeof(double*));
-    cudaMallocManaged((double***)&k5, gpu_thread * dim * sizeof(double*));
-    cudaMallocManaged((double***)&k6, gpu_thread * dim * sizeof(double*));
-    cudaMallocManaged((double***)&temp, gpu_thread * dim * sizeof(double*));
+//    cudaMalloc(&y, dim * sizeof(double));
+//    cudaMalloc(&y_0, dim * sizeof(double));
+//    cudaMalloc(&y_tmp, dim * sizeof(double));
+//    cudaMalloc(&y_err, dim * sizeof(double));
+//    cudaMalloc(&dydt_out, dim * sizeof(double));
+//    cudaMalloc(&scale_abs, dim * sizeof(double));
+//    cudaMalloc(&k1, dim * sizeof(double));
+//    cudaMalloc(&k2, dim * sizeof(double));
+//    cudaMalloc(&k3, dim * sizeof(double));
+//    cudaMalloc(&k4, dim * sizeof(double));
+//    cudaMalloc(&k5, dim * sizeof(double));
+//    cudaMalloc(&k6, dim * sizeof(double));
+//    cudaMalloc(&temp, dim * sizeof(double));
+    cudaMalloc((double***)&y, gpu_thread * dim * sizeof(double*));
+    cudaMalloc((double***)&y_0, gpu_thread * dim * sizeof(double*));
+    cudaMalloc((double***)&y_tmp, gpu_thread * dim * sizeof(double*));
+    cudaMalloc((double***)&y_err, gpu_thread * dim * sizeof(double*));
+    cudaMalloc((double***)&dydt_out, gpu_thread * dim * sizeof(double*));
+    cudaMalloc((double***)&scale_abs, gpu_thread * dim * sizeof(double*));
+    cudaMalloc((double***)&k1, gpu_thread * dim * sizeof(double*));
+    cudaMalloc((double***)&k2, gpu_thread * dim * sizeof(double*));
+    cudaMalloc((double***)&k3, gpu_thread * dim * sizeof(double*));
+    cudaMalloc((double***)&k4, gpu_thread * dim * sizeof(double*));
+    cudaMalloc((double***)&k5, gpu_thread * dim * sizeof(double*));
+    cudaMalloc((double***)&k6, gpu_thread * dim * sizeof(double*));
+    cudaMalloc((double***)&temp, gpu_thread * dim * sizeof(double*));
     for (int i = 0; i < gpu_thread; i++)
     {
-        cudaMallocManaged((double**)&y[i], dim * sizeof(double));
-        cudaMallocManaged((double**)&y_0[i], dim * sizeof(double));
-        cudaMallocManaged((double**)&y_tmp[i], dim * sizeof(double));
-        cudaMallocManaged((double**)&y_err[i], dim * sizeof(double));
-        cudaMallocManaged((double**)&dydt_out[i], dim * sizeof(double));
-        cudaMallocManaged((double**)&scale_abs[i], dim * sizeof(double));
-        cudaMallocManaged((double**)&k1[i], dim * sizeof(double));
-        cudaMallocManaged((double**)&k2[i], dim * sizeof(double));
-        cudaMallocManaged((double**)&k3[i], dim * sizeof(double));
-        cudaMallocManaged((double**)&k4[i], dim * sizeof(double));
-        cudaMallocManaged((double**)&k5[i], dim * sizeof(double));
-        cudaMallocManaged((double**)&k6[i], dim * sizeof(double));
-        cudaMallocManaged((double**)&temp[i], dim * sizeof(double));
+        cudaMalloc((double**)&y[i], dim * sizeof(double));
+        cudaMalloc((double**)&y_0[i], dim * sizeof(double));
+        cudaMalloc((double**)&y_tmp[i], dim * sizeof(double));
+        cudaMalloc((double**)&y_err[i], dim * sizeof(double));
+        cudaMalloc((double**)&dydt_out[i], dim * sizeof(double));
+        cudaMalloc((double**)&scale_abs[i], dim * sizeof(double));
+        cudaMalloc((double**)&k1[i], dim * sizeof(double));
+        cudaMalloc((double**)&k2[i], dim * sizeof(double));
+        cudaMalloc((double**)&k3[i], dim * sizeof(double));
+        cudaMalloc((double**)&k4[i], dim * sizeof(double));
+        cudaMalloc((double**)&k5[i], dim * sizeof(double));
+        cudaMalloc((double**)&k6[i], dim * sizeof(double));
+        cudaMalloc((double**)&temp[i], dim * sizeof(double));
     }
 
 
