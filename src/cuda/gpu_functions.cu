@@ -1,6 +1,7 @@
 #include <cuda_runtime.h>
 #include <iostream>
 #include <chrono>
+#include <cuda_profiler_api.h>
 
 __device__
 void function(double t, const double y[], double dydt[], int index, const int dim){
@@ -40,7 +41,7 @@ void rk45_gsl_gpu_adjust_h(double eps_abs, double eps_rel, double a_y, double a_
      * The yp method is the standard method with a_y=0, a_dydt=1.
      */
     const double S = 0.9;
-    double h_old;
+    static double h_old;
     if(final_step){
         h_old = h_0;
     }
@@ -224,86 +225,90 @@ void rk45_gsl_gpu_evolve_apply(double **t, double **t1, double **h,
                                double *y[], double *y_0[], double *y_tmp[], double *y_err[], double *dydt_out[],
                                double *k1[], double *k2[], double *k3[], double *k4[], double *k5[], double *k6[], double *temp[],
                                int **h_adjust_status,
-                               const int dim){
-    int index = blockIdx.x * blockDim.x + threadIdx.x;
+                               int thread_number,const int dim){
+    int index_gpu = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x * gridDim.x;
 
-    const double t_0 = *t[index];
-    double h_0 = *h[index];
-    double dt = *t1[index] - t_0;
+    for(int index = index_gpu; index < thread_number; index += stride){
+        while(*t[index] < *t1[index]){
+            const double t_0 = *t[index];
+            double h_0 = *h[index];
+            double dt = *t1[index] - t_0;
 
 //    printf("\n  [evolve apply] index = %d start\n",index);
 
-    for (int i = 0; i < dim; i ++){
-        y_0[index][i] = y[index][i];
-    }
+            for (int i = 0; i < dim; i ++){
+                y_0[index][i] = y[index][i];
+            }
 
-    int final_step = 0;
+            int final_step = 0;
 
-    while(true){
-        if ((dt >= 0.0 && h_0 > dt) || (dt < 0.0 && h_0 < dt)) {
-            h_0 = dt;
-            final_step = 1;
-        } else {
-            final_step = 0;
-        }
+            while(true){
+                if ((dt >= 0.0 && h_0 > dt) || (dt < 0.0 && h_0 < dt)) {
+                    h_0 = dt;
+                    final_step = 1;
+                } else {
+                    final_step = 0;
+                }
 
-        rk45_gsl_gpu_step_apply(t_0, h_0,
-                                y[index], y_tmp[index], y_err[index], dydt_out[index],
-                                k1[index], k2[index], k3[index], k4[index], k5[index], k6[index], temp[index],
-                                index,dim);
+                rk45_gsl_gpu_step_apply(t_0, h_0,
+                                        y[index], y_tmp[index], y_err[index], dydt_out[index],
+                                        k1[index], k2[index], k3[index], k4[index], k5[index], k6[index], temp[index],
+                                        index,dim);
 //        cudaDeviceSynchronize();
 
-        if (final_step) {
-            *t[index] = *t1[index];
-        } else {
-            *t[index] = t_0 + h_0;
-        }
+                if (final_step) {
+                    *t[index] = *t1[index];
+                } else {
+                    *t[index] = t_0 + h_0;
+                }
 
-        double h_old = h_0;
+                double h_old = h_0;
 
 //        printf("    before adjust t = %.10f t_0 = %.10f  h = %.10f h_0 = %.10f h_old = %.10f\n",*t[index],t_0,*h[index],h_0,h_old);
 
-        rk45_gsl_gpu_adjust_h(eps_abs, eps_rel, a_y, a_dydt, ord, scale_abs[index],
-                              h[index], h_0, final_step,
-                              y[index], y_err[index], dydt_out[index],
-                              h_adjust_status[index], index, dim);
+                rk45_gsl_gpu_adjust_h(eps_abs, eps_rel, a_y, a_dydt, ord, scale_abs[index],
+                                      h[index], h_0, final_step,
+                                      y[index], y_err[index], dydt_out[index],
+                                      h_adjust_status[index], index, dim);
 //        cudaDeviceSynchronize();
 
-        //Extra step to get data from *h
-        h_0 = *h[index];
+                //Extra step to get data from *h
+                h_0 = *h[index];
 
 //        printf("    after adjust t = %.10f t_0 = %.10f  h = %.10f h_0 = %.10f h_old = %.10f\n",*t[index],t_0,*h[index],h_0,h_old);
 
-        if (*h_adjust_status[index] == -1)
-        {
-            double t_curr = (*t[index]);
-            double t_next = (*t[index]) + h_0;
+                if (*h_adjust_status[index] == -1)
+                {
+                    double t_curr = (*t[index]);
+                    double t_next = (*t[index]) + h_0;
 
-            if (fabs(h_0) < fabs(h_old) && t_next != t_curr) {
-                /* Step was decreased. Undo step, and try again with new h0. */
+                    if (fabs(h_0) < fabs(h_old) && t_next != t_curr) {
+                        /* Step was decreased. Undo step, and try again with new h0. */
 //                printf("  [evolve apply] index = %d step decreased, y = y0\n",index);
-                for (int i = 0; i < dim; i++) {
-                    y[index][i] = y_0[index][i];
-                }
-            } else {
+                        for (int i = 0; i < dim; i++) {
+                            y[index][i] = y_0[index][i];
+                        }
+                    } else {
 //                printf("  [evolve apply] index = %d step decreased h_0 = h_old\n",index);
-                h_0 = h_old; /* keep current step size */
-                break;
-            }
-        }
-        else{
+                        h_0 = h_old; /* keep current step size */
+                        break;
+                    }
+                }
+                else{
 //            printf("  [evolve apply] index = %d step increased or no change\n",index);
-            break;
-        }
-    }
-    *h[index] = h_0;  /* suggest step size for next time-step */
+                    break;
+                }
+            }
+            *h[index] = h_0;  /* suggest step size for next time-step */
 //    printf("    index = %d t = %.10f t_0 = %.10f  h = %.10f h_0 = %.10f\n",index,*t[index],t_0,*h[index],h_0);
 //    for (int i = 0; i < dim; i++){
 //        printf("    index = %d y[%d][%d] = %.10f\n",index,index,i,y[index][i]);
 //    }
 //    printf("  [evolve apply] index = %d end\n",index);
-    cudaDeviceSynchronize();
+//    cudaDeviceSynchronize();
+        }
+    }
     return;
 }
 
@@ -314,30 +319,30 @@ bool rk45_gsl_gpu_simulate(){
     const int dim = 2;
 
     //Default parameters for RK45 in GSL
-    double eps_abs = 1e-6;
-    double eps_rel = 0.0;
-    double a_y = 1.0;
-    double a_dydt = 0.0;
-    unsigned int ord = 5;
+    static double eps_abs = 1e-6;
+    static double eps_rel = 0.0;
+    static double a_y = 1.0;
+    static double a_dydt = 0.0;
+    static unsigned int ord = 5;
     //End default parameters for RK45
 
-    double** t1;
-    double** t;
-    double** h;
-    int** h_adjust_status;
-    double** y;
-    double** y_0;
-    double** y_tmp;
-    double** y_err;
-    double** dydt_out;
-    double** scale_abs;
-    double** k1;
-    double** k2;
-    double** k3;
-    double** k4;
-    double** k5;
-    double** k6;
-    double** temp;
+    static double** t1;
+    static double** t;
+    static double** h;
+    static int** h_adjust_status;
+    static double** y;
+    static double** y_0;
+    static double** y_tmp;
+    static double** y_err;
+    static double** dydt_out;
+    static double** scale_abs;
+    static double** k1;
+    static double** k2;
+    static double** k3;
+    static double** k4;
+    static double** k5;
+    static double** k6;
+    static double** temp;
 
     // Allocate Unified Memory – accessible from CPU or GPU
 
@@ -408,7 +413,7 @@ bool rk45_gsl_gpu_simulate(){
         *t[i] = 0.0;
         *h_adjust_status[i] = 999;
         for(int j = 0; j < dim; j++){
-            y[i][j] = 0.5 * i; // y_0
+            y[i][j] = 0.5; // y_0
             y_0[i][j] = 0.0;
             y_tmp[i][j] = 0.0;
             y_err[i][j] = 0.0;
@@ -425,30 +430,27 @@ bool rk45_gsl_gpu_simulate(){
     }
 
     auto start_gpu = std::chrono::high_resolution_clock::now();
-    for(int thread_index = 0; thread_index < gpu_thread; thread_index++)
-    {
-        while(*t[thread_index] < *t1[thread_index])
-        {
-            rk45_gsl_gpu_evolve_apply<<<gpu_thread,1>>>(t, t1, h,
-                                               eps_abs, eps_rel, a_y, a_dydt, ord, scale_abs,
-                                               y, y_0, y_tmp, y_err, dydt_out,
-                                               k1, k2, k3, k4, k5, k6, temp, h_adjust_status,
-                                               dim);
-            cudaDeviceSynchronize();
-        }
-    }
-    for(int thread = 0; thread < gpu_thread; thread++){
-        for(int index = 0; index < dim; index++){
-            printf("thread %d t[%d][%d] = %.10f h[%d][%d] = %.10f y[%d][%d] = %.10f\n",thread,
-                   thread,index,t[thread][index],
-                   thread,index,h[thread][index],
-                   thread,index,y[thread][index]);
-        }
-        printf("\n");
-    }
+    cudaProfilerStart();
+    rk45_gsl_gpu_evolve_apply<<<gpu_thread,1>>>(t, t1, h,
+                                                eps_abs, eps_rel, a_y, a_dydt, ord, scale_abs,
+                                                y, y_0, y_tmp, y_err, dydt_out,
+                                                k1, k2, k3, k4, k5, k6, temp, h_adjust_status,
+                                                gpu_thread,dim);
+
+    cudaProfilerStop();
+    cudaDeviceSynchronize();
+//    for(int thread = 0; thread < gpu_thread; thread++){
+//        for(int index = 0; index < dim; index++){
+//            printf("thread %d t[%d][%d] = %.10f h[%d][%d] = %.10f y[%d][%d] = %.10f\n",thread,
+//                   thread,index,t[thread][index],
+//                   thread,index,h[thread][index],
+//                   thread,index,y[thread][index]);
+//        }
+//        printf("\n");
+//    }
     auto stop_gpu = std::chrono::high_resolution_clock::now();
     auto duration_gpu = std::chrono::duration_cast<std::chrono::microseconds>(stop_gpu - start_gpu);
-    printf("gpu time: %d micro seconds which is %.10f seconds\n",duration_gpu.count(),(duration_gpu.count()/1e6));
+    printf("gpu time: %lld micro seconds which is %.10f seconds\n",duration_gpu.count(),(duration_gpu.count()/1e6));
     // Free memory
     cudaFree(t1);
     cudaFree(t);
