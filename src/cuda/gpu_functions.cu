@@ -350,16 +350,16 @@ bool rk45_gsl_gpu_simulate(){
 //    cudaMallocManaged(&t, sizeof(double));
 //    cudaMallocManaged(&h, sizeof(double));
 //    cudaMallocManaged(&h_adjust_status, sizeof(int));
-    cudaMallocManaged((double***)&t1, gpu_thread * sizeof(double*));
-    cudaMallocManaged((double***)&t, gpu_thread * sizeof(double*));
-    cudaMallocManaged((double***)&h, gpu_thread * sizeof(double*));
-    cudaMallocManaged((int***)&h_adjust_status, gpu_thread * sizeof(int*));
+    cudaMalloc((double***)&t1, gpu_thread * sizeof(double*));
+    cudaMalloc((double***)&t, gpu_thread * sizeof(double*));
+    cudaMalloc((double***)&h, gpu_thread * sizeof(double*));
+    cudaMalloc((int***)&h_adjust_status, gpu_thread * sizeof(int*));
     for (int i = 0; i < gpu_thread; i++)
     {
-        cudaMallocManaged((double**)&t1[i], sizeof(double));
-        cudaMallocManaged((double**)&t[i], sizeof(double));
-        cudaMallocManaged((double**)&h[i], sizeof(double));
-        cudaMallocManaged((int**)&h_adjust_status[i], sizeof(int));
+        cudaMalloc((double**)&t1[i], sizeof(double));
+        cudaMalloc((double**)&t[i], sizeof(double));
+        cudaMalloc((double**)&h[i], sizeof(double));
+        cudaMalloc((int**)&h_adjust_status[i], sizeof(int));
     }
 
 //    cudaMallocManaged(&y, dim * sizeof(double));
