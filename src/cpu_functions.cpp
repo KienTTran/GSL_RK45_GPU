@@ -182,12 +182,9 @@ int rk45_gsl_cpu_step_apply(double t, double h, double y[], double y_err[], doub
     /* k6 */
     s = function(t + ah[4] * h, y_tmp,k6,dim);
     if(s != 0) return s;
-    for (int i = 0; i < dim; i++){
-//        printf("      k6[%d] = %.10f\n",i,k6[i]);
-        y_tmp[i] = y[i] + h * (b6[0] * k1[i] + b6[1] * k2[i] + b6[2] * k3[i] + b6[3] * k4[i] + b6[4] * k5[i]);
-    }
     /* final sum */
     for (int i = 0; i < dim; i++){
+//        printf("      k6[%d] = %.10f\n",i,k6[i]);
         const double d_i = c1 * k1[i] + c3 * k3[i] + c4 * k4[i] + c5 * k5[i] + c6 * k6[i];
         y[i] += h * d_i;
     }
@@ -324,20 +321,20 @@ bool rk45_gsl_cpu_simulate(){
     static double t1 = 2.0;
     static double h = 0.2;
 
+    printf("[main] start\n");
     auto start_cpu = std::chrono::high_resolution_clock::now();
-    int step_count = 0;
+//    int step_count = 0;
     while(t < t1){
 //        printf ("\n[main cpu] step %d\n", step_count);
         rk45_gsl_cpu_evolve_apply(&t, t1, &h, y, dim, eps_abs, eps_rel, a_y, a_dydt, ord, scale_abs);
-        step_count++;
+//        step_count++;
     }
-//    printf ("[main cpu] step %d t = %.10f \t  h = %.10f\n", step_count, t, h);
-//    for (int i = 0; i < dim; i++){
-//        printf("\t y = %.10f",y[i]);
-//    }
-//    printf("\n");
     auto stop_cpu = std::chrono::high_resolution_clock::now();
     auto duration_cpu = std::chrono::duration_cast<std::chrono::microseconds>(stop_cpu - start_cpu);
     printf("cpu time: %lld micro seconds which is %.10f seconds\n",duration_cpu.count(),(duration_cpu.count()/1e6));
+    for (int i = 0; i < dim; i++){
+        printf("y[%d] = %.10f\n",i,y[i]);
+    }
+    printf("\n");
     return true;
 }
