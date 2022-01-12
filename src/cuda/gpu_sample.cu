@@ -12,49 +12,87 @@
 // nvcc -o example example.cu
 //
 
+//
+// A function marked __global__
+// runs on the GPU but can be called from
+// the CPU.
+//
+// This function multiplies the elements of an array
+// of ints by 2.
+//
+// The entire computation can be thought of as running
+// with one thread per array element with blockIdx.x
+// identifying the thread.
+//
+// The comparison i<N is because often it isn't convenient
+// to have an exact 1-1 correspondence between threads
+// and array elements. Not strictly necessary here.
+//
+// Note how we're mixing GPU and CPU code in the same source
+// file. An alternative way to use CUDA is to keep
+// C/C++ code separate from CUDA code and dynamically
+// compile and load the CUDA code at runtime, a little
+// like how you compile and load OpenGL shaders from
+// C/C++ code.
+//
 
-#include <iostream>
-#include <math.h>
+#define N 1
 
-#define N 100
-
-// Kernel function to add the elements of two arrays
 __global__
-void add(int n, float *x, float *y)
-{
-    for (int i = 0; i < n; i++)
-        y[i] = x[i] + y[i];
+void add(int *a, int *b) {
+    int i = threadIdx.x;
+    if (i<N) {
+        b[i] = 2*a[i];
+    }
 }
 
-int test_cuda_1()
-{
-    float *x, *y;
+int test_cuda_1() {
+    //
+    // Create int arrays on the CPU.
+    // ('h' stands for "host".)
+    //
+    int ha[N], hb[N];
 
-    // Allocate Unified Memory – accessible from CPU or GPU
-    cudaMallocManaged(&x, N*sizeof(float));
-    cudaMallocManaged(&y, N*sizeof(float));
+    //
+    // Create corresponding int arrays on the GPU.
+    // ('d' stands for "device".)
+    //
+    int *da, *db;
+    cudaMalloc((void **)&da, N*sizeof(int));
+    cudaMalloc((void **)&db, N*sizeof(int));
 
-    // initialize x and y arrays on the host
-    for (int i = 0; i < N; i++) {
-        x[i] = 1.0f;
-        y[i] = 2.0f;
+    //
+    // Initialise the input data on the CPU.
+    //
+    for (int i = 0; i<N; ++i) {
+        ha[i] = i;
     }
 
-    // Run kernel on 1M elements on the GPU
-    add<<<1, 1>>>(N, x, y);
+    //
+    // Copy input data to array on GPU.
+    //
+    cudaMemcpy(da, ha, N*sizeof(int), cudaMemcpyHostToDevice);
 
-    // Wait for GPU to finish before accessing on host
-    cudaDeviceSynchronize();
+    //
+    // Launch GPU code with N threads, one per
+    // array element.
+    //
+    add<<<N, 1>>>(da, db);
 
-    // Check for errors (all values should be 3.0f)
-    float maxError = 0.0f;
-    for (int i = 0; i < N; i++)
-        maxError = fmax(maxError, fabs(y[i]-3.0f));
-    std::cout << "Max error: " << maxError << std::endl;
+    //
+    // Copy output array from GPU back to CPU.
+    //
+    cudaMemcpy(hb, db, N*sizeof(int), cudaMemcpyDeviceToHost);
 
-    // Free memory
-    cudaFree(x);
-    cudaFree(y);
+    for (int i = 0; i<N; ++i) {
+        printf("%d\n", hb[i]);
+    }
+
+    //
+    // Free up the arrays on the GPU.
+    //
+    cudaFree(da);
+    cudaFree(db);
 
     return 0;
 }
