@@ -5,8 +5,8 @@
 #include <chrono>
 int main()
 {
-    int threads = 1;
-    int display = 1;
+    int threads = 100000;
+    int display = 10;
 
 //    std::cout << "Enter number of ODE equations to run: " << std::endl;
 //    std::cin >> threads;
@@ -17,11 +17,14 @@ int main()
 #ifdef GSL_ENABLE
     rk45_gsl_simulate(threads,display);
 #endif
-//    std::cout << "Sleep for 5s before running on GPU " << std::endl;
+    rk45_cpu_simulate(threads,display);
+//    std::cout << "Sleep for 1s before running on GPU " << std::endl;
 //    std::this_thread::sleep_for(std::chrono::milliseconds(5000) );
-    std::cout << "Running on GPU" << std::endl;
+    std::cout << "Performing test 1 on GPU" << std::endl;
     test_cuda_1();
+    std::cout << "Performing test 2 on GPU" << std::endl;
     test_cuda_2();
+    std::cout << "Running on GPU" << std::endl;
     rk45_gpu_simulate(threads,display);
 
     return 0;

@@ -30,41 +30,45 @@ int odefunc (double t, const double y[], double dydt[], void *params)
 
 int * jac;
 
-#define DIMS 2
+#define DIM 2
 
 bool rk45_gsl_simulate(const int cpu_threads, const int display_numbers){
 
     auto start = std::chrono::high_resolution_clock::now();
     // Define GSL odeiv parameters
     const gsl_odeiv_step_type * step_type = gsl_odeiv_step_rkf45;
-    gsl_odeiv_step * step = gsl_odeiv_step_alloc (step_type, DIMS);
+    gsl_odeiv_step * step = gsl_odeiv_step_alloc (step_type, DIM);
     gsl_odeiv_control * control = gsl_odeiv_control_y_new (1e-6, 0.0);
-    gsl_odeiv_evolve * evolve = gsl_odeiv_evolve_alloc (DIMS);
-    gsl_odeiv_system sys = {odefunc, NULL, DIMS, NULL};
+    gsl_odeiv_evolve * evolve = gsl_odeiv_evolve_alloc (DIM);
+    gsl_odeiv_system sys = {odefunc, NULL, DIM, NULL};
 
-    double t[cpu_threads];
-    double t_target[cpu_threads];
-    double h[cpu_threads];
-    //1 dimension
-//    double y[1] = {0.5};
-    //2 dimension
-    double y[cpu_threads][DIMS];
+    double *t = new double[cpu_threads]();
+    double *t_target = new double[cpu_threads]();
+    double *h = new double[cpu_threads]();
+    double **y = new double*[cpu_threads]();
+    for (int i = 0; i < cpu_threads; i++)
+    {
+        y[i] = new double[DIM];
+    }
+
+    for(int i = 0; i < cpu_threads; i++){
+        for(int j = 0; j < DIM; j++){
+            y[i][j] = 0.5;
+        }
+        t[i] = 0.0;
+        t_target[i] = 2.0;
+        h[i] = 0.2;
+    }
 
     //Integration up to intervention
     int status(GSL_SUCCESS);
 
     auto stop = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-    printf("Time for allocate mem on CPU: %lld micro seconds which is %.10f seconds\n",duration.count(),(duration.count()/1e6));
+    printf("[GSL] Time for allocate mem on CPU: %lld micro seconds which is %.10f seconds\n",duration.count(),(duration.count()/1e6));
 
     start = std::chrono::high_resolution_clock::now();
     for(int i = 0; i < cpu_threads; i++){
-        for(int j = 0; j < DIMS; j++){
-            y[i][j] = 0.5;
-        }
-        t[i] = 0.0;
-        t_target[i] = 2.0;
-        h[i] = 0.2;
         while (t[i] < t_target[i]) {
             status = gsl_odeiv_evolve_apply (evolve,control,step,&sys,&t[i],t_target[i],&h[i],y[i]);
             //1 dimension
@@ -74,11 +78,10 @@ bool rk45_gsl_simulate(const int cpu_threads, const int display_numbers){
                 break;
             }
         }
-//        printf("%d t = %.10f h = %.10f y[0] = %.10f y[1] = %.10f\n",i,t[i], h[i], y[i][0], y[i][1]);
     }
     stop = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-    printf("Time for ODE on CPU: %lld micro seconds which is %.10f seconds\n",duration.count(),(duration.count()/1e6));
+    printf("[GSL] Time for ODE on CPU: %lld micro seconds which is %.10f seconds\n",duration.count(),(duration.count()/1e6));
 
     start = std::chrono::high_resolution_clock::now();
     std::random_device rd; // obtain a random number from hardware
@@ -86,15 +89,25 @@ bool rk45_gsl_simulate(const int cpu_threads, const int display_numbers){
     std::uniform_int_distribution<> distr(0, cpu_threads); // define the range
 
     for(int i = 0; i < display_numbers; i++) {
-        int random_index = distr(gen);
-        for(int index = 0; index < DIMS; index++){
-            printf("thread %d y[%d][%d] = %.10f\n",random_index,random_index,index,y[random_index][index]);
+        int random_index = 0;
+        if(display_numbers > 1){
+            //random_index = 0 + (rand() % static_cast<int>(gpu_threads - 0 + 1))
+            random_index = distr(gen);
         }
-        printf("\n");
+        else{
+            random_index = 0;
+        }
+        for(int index = 0; index < DIM; index++){
+            printf("[GSL] Thread %d y[%d][%d] = %.10f\n",random_index,random_index,index,y[random_index][index]);
+        }
     }
     stop = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-    printf("Time for display random results on CPU: %lld micro seconds which is %.10f seconds\n",duration.count(),(duration.count()/1e6));
-
+    printf("[GSL] Time for display random results on CPU: %lld micro seconds which is %.10f seconds\n",duration.count(),(duration.count()/1e6));
+    printf("\n");
+    free(t);
+    free(t_target);
+    free(h);
+    free(y);
     return 0;
 }

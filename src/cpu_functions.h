@@ -12,6 +12,6 @@
 #ifdef GSL_ENABLE
     bool rk45_gsl_simulate(const int cpu_threads,const int display_numbers);
 #endif
-bool rk45_cpu_simulate(int numbers);
+bool rk45_cpu_simulate(const int cpu_threads,const int display_numbers);
 
 #endif

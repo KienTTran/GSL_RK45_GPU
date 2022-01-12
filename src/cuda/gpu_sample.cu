@@ -14,55 +14,55 @@
 // nvcc -o example example.cu
 //
 
-#define N 10
+#define N0 10
 
 __global__
 void add(int *a, int *b) {
     int i = blockIdx.x;
-    if (i<N) {
+    if (i<N0) {
         b[i] = 2*a[i];
     }
 }
 
-int test_cuda_1() {
+int test_cuda_0() {
     //
     // Create int arrays on the CPU.
     // ('h' stands for "host".)
     //
-    int ha[N], hb[N];
+    int ha[N0], hb[N0];
 
     //
     // Create corresponding int arrays on the GPU.
     // ('d' stands for "device".)
     //
     int *da, *db;
-    cudaMalloc((void **)&da, N*sizeof(int));
-    cudaMalloc((void **)&db, N*sizeof(int));
+    cudaMalloc((void **)&da, N0*sizeof(int));
+    cudaMalloc((void **)&db, N0*sizeof(int));
 
     //
     // Initialise the input data on the CPU.
     //
-    for (int i = 0; i<N; ++i) {
+    for (int i = 0; i<N0; ++i) {
         ha[i] = i;
     }
 
     //
     // Copy input data to array on GPU.
     //
-    cudaMemcpy(da, ha, N*sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(da, ha, N0*sizeof(int), cudaMemcpyHostToDevice);
 
     //
     // Launch GPU code with N threads, one per
     // array element.
     //
-    add<<<N, 1>>>(da, db);
+    add<<<N0, 1>>>(da, db);
 
     //
     // Copy output array from GPU back to CPU.
     //
-    cudaMemcpy(hb, db, N*sizeof(int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(hb, db, N0*sizeof(int), cudaMemcpyDeviceToHost);
 
-    for (int i = 0; i<N; ++i) {
+    for (int i = 0; i<10; ++i) {
         printf("%d\n", hb[i]);
     }
 
@@ -71,6 +71,52 @@ int test_cuda_1() {
     //
     cudaFree(da);
     cudaFree(db);
+
+    return 0;
+}
+
+#include <iostream>
+#include <math.h>
+// Kernel function to add the elements of two arrays
+__global__
+void add(int n, float *x, float *y)
+{
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = blockDim.x * gridDim.x;
+    for (int i = index; i < n; i += stride)
+        y[i] = x[i] + y[i];
+}
+
+int test_cuda_1()
+{
+    int N1 = 1<<20;
+    float *x, *y;
+
+    // Allocate Unified Memory – accessible from CPU or GPU
+    cudaMallocManaged(&x, N1*sizeof(float));
+    cudaMallocManaged(&y, N1*sizeof(float));
+
+    // initialize x and y arrays on the host
+    for (int i = 0; i < N1; i++) {
+        x[i] = 1.0f;
+        y[i] = 2.0f;
+    }
+
+    // Run kernel on 1M elements on the GPU
+    add<<<1, 256>>>(N1, x, y);
+
+    // Wait for GPU to finish before accessing on host
+    cudaDeviceSynchronize();
+
+    // Check for errors (all values should be 3.0f)
+    float maxError = 0.0f;
+    for (int i = 0; i < N1; i++)
+        maxError = fmax(maxError, fabs(y[i]-3.0f));
+    std::cout << "Max error: " << maxError << std::endl;
+
+    // Free memory
+    cudaFree(x);
+    cudaFree(y);
 
     return 0;
 }
