@@ -4,7 +4,7 @@ project(rk45_cuda LANGUAGES CXX CUDA)
 set(BUILD_CLUSTER false CACHE BOOL "Enable for builds on the cluster")
 
 if (BUILD_CLUSTER)
-    add_compile_definitions( GSL_ENABLE )
+    add_compile_definitions( ON_CLUSTER )
     include_directories("/usr/local/cuda/")
     add_executable(rk45_cuda
             src/main.cpp
