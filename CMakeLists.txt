@@ -31,9 +31,9 @@ set_target_properties(
         CUDA_SEPARABLE_COMPILATION ON)
 
 if (BUILD_CLUSTER)
-    set_target_properties(rk45_cuda PROPERTIES CUDA_ARCHITECTURES "37")
+    set_target_properties(rk45_cuda PROPERTIES CUDA_ARCHITECTURES 37)
 else()
-    set_target_properties(rk45_cuda PROPERTIES CUDA_ARCHITECTURES "52")
+    set_target_properties(rk45_cuda PROPERTIES CUDA_ARCHITECTURES 52)
 endif()
 
 if (BUILD_CLUSTER)
