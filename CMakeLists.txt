@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.19)
+cmake_minimum_required(VERSION 3.18)
 project(rk45_cuda LANGUAGES CXX CUDA)
 
 set(BUILD_CLUSTER false CACHE BOOL "Enable for builds on the cluster")
