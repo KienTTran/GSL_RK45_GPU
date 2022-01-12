@@ -29,7 +29,12 @@ set_target_properties(
         rk45_cuda
         PROPERTIES
         CUDA_SEPARABLE_COMPILATION ON)
-set_target_properties(rk45_cuda PROPERTIES CUDA_ARCHITECTURES "52")
+
+if (BUILD_CLUSTER)
+    set_target_properties(rk45_cuda PROPERTIES CUDA_ARCHITECTURES "37")
+else()
+    set_target_properties(rk45_cuda PROPERTIES CUDA_ARCHITECTURES "52")
+endif()
 
 if (BUILD_CLUSTER)
     target_link_libraries(rk45_cuda gsl gslcblas)
