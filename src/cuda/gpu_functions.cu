@@ -362,9 +362,9 @@ void rk45_gpu_evolve_apply_2(double t1, double t, double h, double *y[], int thr
     return;
 }
 
-#define GPU_THREAD 1000
+#define gpu_threads 1000
 
-bool rk45_gpu_simulate(const int gpu_threads, const int display_numbers){
+bool rk45_gpu_simulate(const int gpu_threads2, const int display_numbers){
 
     auto start = std::chrono::high_resolution_clock::now();
 
