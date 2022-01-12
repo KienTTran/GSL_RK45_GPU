@@ -1,0 +1,29 @@
+#!/bin/bash
+#PBS -l nodes=1:ppn=1:gpus=1
+#PBS -l walltime=2:00
+#PBS -l pmem=1gb
+#PBS -A mfb9_b_g_sc_default
+#PBS -j oe
+#PBS -o $HOME/
+#PBS -e $HOME/
+
+
+# Get started
+echo " "
+echo "Job started on `hostname` at `date`"
+echo " "
+
+# Go to the submission directory
+cd $PBS_O_WORKDIR
+
+# Run the main job commands
+nvidia-smi
+export PATH=/usr/local/cuda-11.1.0/bin:$PATH
+export LD_LIBRARY_PATH=/usr/local/cuda-11.1.0/lib64:$LD_LIBRARY_PATH
+export CPATH=/usr/local/cuda-11.1.0/samples/common/inc:$CPATH
+cd /storage/home/ktt5121/Github/GSL_Rk45_GPU/build/
+./rk45_cuda
+
+# Finish up
+echo " "
+echo "Job Ended at `date`"
