@@ -5,14 +5,14 @@
 #include <chrono>
 int main()
 {
-    int threads;
-    int display;
+    int threads = 1;
+    int display = 1;
 
-    std::cout << "Enter number of ODE equations to run: " << std::endl;
-    std::cin >> threads;
-    std::cout << "Enter number of results to display randomly: " << std::endl;
-    std::cin >> display;
-    std::cout << "Running on CPU" << std::endl;
+//    std::cout << "Enter number of ODE equations to run: " << std::endl;
+//    std::cin >> threads;
+//    std::cout << "Enter number of results to display randomly: " << std::endl;
+//    std::cin >> display;
+//    std::cout << "Running on CPU" << std::endl;
 
 #ifdef GSL_ENABLE
     rk45_gsl_simulate(threads,display);
