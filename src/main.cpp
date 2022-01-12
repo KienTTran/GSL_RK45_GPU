@@ -20,7 +20,8 @@ int main()
 //    std::cout << "Sleep for 5s before running on GPU " << std::endl;
 //    std::this_thread::sleep_for(std::chrono::milliseconds(5000) );
     std::cout << "Running on GPU" << std::endl;
-    test_cuda();
+    test_cuda_1();
+    test_cuda_2();
     rk45_gpu_simulate(threads,display);
 
     return 0;

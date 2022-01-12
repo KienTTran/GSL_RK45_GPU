@@ -400,7 +400,7 @@ bool rk45_gpu_simulate(const int gpu_threads2, const int display_numbers){
 
     start = std::chrono::high_resolution_clock::now();
 //    cudaProfilerStart();
-    rk45_gpu_evolve_apply_2<<<gpu_threads,1>>>(t1, t, h,y_d,gpu_threads);
+    rk45_gpu_evolve_apply_2<<<1,1>>>(t1, t, h,y_d,gpu_threads);
 
 //    cudaProfilerStop();
     cudaDeviceSynchronize();
