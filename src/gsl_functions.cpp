@@ -32,7 +32,7 @@ int * jac;
 
 #define DIMS 2
 
-bool rk45_gsl_simulate(const int cpu_threads)
+bool rk45_gsl_simulate(const int cpu_threads, const int display_numbers){
 {
     auto start = std::chrono::high_resolution_clock::now();
     // Define GSL odeiv parameters
@@ -85,7 +85,7 @@ bool rk45_gsl_simulate(const int cpu_threads)
     std::mt19937 gen(rd()); // seed the generator
     std::uniform_int_distribution<> distr(0, cpu_threads); // define the range
 
-    for(int i = 0; i < 10; i++) {
+    for(int i = 0; i < display_numbers; i++) {
         int random_index = distr(gen);
         for(int index = 0; index < DIMS; index++){
             printf("thread %d y[%d][%d] = %.10f\n",random_index,random_index,index,y[random_index][index]);
