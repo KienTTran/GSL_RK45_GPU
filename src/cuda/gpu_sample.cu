@@ -1,18 +1,16 @@
-#include <cstdio>
 #include <cstdlib>
 #include <complex>
 #include "cuComplex.h"
-
 #include <stdio.h>
-
-#include <stdio.h>
-
-//
-// Nearly minimal CUDA example.
-// Compile with:
-//
-// nvcc -o example example.cu
-//
+#define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
+inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
+{
+    if (code != cudaSuccess)
+    {
+        fprintf(stderr,"GPU Assert: %s %s %d\n", cudaGetErrorString(code), file, line);
+        if (abort) exit(code);
+    }
+}
 
 #define N0 10
 
@@ -36,8 +34,8 @@ int test_cuda_0() {
     // ('d' stands for "device".)
     //
     int *da, *db;
-    cudaMalloc((void **)&da, N0*sizeof(int));
-    cudaMalloc((void **)&db, N0*sizeof(int));
+    gpuErrchk(cudaMalloc((void **)&da, N0*sizeof(int)));
+    gpuErrchk(cudaMalloc((void **)&db, N0*sizeof(int)));
 
     //
     // Initialise the input data on the CPU.
@@ -49,7 +47,7 @@ int test_cuda_0() {
     //
     // Copy input data to array on GPU.
     //
-    cudaMemcpy(da, ha, N0*sizeof(int), cudaMemcpyHostToDevice);
+    gpuErrchk(cudaMemcpy(da, ha, N0*sizeof(int), cudaMemcpyHostToDevice));
 
     //
     // Launch GPU code with N threads, one per
@@ -60,7 +58,7 @@ int test_cuda_0() {
     //
     // Copy output array from GPU back to CPU.
     //
-    cudaMemcpy(hb, db, N0*sizeof(int), cudaMemcpyDeviceToHost);
+    gpuErrchk(cudaMemcpy(hb, db, N0*sizeof(int), cudaMemcpyDeviceToHost));
 
     for (int i = 0; i<10; ++i) {
         printf("%d\n", hb[i]);
@@ -93,8 +91,8 @@ int test_cuda_1()
     float *x, *y;
 
     // Allocate Unified Memory – accessible from CPU or GPU
-    cudaMallocManaged(&x, N1*sizeof(float));
-    cudaMallocManaged(&y, N1*sizeof(float));
+    gpuErrchk(cudaMallocManaged(&x, N1*sizeof(float)));
+    gpuErrchk(cudaMallocManaged(&y, N1*sizeof(float)));
 
     // initialize x and y arrays on the host
     for (int i = 0; i < N1; i++) {
@@ -107,7 +105,7 @@ int test_cuda_1()
     add<<<1, 256>>>(N1, x, y);
 
     // Wait for GPU to finish before accessing on host
-    cudaDeviceSynchronize();
+    gpuErrchk(cudaDeviceSynchronize());
 
     // Check for errors (all values should be 3.0f)
     float maxError = 0.0f;
@@ -116,8 +114,8 @@ int test_cuda_1()
     std::cout << "[TEST] Max error: " << maxError << std::endl;
 
     // Free memory
-    cudaFree(x);
-    cudaFree(y);
+    gpuErrchk(cudaFree(x));
+    gpuErrchk(cudaFree(y));
 
     return 0;
 }
@@ -165,15 +163,15 @@ int test_cuda_2()
     /* allocate device "matrix" */
     T **tmp = (T**)malloc (N2 * sizeof (tmp[0]));
     for (int i = 0; i < N2; i++) {
-        cudaMalloc ((void **)&tmp[i], M * sizeof (tmp[0][0]));
+        gpuErrchk(cudaMalloc ((void **)&tmp[i], M * sizeof (tmp[0][0])));
     }
     cuComplex **matD = 0;
-    cudaMalloc ((void **)&matD, N2 * sizeof (matD[0]));
+    gpuErrchk(cudaMalloc ((void **)&matD, N2 * sizeof (matD[0])));
 
     /* copy "matrix" from host to device */
-    cudaMemcpy (matD, tmp, N2 * sizeof (matD[0]), cudaMemcpyHostToDevice);
+    gpuErrchk(cudaMemcpy (matD, tmp, N2 * sizeof (matD[0]), cudaMemcpyHostToDevice));
     for (int i = 0; i < N2; i++) {
-        cudaMemcpy (tmp[i], mat[i], M * sizeof (matD[0][0]), cudaMemcpyHostToDevice);
+        gpuErrchk(cudaMemcpy (tmp[i], mat[i], M * sizeof (matD[0][0]), cudaMemcpyHostToDevice));
     }
     free (tmp);
 
@@ -188,12 +186,12 @@ int test_cuda_2()
 
     /* free device "matrix" */
     tmp = (T**)malloc (N2 * sizeof (tmp[0]));
-    cudaMemcpy (tmp, matD, N2 * sizeof (matD[0]), cudaMemcpyDeviceToHost);
+    gpuErrchk(cudaMemcpy (tmp, matD, N2 * sizeof (matD[0]), cudaMemcpyDeviceToHost));
     for (int i = 0; i < N2; i++) {
         cudaFree (tmp[i]);
     }
     free (tmp);
-    cudaFree (matD);
+    gpuErrchk(cudaFree (matD));
 
     return EXIT_SUCCESS;
 }

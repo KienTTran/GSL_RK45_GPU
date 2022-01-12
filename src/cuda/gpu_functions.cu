@@ -5,7 +5,15 @@
 #include <cuda_profiler_api.h>
 #include <random>
 
-//global parameters in device, will be instanced for each thread.
+#define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
+inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
+{
+    if (code != cudaSuccess)
+    {
+        fprintf(stderr,"GPU Assert: %s %s %d\n", cudaGetErrorString(code), file, line);
+        if (abort) exit(code);
+    }
+}
 
 #define DIM 2
 
@@ -397,14 +405,14 @@ bool rk45_gpu_simulate(const int gpu_threads, const int display_numbers){
     //temp pointers
     double **tmp_ptr = (double**)malloc (gpu_threads * sizeof (double));
     for (int i = 0; i < gpu_threads; i++) {
-        cudaMalloc ((void **)&tmp_ptr[i], DIM * sizeof (double));
-        cudaMemcpy(tmp_ptr[i], y[i], DIM * sizeof(double), cudaMemcpyHostToDevice);
+        gpuErrchk(cudaMalloc ((void **)&tmp_ptr[i], DIM * sizeof (double)));
+        gpuErrchk(cudaMemcpy(tmp_ptr[i], y[i], DIM * sizeof(double), cudaMemcpyHostToDevice));
     }
     //y_d
-    cudaMalloc ((void **)&y_d, gpu_threads * sizeof (double));
-    cudaMemcpy (y_d, tmp_ptr, gpu_threads * sizeof (double), cudaMemcpyHostToDevice);
+    gpuErrchk(cudaMalloc ((void **)&y_d, gpu_threads * sizeof (double)));
+    gpuErrchk(cudaMemcpy (y_d, tmp_ptr, gpu_threads * sizeof (double), cudaMemcpyHostToDevice));
     for (int i = 0; i < gpu_threads; i++) {
-        cudaMemcpy (tmp_ptr[i], y[i], DIM * sizeof (double), cudaMemcpyHostToDevice);
+        gpuErrchk(cudaMemcpy (tmp_ptr[i], y[i], DIM * sizeof (double), cudaMemcpyHostToDevice));
     }
     free(y);
     free(tmp_ptr);
@@ -426,7 +434,7 @@ bool rk45_gpu_simulate(const int gpu_threads, const int display_numbers){
     start = std::chrono::high_resolution_clock::now();
 //    cudaProfilerStart();
     int num_SMs;
-    cudaDeviceGetAttribute(&num_SMs, cudaDevAttrMultiProcessorCount, 0);
+    gpuErrchk(cudaDeviceGetAttribute(&num_SMs, cudaDevAttrMultiProcessorCount, 0));
 //    int numBlocks = 32*num_SMs; //multiple of 32
     int block_size = 128; //max is 1024
     int num_blocks = (gpu_threads + block_size - 1) / block_size;
@@ -434,7 +442,7 @@ bool rk45_gpu_simulate(const int gpu_threads, const int display_numbers){
     rk45_gpu_evolve_apply<<<num_blocks, block_size>>>(t1, t, h, y_0, y_d,gpu_threads);
 
 //    cudaProfilerStop();
-    cudaDeviceSynchronize();
+    gpuErrchk(cudaDeviceSynchronize());
     stop = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
     printf("[GSL GPU] Time for calculating %d ODE with %d parameters on GPU: %lld micro seconds which is %.10f seconds\n",gpu_threads,DIM,duration.count(),(duration.count()/1e6));
@@ -445,9 +453,9 @@ bool rk45_gpu_simulate(const int gpu_threads, const int display_numbers){
     for (int i = 0; i < gpu_threads; i++) {
         host_y_output[i] = (double *)malloc (DIM * sizeof (double));
     }
-    cudaMemcpy (tmp_ptr, y_d, gpu_threads * sizeof (double), cudaMemcpyDeviceToHost);
+    gpuErrchk(cudaMemcpy (tmp_ptr, y_d, gpu_threads * sizeof (double), cudaMemcpyDeviceToHost));
     for (int i = 0; i < gpu_threads; i++) {
-        cudaMemcpy (host_y_output[i], tmp_ptr[i], DIM * sizeof (double), cudaMemcpyDeviceToHost);
+        gpuErrchk(cudaMemcpy (host_y_output[i], tmp_ptr[i], DIM * sizeof (double), cudaMemcpyDeviceToHost));
     }
     stop = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
@@ -480,6 +488,6 @@ bool rk45_gpu_simulate(const int gpu_threads, const int display_numbers){
     printf("\n");
     // Free memory
     free(tmp_ptr);
-    cudaFree(y_d);
+    gpuErrchk(cudaFree(y_d));
     return true;
 }
