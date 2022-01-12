@@ -102,6 +102,7 @@ int test_cuda_1()
         y[i] = 2.0f;
     }
 
+    std::cout << "[TEST] Adding " << N1 << " elements on GPU"<< std::endl;
     // Run kernel on 1M elements on the GPU
     add<<<1, 256>>>(N1, x, y);
 
@@ -112,7 +113,7 @@ int test_cuda_1()
     float maxError = 0.0f;
     for (int i = 0; i < N1; i++)
         maxError = fmax(maxError, fabs(y[i]-3.0f));
-    std::cout << "Max error: " << maxError << std::endl;
+    std::cout << "[TEST] Max error: " << maxError << std::endl;
 
     // Free memory
     cudaFree(x);
@@ -128,7 +129,7 @@ typedef std::complex<float> T;
 
 __global__ void print_device_matrix (cuComplex** mat)
 {
-    printf ("matrix on device:\n");
+    printf ("[TEST] Matrix on device:\n");
     for (int i = 0; i < N2; i++) {
         for (int j = 0; j < M; j++) {
             printf ("(%f, %f)  ", cuCrealf (mat[i][j]), cuCimagf (mat[i][j]));
@@ -153,7 +154,7 @@ int test_cuda_2()
     }
 
     /* print host "matrix" */
-    printf ("matrix on host:\n");
+    printf ("[TEST] matrix on host:\n");
     for (int i = 0; i < N2; i++) {
         for (int j = 0; j < M; j++) {
             printf ("(%f, %f)  ", real(mat[i][j]), imag(mat[i][j]));
