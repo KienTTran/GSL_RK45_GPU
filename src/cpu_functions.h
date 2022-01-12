@@ -9,6 +9,9 @@
 #include <iostream>
 #include <chrono>
 
-bool rk45_gsl_cpu_simulate();
+#ifdef GSL_ENABLE
+    bool rk45_gsl_simulate(int cpu_threads);
+#endif
+bool rk45_cpu_simulate(int numbers);
 
 #endif

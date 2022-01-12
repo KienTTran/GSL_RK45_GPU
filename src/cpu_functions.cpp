@@ -17,7 +17,7 @@ int function(double t, const double y[], double dydt[], const int dim){
     return 0;
 }
 
-int rk45_gsl_cpu_adjust_h(double y[],double y_err[], double dydt_out[], double* h, const int dim,
+int rk45_cpu_adjust_h(double y[],double y_err[], double dydt_out[], double* h, const int dim,
            double eps_abs, double eps_rel, double a_y, double a_dydt, unsigned int ord, double scale_abs[]){
     /* adaptive adjustment */
     /* Available control object constructors.
@@ -106,7 +106,7 @@ int rk45_gsl_cpu_adjust_h(double y[],double y_err[], double dydt_out[], double* 
     }
 }
 
-int rk45_gsl_cpu_step_apply(double t, double h, double y[], double y_err[], double dydt_out[], const int dim){
+int rk45_cpu_step_apply(double t, double h, double y[], double y_err[], double dydt_out[], const int dim){
     static const double ah[] = { 1.0/4.0, 3.0/8.0, 12.0/13.0, 1.0, 1.0/2.0 };
     static const double b3[] = { 3.0/32.0, 9.0/32.0 };
     static const double b4[] = { 1932.0/2197.0, -7200.0/2197.0, 7296.0/2197.0};
@@ -208,7 +208,7 @@ int rk45_gsl_cpu_step_apply(double t, double h, double y[], double y_err[], doub
     return 0;
 }
 
-int rk45_gsl_cpu_evolve_apply(double* t, double t1, double *h, double y[], const int dim,
+int rk45_cpu_evolve_apply(double* t, double t1, double *h, double y[], const int dim,
                               double eps_abs, double eps_rel, double a_y, double a_dydt, unsigned int ord, double scale_abs[]){
     const double t_0 = *t;
     double h_0 = *h;
@@ -237,7 +237,7 @@ int rk45_gsl_cpu_evolve_apply(double* t, double t1, double *h, double y[], const
             final_step = 0;
         }
 
-        step_status = rk45_gsl_cpu_step_apply(t_0, h_0, y, y_err, dydt_out, dim);
+        step_status = rk45_cpu_step_apply(t_0, h_0, y, y_err, dydt_out, dim);
 
         if (step_status != 0)
         {
@@ -259,7 +259,7 @@ int rk45_gsl_cpu_evolve_apply(double* t, double t1, double *h, double y[], const
 
 //        printf("    after adjust t = %.10f t_0 = %.10f  h = %.10f h_0 = %.10f h_old = %.10f\n",*t,t_0,*h,h_0,h_old);
         
-        h_adjust_status = rk45_gsl_cpu_adjust_h(y, y_err, dydt_out, &h_0, dim, eps_abs, eps_rel, a_y, a_dydt, ord, scale_abs);
+        h_adjust_status = rk45_cpu_adjust_h(y, y_err, dydt_out, &h_0, dim, eps_abs, eps_rel, a_y, a_dydt, ord, scale_abs);
 
 //        printf("    after adjust t = %.10f t_0 = %.10f  h = %.10f h_0 = %.10f h_old = %.10f\n",*t,t_0,*h,h_0,h_old);
 
@@ -299,8 +299,7 @@ int rk45_gsl_cpu_evolve_apply(double* t, double t1, double *h, double y[], const
     return step_status;
 }
 
-bool rk45_gsl_cpu_simulate(){
-//    const int dim = 1; //1 dim
+bool rk45_cpu_simulate(int numbers){
     const int dim = 2; //2 dim
 
     //Default parameters for RK45 in GSL
@@ -326,7 +325,7 @@ bool rk45_gsl_cpu_simulate(){
 //    int step_count = 0;
     while(t < t1){
 //        printf ("\n[main cpu] step %d\n", step_count);
-        rk45_gsl_cpu_evolve_apply(&t, t1, &h, y, dim, eps_abs, eps_rel, a_y, a_dydt, ord, scale_abs);
+        rk45_cpu_evolve_apply(&t, t1, &h, y, dim, eps_abs, eps_rel, a_y, a_dydt, ord, scale_abs);
 //        step_count++;
     }
     auto stop_cpu = std::chrono::high_resolution_clock::now();
