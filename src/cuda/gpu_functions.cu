@@ -180,7 +180,7 @@ void rk45_gpu_step_apply(double t, double h, double y[], double y_err[], double 
 
     /* k1 */
     function(t,y,k1);
-//    cudaDeviceSynchronize();
+    cudaDeviceSynchronize();
     for (int i = 0; i < DIM; i ++)
     {
 //        printf("      k1[%d] = %.10f\n",i,k1[i]);
@@ -188,7 +188,7 @@ void rk45_gpu_step_apply(double t, double h, double y[], double y_err[], double 
     }
     /* k2 */
     function(t + ah[0] * h, y_tmp,k2);
-//    cudaDeviceSynchronize();
+    cudaDeviceSynchronize();
     for (int i = 0; i < DIM; i ++)
     {
 //        printf("      k2[%d] = %.10f\n",i,k2[i]);
@@ -196,7 +196,7 @@ void rk45_gpu_step_apply(double t, double h, double y[], double y_err[], double 
     }
     /* k3 */
     function(t + ah[1] * h, y_tmp,k3);
-//    cudaDeviceSynchronize();
+    cudaDeviceSynchronize();
     for (int i = 0; i < DIM; i ++)
     {
 //        printf("      k3[%d] = %.10f\n",i,k3[i]);
@@ -204,7 +204,7 @@ void rk45_gpu_step_apply(double t, double h, double y[], double y_err[], double 
     }
     /* k4 */
     function(t + ah[2] * h, y_tmp,k4);
-//    cudaDeviceSynchronize();
+    cudaDeviceSynchronize();
     for (int i = 0; i < DIM; i ++)
     {
 //        printf("      k4[%d] = %.10f\n",i,k4[i]);
@@ -212,7 +212,7 @@ void rk45_gpu_step_apply(double t, double h, double y[], double y_err[], double 
     }
     /* k5 */
     function(t + ah[3] * h, y_tmp,k5);
-//    cudaDeviceSynchronize();
+    cudaDeviceSynchronize();
     for (int i = 0; i < DIM; i ++)
     {
 //        printf("      k5[%d] = %.10f\n",i,k5[i]);
@@ -220,7 +220,7 @@ void rk45_gpu_step_apply(double t, double h, double y[], double y_err[], double 
     }
     /* k6 */
     function(t + ah[4] * h, y_tmp,k6);
-//    cudaDeviceSynchronize();
+    cudaDeviceSynchronize();
     /* final sum */
     for (int i = 0; i < DIM; i ++)
     {
@@ -230,7 +230,7 @@ void rk45_gpu_step_apply(double t, double h, double y[], double y_err[], double 
     }
     /* Derivatives at output */
     function(t + h, y, dydt_out);
-//    cudaDeviceSynchronize();
+    cudaDeviceSynchronize();
     /* difference between 4th and 5th order */
     for (int i = 0; i < DIM; i ++)
     {
@@ -298,7 +298,7 @@ void rk45_gpu_evolve_apply_2(double t1, double t, double h, double *y[], int thr
                 }
 
                 rk45_gpu_step_apply(t_0,device_h_0,device_y,device_y_err,device_dydt_out);
-//                cudaDeviceSynchronize();
+                cudaDeviceSynchronize();
 
                 if (device_final_step) {
                     device_t = device_t1;
@@ -312,7 +312,7 @@ void rk45_gpu_evolve_apply_2(double t1, double t, double h, double *y[], int thr
 
                 rk45_gpu_adjust_h(device_y, device_y_err, device_dydt_out,
                                         device_h, device_h_0, device_adjustment_out, device_final_step);
-//                cudaDeviceSynchronize();
+                cudaDeviceSynchronize();
 
                 //Extra step to get data from *h
                 device_h_0 = device_h;
