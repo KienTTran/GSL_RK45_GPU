@@ -4,7 +4,7 @@
 #include "cuComplex.h"
 
 #define N  (2)
-#define M  (3)
+#define M  (4)
 
 typedef std::complex<float> T;
 
