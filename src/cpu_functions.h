@@ -9,7 +9,7 @@
 #include <iostream>
 #include <chrono>
 
-#ifdef GSL_ENABLE
+#ifdef ON_CLUSTER
     bool rk45_gsl_simulate(const int cpu_threads,const int display_numbers);
 #endif
 bool rk45_cpu_simulate(const int cpu_threads,const int display_numbers);
