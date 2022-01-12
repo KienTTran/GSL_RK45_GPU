@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#git pull
+git pull
 mkdir -p build
 cd build
 
@@ -10,5 +10,4 @@ module load cuda/10.2.89
 module load gcc/8.3.1
 module load cmake/3.18.4
 cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=/storage/home/ktt5121/work/build_env/vcpkg/scripts/buildsystems/vcpkg.cmake -DBUILD_CLUSTER:BOOL=true ..
-#cmake -DCMAKE_BUILD_TYPE=Release ..
 make -j 8
