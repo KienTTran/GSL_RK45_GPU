@@ -33,7 +33,7 @@ int * jac;
 #define DIMS 2
 
 bool rk45_gsl_simulate(const int cpu_threads, const int display_numbers){
-{
+
     auto start = std::chrono::high_resolution_clock::now();
     // Define GSL odeiv parameters
     const gsl_odeiv_step_type * step_type = gsl_odeiv_step_rkf45;
