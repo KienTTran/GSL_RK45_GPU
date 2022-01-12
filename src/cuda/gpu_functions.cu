@@ -350,6 +350,12 @@ void rk45_gpu_evolve_apply_2(double t1, double t, double h, double *y[], int thr
             for (int i = 0; i < DIM; i ++){
                 y[index][i] = device_y[i];
             }
+            if(device_final_step){
+                printf("[output] index = %d t = %.10f t_0 = %.10f  h = %.10f h_0 = %.10f\n",index,device_t,t_0,device_h,device_h_0);
+                for (int i = 0; i < DIM; i++){
+                    printf("[output] index = %d y[%d][%d] = %.10f\n",index,index,i,device_y[i]);
+                }
+            }
 //            cudaDeviceSynchronize();
         }
     }
