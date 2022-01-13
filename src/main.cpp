@@ -1,33 +1,73 @@
-#include "gpu_functions.h"
+#include "cuda/gpu_functions.h"
 #include "cpu_functions.h"
 #include <iostream>
 #include <thread>
 #include <chrono>
-int main()
-{
+#include "cpu_parameters.h"
 
-    int threads = 0;
-    int display = 0;
-    std::cout << "Enter number of ODE equations to run: " << std::endl;
-    std::cin >> threads;
-    std::cout << "Enter number of results to display randomly: " << std::endl;
-    std::cin >> display;
+//int ode_function(double t, const double y[], double dydt[], void* params){
+//    // 2 dim
+//    const double m = 5.2;		// Mass of pendulum
+//    const double g = -9.81;		// g
+//    const double l = 2;		// Length of pendulum
+//    const double A = 0.5;		// Amplitude of driving force
+//    const double wd = 1;		// Angular frequency of driving force
+//    const double b = 0.5;		// Damping coefficient
+//
+//    dydt[0] = y[1];
+//    dydt[1] = -(g / l) * sin(y[0]) + (A * cos(wd * t) - b * y[1]) / (m * l * l);
+//    return 0;
+//}
+
+int main(int argc, char* argv[])
+{
+    int threads = 1;
+    int display = 1;
+//    std::cout << "Enter number of ODE equations to run: " << std::endl;
+//    std::cin >> threads;
+//    std::cout << "Enter number of results to display randomly: " << std::endl;
+//    std::cin >> display;
 #ifdef ON_CLUSTER
     std::cout << "Running GSL on CPU" << std::endl;
     rk45_gsl_simulate(threads,display);
 #endif
-    std::cout << "Running GSL re-implement on CPU" << std::endl;
-    rk45_cpu_simulate(threads,display);
-    std::cout << std::endl;
-    std::cout << "Performing test 1 on GPU" << std::endl;
-    test_cuda_1();
-    std::cout << std::endl;
-    std::cout << "Performing test 2 on GPU" << std::endl;
-    test_cuda_2();
-    std::cout << std::endl;
+//    std::cout << "Running GSL re-implement on CPU" << std::endl;
+//    CPU_RK45* cpu_rk45 = new CPU_RK45();
+//    CPU_Parameters* cpu_params = new CPU_Parameters();
+//    cpu_params->ParseArgs(argc, argv);
+//    cpu_params->initPPC();
+//    cpu_params->number_of_ode = NUMODE;
+//    cpu_params->dimension = DIM;
+//    cpu_params->display_number = display;
+//    cpu_params->cpu_function = func;
+//    cpu_params->t_target = NUMDAYSOUTPUT;
+//    cpu_params->t0 = 0.0;
+//    cpu_params->h = 1e-6;
+//    cpu_rk45->setParameters(cpu_params);
+//    cpu_rk45->run();
+//    std::cout << std::endl;
+//    std::cout << "Performing test 1 on GPU" << std::endl;
+//    test_cuda_1();
+//    std::cout << std::endl;
+//    std::cout << "Performing test 2 on GPU" << std::endl;
+//    test_cuda_2();
+//    std::cout << std::endl;
     std::cout << "Running GSL on GPU" << std::endl;
-    rk45_gpu_simulate(threads,display);
+    GPU_RK45* gpu_rk45 = new GPU_RK45();
+    GPU_Parameters* gpu_params = new GPU_Parameters();
+    gpu_params->ParseArgs(argc, argv);
+    gpu_params->initPPC();
+    gpu_params->number_of_ode = GPUNUMODE;
+    gpu_params->dimension = DIM;
+    gpu_params->display_number = display;
+    gpu_params->t_target = NUMDAYSOUTPUT;
+    gpu_params->t0 = 0.0;
+    gpu_params->h = 1e-6;
+    gpu_rk45->setParameters(gpu_params);
+    gpu_rk45->run();
 
+//    flu_simulate(argc, argv);
+//    flu_cpu_simulate();
 
     return 0;
 

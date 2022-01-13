@@ -90,7 +90,7 @@ bool rk45_gsl_simulate(const int cpu_threads, const int display_numbers){
 
     for(int i = 0; i < display_numbers; i++) {
         int random_index = 0;
-        if(display_numbers > 1){
+        if(cpu_threads > 1){
             //random_index = 0 + (rand() % static_cast<int>(gpu_threads - 0 + 1))
             random_index = distr(gen);
         }
@@ -103,11 +103,11 @@ bool rk45_gsl_simulate(const int cpu_threads, const int display_numbers){
     }
     stop = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-    printf("[GSL] Time for display random results on CPU: %lld micro seconds which is %.10f seconds\n",duration.count(),(duration.count()/1e6));
+    printf("[GSL] Time for get %d random results on CPU: %lld micro seconds which is %.10f seconds\n",display_numbers,duration.count(),(duration.count()/1e6));
     printf("\n");
-    free(t);
-    free(t_target);
-    free(h);
-    free(y);
+    delete(t);
+    delete(t_target);
+    delete(h);
+    delete(y);
     return 0;
 }

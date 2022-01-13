@@ -4,21 +4,7 @@
 #include "cpu_functions.h"
 #include <random>
 
-int function(double t, const double y[], double dydt[], const int dim){
-    // 2 dim
-    const double m = 5.2;		// Mass of pendulum
-    const double g = -9.81;		// g
-    const double l = 2;		// Length of pendulum
-    const double A = 0.5;		// Amplitude of driving force
-    const double wd = 1;		// Angular frequency of driving force
-    const double b = 0.5;		// Damping coefficient
-
-    dydt[0] = y[1];
-    dydt[1] = -(g / l) * sin(y[0]) + (A * cos(wd * t) - b * y[1]) / (m * l * l);
-    return 0;
-}
-
-int rk45_cpu_adjust_h(double y[],double y_err[], double dydt_out[], double& h, const int dim, int final_step, double h_0){
+int CPU_RK45::rk45_cpu_adjust_h(double y[],double y_err[], double dydt_out[], double& h, int final_step, double h_0){
     /* adaptive adjustment */
     /* Available control object constructors.
      *
@@ -68,7 +54,7 @@ int rk45_cpu_adjust_h(double y[],double y_err[], double dydt_out[], double& h, c
 //        printf("      dydt_out[%d] = %.10f\n",i,dydt_out[i]);
 //    }
 
-    for(int i=0; i<dim; i++) {
+    for(int i=0; i<params->dimension; i++) {
         const double D0 = eps_rel * (a_y * fabs(y[i]) + a_dydt * fabs(h_old * dydt_out[i])) + eps_abs;
         const double r  = fabs(y_err[i]) / fabs(D0);
 //        printf("      compare r = %.10f r_max = %.10f\n",r,r_max);
@@ -95,8 +81,6 @@ int rk45_cpu_adjust_h(double y[],double y_err[], double dydt_out[], double& h, c
         /* increase step, no more than factor of 5 */
         double r = S / pow(r_max, 1.0/(ord+1.0));
 
-//        printf("  r = %.10f\n",r);
-
         if (r > 5.0)
             r = 5.0;
 
@@ -117,7 +101,7 @@ int rk45_cpu_adjust_h(double y[],double y_err[], double dydt_out[], double& h, c
     }
 }
 
-int rk45_cpu_step_apply(double t, double h, double y[], double y_err[], double dydt_out[], const int dim){
+int CPU_RK45::rk45_cpu_step_apply(double t, double h, double y[], double y_err[], double dydt_out[]){
     static const double ah[] = { 1.0/4.0, 3.0/8.0, 12.0/13.0, 1.0, 1.0/2.0 };
     static const double b3[] = { 3.0/32.0, 9.0/32.0 };
     static const double b4[] = { 1932.0/2197.0, -7200.0/2197.0, 7296.0/2197.0};
@@ -138,17 +122,17 @@ int rk45_cpu_step_apply(double t, double h, double y[], double y_err[], double d
                                  1.0 / 50.0,
                                  2.0 / 55.0
     };
-    static double* y_tmp = new double[dim]();
-    static double* k1 = new double[dim]();
-    static double* k2 = new double[dim]();
-    static double* k3 = new double[dim]();
-    static double* k4 = new double[dim]();
-    static double* k5 = new double[dim]();
-    static double* k6 = new double[dim]();
+    static double* y_tmp = new double[params->dimension]();
+    static double* k1 = new double[params->dimension]();
+    static double* k2 = new double[params->dimension]();
+    static double* k3 = new double[params->dimension]();
+    static double* k4 = new double[params->dimension]();
+    static double* k5 = new double[params->dimension]();
+    static double* k6 = new double[params->dimension]();
 
 //    printf("    [step apply] start\n");
 //    printf("      t = %.10f h = %.10f\n",t,h);
-//    for (int i = 0; i < dim; i ++)
+//    for (int i = 0; i < params->dimension; i ++)
 //    {
 //        printf("      y[%d] = %.10f\n",i,y[i]);
 //        printf("      y_err[%d] = %.10f\n",i,y_err[i]);
@@ -156,82 +140,87 @@ int rk45_cpu_step_apply(double t, double h, double y[], double y_err[], double d
 //    }
 
     /* k1 */
-    bool s = function(t,y,k1,dim);
+    bool s = params->cpu_function(t,y,k1,(void*)params->ppc);
     if(s != 0) return s;
-    for (int i = 0; i < dim; i++){
+    for (int i = 0; i < params->dimension; i++){
 //        printf("      k1[%d] = %.10f\n",i,k1[i]);
         y_tmp[i] = y[i] +  ah[0] * h * k1[i];
     }
     /* k2 */
-    s = function(t + ah[0] * h, y_tmp,k2,dim);
+    s = params->cpu_function(t + ah[0] * h, y_tmp,k2,(void*)params->ppc);
     if(s != 0) return s;
-    for (int i = 0; i < dim; i++){
+    for (int i = 0; i < params->dimension; i++){
 //        printf("      k2[%d] = %.10f\n",i,k2[i]);
         y_tmp[i] = y[i] + h * (b3[0] * k1[i] + b3[1] * k2[i]);
     }
     /* k3 */
-    s = function(t + ah[1] * h, y_tmp,k3,dim);
+    s = params->cpu_function(t + ah[1] * h, y_tmp,k3,(void*)params->ppc);
     if(s != 0) return s;
-    for (int i = 0; i < dim; i++){
+    for (int i = 0; i < params->dimension; i++){
 //        printf("      k3[%d] = %.10f\n",i,k3[i]);
         y_tmp[i] = y[i] + h * (b4[0] * k1[i] + b4[1] * k2[i] + b4[2] * k3[i]);
     }
     /* k4 */
-    s = function(t + ah[2] * h, y_tmp,k4,dim);
+    s = params->cpu_function(t + ah[2] * h, y_tmp,k4,(void*)params->ppc);
     if(s != 0) return s;
-    for (int i = 0; i < dim; i++){
+    for (int i = 0; i < params->dimension; i++){
 //        printf("      k4[%d] = %.10f\n",i,k4[i]);
         y_tmp[i] = y[i] + h * (b5[0] * k1[i] + b5[1] * k2[i] + b5[2] * k3[i] + b5[3] * k4[i]);
     }
     /* k5 */
-    s = function(t + ah[3] * h, y_tmp,k5,dim);
+    s = params->cpu_function(t + ah[3] * h, y_tmp,k5,(void*)params->ppc);
     if(s != 0) return s;
-    for (int i = 0; i < dim; i++){
+    for (int i = 0; i < params->dimension; i++){
 //        printf("      k5[%d] = %.10f\n",i,k5[i]);
         y_tmp[i] = y[i] + h * (b6[0] * k1[i] + b6[1] * k2[i] + b6[2] * k3[i] + b6[3] * k4[i] + b6[4] * k5[i]);
     }
     /* k6 */
-    s = function(t + ah[4] * h, y_tmp,k6,dim);
+    s = params->cpu_function(t + ah[4] * h, y_tmp,k6,(void*)params->ppc);
     if(s != 0) return s;
     /* final sum */
-    for (int i = 0; i < dim; i++){
+    for (int i = 0; i < params->dimension; i++){
 //        printf("      k6[%d] = %.10f\n",i,k6[i]);
         const double d_i = c1 * k1[i] + c3 * k3[i] + c4 * k4[i] + c5 * k5[i] + c6 * k6[i];
         y[i] += h * d_i;
     }
     /* Derivatives at output */
-    s = function(t + h, y, dydt_out,dim);
+    s = params->cpu_function(t + h, y, dydt_out,(void*)params->ppc);
     if(s != 0) return s;
     /* difference between 4th and 5th order */
-    for (int i = 0; i < dim; i++){
+    for (int i = 0; i < params->dimension; i++){
         y_err[i] = h * (ec[1] * k1[i] + ec[3] * k3[i] + ec[4] * k4[i] + ec[5] * k5[i] + ec[6] * k6[i]);
     }
-//    for (int i = 0; i < dim; i++) {
+//    for (int i = 0; i < params->dimension; i++) {
 //        printf("      y[%d] = %.10f\n",i,y[i]);
 //    }
-//    for (int i = 0; i < dim; i++) {
+//    for (int i = 0; i < params->dimension; i++) {
 //        printf("      y_err[%d] = %.10f\n",i,y_err[i]);
 //    }
-//    for (int i = 0; i < dim; i++) {
+//    for (int i = 0; i < params->dimension; i++) {
 //        printf("      dydt_out[%d] = %.10f\n",i,dydt_out[i]);
 //    }
 //    printf("    [step apply] end\n");
     return 0;
 }
 
-int rk45_cpu_evolve_apply(double& t, double t1, double& h, double y[], const int dim){
+int CPU_RK45::rk45_cpu_evolve_apply(double& t, double t1, double& h, double y[]){
     const double t_0 = t;
     double h_0 = h;
     int step_status;
     int final_step = 0;
     double dt = t1 - t_0;  /* remaining time, possibly less than h */
-    double* y0 = new double[dim]();
-    double* y_err = new double[dim]();
-    double* dydt_out = new double[dim]();
+    double* y0 = new double[params->dimension]();
+    double* y_err = new double[params->dimension]();
+    double* dydt_out = new double[params->dimension]();
 
 //    printf("\n  [evolve apply] start\n");
 
-    for (int i = 0; i < dim; i++) {
+//    printf("    t = %.10f t_0 = %.10f  h = %.10f h_0 = %.10f dt = %.10f\n",t,t_0,h,h_0,dt);
+//    for (int i = 0; i < params->dimension; i++){
+//        printf("    y[%d] = %.10f\n",i,y[i]);
+//    }
+
+    for (int i = 0; i < params->dimension; i++) {
         y0[i] = y[i];
     }
 
@@ -247,7 +236,7 @@ int rk45_cpu_evolve_apply(double& t, double t1, double& h, double y[], const int
             final_step = 0;
         }
 
-        step_status = rk45_cpu_step_apply(t_0, h_0, y, y_err, dydt_out, dim);
+        step_status = rk45_cpu_step_apply(t_0, h_0, y, y_err, dydt_out);
 
         if (step_status != 0)
         {
@@ -269,7 +258,7 @@ int rk45_cpu_evolve_apply(double& t, double t1, double& h, double y[], const int
 
 //        printf("    before adjust t = %.10f t_0 = %.10f  h = %.10f h_0 = %.10f h_old = %.10f\n",t,t_0,h,h_0,h_old);
         
-        h_adjust_status = rk45_cpu_adjust_h(y, y_err, dydt_out, h, dim, final_step, h_0);
+        h_adjust_status = rk45_cpu_adjust_h(y, y_err, dydt_out, h, final_step, h_0);
 
         //Extra step to get data from h
         h_0 = h;
@@ -285,7 +274,7 @@ int rk45_cpu_evolve_apply(double& t, double t1, double& h, double y[], const int
             {
                 /* Step was decreased. Undo step, and try again with new h_0. */
 //                printf("  [evolve apply] step decreased, y = y0\n");
-                for (int i = 0; i < dim; i++) {
+                for (int i = 0; i < params->dimension; i++) {
                     y[i] = y0[i];
                 }
             }
@@ -303,12 +292,12 @@ int rk45_cpu_evolve_apply(double& t, double t1, double& h, double y[], const int
     }
     h = h_0;  /* suggest step size for next time-step */
 //    printf("    t = %.10f t_0 = %.10f  h = %.10f h_0 = %.10f dt = %.10f\n",t,t_0,h,h_0,dt);
-//    for (int i = 0; i < dim; i++){
+//    for (int i = 0; i < params->dimension; i++){
 //        printf("    y[%d] = %.10f\n",i,y[i]);
 //    }
 //    if(final_step){
 //        printf("[output]    t = %.10f t_0 = %.10f  h = %.10f h_0 = %.10f dt = %.10f\n",t,t_0,h,h_0,dt);
-//        for (int i = 0; i < dim; i++){
+//        for (int i = 0; i < params->dimension; i++){
 //            printf("[output]    y[%d] = %.10f\n",i,y[i]);
 //        }
 //    }
@@ -316,23 +305,33 @@ int rk45_cpu_evolve_apply(double& t, double t1, double& h, double y[], const int
     return step_status;
 }
 
-#define DIM 2
+CPU_RK45::CPU_RK45(){
+    params = new CPU_Parameters();
+}
 
-bool rk45_cpu_simulate(const int cpu_threads, const int display_numbers){
+CPU_RK45::~CPU_RK45(){
+    params = nullptr;
+}
+
+void CPU_RK45::setParameters(CPU_Parameters* params_) {
+    params = &(*params_);
+}
+
+int CPU_RK45::rk45_cpu_simulate(){
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    double *t = new double[cpu_threads]();
-    double *t_target = new double[cpu_threads]();
-    double *h = new double[cpu_threads]();
-    double **y = new double*[cpu_threads]();
-    for (int i = 0; i < cpu_threads; i++)
+    double *t = new double[params->number_of_ode]();
+    double *t_target = new double[params->number_of_ode]();
+    double *h = new double[params->number_of_ode]();
+    double **y = new double*[params->number_of_ode]();
+    for (int i = 0; i < params->number_of_ode; i++)
     {
-        y[i] = new double[DIM];
+        y[i] = new double[params->dimension];
     }
 
-    for(int i = 0; i < cpu_threads; i++){
-        for(int j = 0; j < DIM; j++){
+    for(int i = 0; i < params->number_of_ode; i++){
+        for(int j = 0; j < params->dimension; j++){
             y[i][j] = 0.5;
         }
         t[i] = 0.0;
@@ -345,40 +344,84 @@ bool rk45_cpu_simulate(const int cpu_threads, const int display_numbers){
     printf("[GSL CPU] Time for allocate mem on CPU: %lld micro seconds which is %.10f seconds\n",duration.count(),(duration.count()/1e6));
 
     start = std::chrono::high_resolution_clock::now();
-    for(int i = 0; i < cpu_threads; i++){
+    for(int i = 0; i < params->number_of_ode; i++){
         while (t[i] < t_target[i]) {
-            rk45_cpu_evolve_apply(t[i], t_target[i], h[i], y[i], DIM);
+            rk45_cpu_evolve_apply(t[i], t_target[i], h[i], y[i]);
         }
     }
     stop = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-    printf("[GSL CPU] Time for compute %d ODE with %d parameters on CPU: %lld micro seconds which is %.10f seconds\n",cpu_threads,DIM,duration.count(),(duration.count()/1e6));
+    printf("[GSL CPU] Time for compute %d ODE with %d parameters on CPU: %lld micro seconds which is %.10f seconds\n",params->number_of_ode,params->dimension,duration.count(),(duration.count()/1e6));
     start = std::chrono::high_resolution_clock::now();
     std::random_device rd; // obtain a random number from hardware
     std::mt19937 gen(rd()); // seed the generator
-    std::uniform_int_distribution<> distr(0, cpu_threads); // define the range
+    std::uniform_int_distribution<> distr(0, params->number_of_ode); // define the range
 
-    for(int i = 0; i < display_numbers; i++) {
+    for(int i = 0; i < params->display_number; i++) {
         int random_index = 0;
-        if(display_numbers > 1){
+        if(params->number_of_ode > 1){
             //random_index = 0 + (rand() % static_cast<int>(gpu_threads - 0 + 1))
             random_index = distr(gen);
         }
         else{
             random_index = 0;
         }
-        for(int index = 0; index < DIM; index++){
+        for(int index = 0; index < params->dimension; index++){
             printf("[GSL CPU] Thread %d y[%d][%d] = %.10f\n",random_index,random_index,index,y[random_index][index]);
         }
     }
     stop = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-    printf("[GSL CPU] Time for display random results on CPU: %lld micro seconds which is %.10f seconds\n",duration.count(),(duration.count()/1e6));
+    printf("[GSL CPU] Time for get %d random results on CPU: %lld micro seconds which is %.10f seconds\n",params->display_number,duration.count(),(duration.count()/1e6));
     printf("\n");
 
-    free(t);
-    free(t_target);
-    free(h);
-    free(y);
-    return true;
+    delete(t);
+    delete(t_target);
+    delete(h);
+    delete(y);
+    return 0;
+}
+
+void CPU_RK45::predict(double t0, double t1, double* y0, cpu_prms* ppc) {
+    while (t0 < t1)
+    {
+        rk45_cpu_evolve_apply(t0, t1,params->h,y0);
+    }
+    return;
+}
+
+void CPU_RK45::run() {
+    auto start = std::chrono::high_resolution_clock::now();
+
+    for(int k = 0; k < NUMODE; k++){
+        while( params->t0 < params->t_target )
+        {
+            // print trajectory to stdout
+//        printf("t0=%.10f\t", params->t0); //fflush(stdout); // print time to stdout
+//        printf("   stf=%1.5f   \t", params->ppc->seasonal_transmission_factor(params->t0) );
+//        // printf("%1.2f \t", G_CLO_BETA1);
+//        for(int i=0; i<DIM; i++) {
+//            printf("y[%d]=%.10f\t",i,params->y[i]); //fflush(stdout);
+//        }
+//        printf("  ps=%1.5f  \n", popsum(params->y) );
+
+            // integrate ODEs one day forward
+            predict( params->t0, params->t0 + 1.0, params->y[k], params->ppc);
+
+//        printf("t0=%.10f\t", params->t0); //fflush(stdout); // print time to stdout
+//        printf("   stf=%1.5f   \t", params->ppc->seasonal_transmission_factor(params->t0) );
+//        for(int i=0; i<DIM; i++) {
+//            printf("y[%d]=%.10f\t",i,params->y[i]); //fflush(stdout);
+//        }
+//        printf("  ps=%1.5f  \n", popsum(params->y));
+
+            // increment time by one day
+            params->t0 += 1.0;
+        }
+    }
+
+    auto stop = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+    printf("[GSL CPU] Time for compute %d ODE with %d parameters in %f days on CPU: %lld micro seconds which is %.10f seconds\n",params->number_of_ode,params->dimension,params->t_target,duration.count(),(duration.count()/1e6));
+    return;
 }
