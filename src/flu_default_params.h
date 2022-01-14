@@ -59,9 +59,6 @@ namespace {
 #define POPSIZE_MAIN 1000000.00
 #define POPSIZE_OUT 100000.00
 
-#define NUMODE 1024000
-#define GPUNUMODE 1
-
 //
 //
 // this function contains the ode system

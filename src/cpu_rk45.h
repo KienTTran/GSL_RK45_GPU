@@ -24,7 +24,7 @@ public:
     int rk45_cpu_step_apply(double t, double h, double y[], double y_err[], double dydt_out[]);
     int rk45_cpu_adjust_h(double y[],double y_err[], double dydt_out[], double& h, int final_step, double h_0);
     void setParameters(CPU_Parameters* params);
-    void predict(double t0, double t1, double* y0, cpu_prms* ppc);
+    void predict(double t0, double t1, double* y0);
     void run();
 private:
     CPU_Parameters* params;

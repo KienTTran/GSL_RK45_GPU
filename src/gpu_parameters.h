@@ -21,11 +21,13 @@ public:
     double t_target;
     double t0;
     double h;
-    double y[GPUNUMODE][DIM];
+    double **y;
     bool isFloat( std::string myString);
-    void ParseArgs(int argc, char **argv);
-    void initPPC();
+    void initFlu(int argc, char **argv);
+    void initPen();
+    void initTest();
 
+    //from Flu
     thrust::host_vector<double> v;           // this holds some of the parameters -- they are indexed by the enums above
     thrust::device_vector<double> v_temp;
     double* v_d;

@@ -1,7 +1,7 @@
 //
 // Created by kient on 1/7/2022.
 //
-#include "cpu_functions.h"
+#include "cpu_rk45.h"
 #include <random>
 
 int CPU_RK45::rk45_cpu_adjust_h(double y[],double y_err[], double dydt_out[], double& h, int final_step, double h_0){
@@ -140,42 +140,42 @@ int CPU_RK45::rk45_cpu_step_apply(double t, double h, double y[], double y_err[]
 //    }
 
     /* k1 */
-    bool s = params->cpu_function(t,y,k1,(void*)params->ppc);
+    bool s = params->cpu_function(t,y,k1,params);
     if(s != 0) return s;
     for (int i = 0; i < params->dimension; i++){
 //        printf("      k1[%d] = %.10f\n",i,k1[i]);
         y_tmp[i] = y[i] +  ah[0] * h * k1[i];
     }
     /* k2 */
-    s = params->cpu_function(t + ah[0] * h, y_tmp,k2,(void*)params->ppc);
+    s = params->cpu_function(t + ah[0] * h, y_tmp,k2,params);
     if(s != 0) return s;
     for (int i = 0; i < params->dimension; i++){
 //        printf("      k2[%d] = %.10f\n",i,k2[i]);
         y_tmp[i] = y[i] + h * (b3[0] * k1[i] + b3[1] * k2[i]);
     }
     /* k3 */
-    s = params->cpu_function(t + ah[1] * h, y_tmp,k3,(void*)params->ppc);
+    s = params->cpu_function(t + ah[1] * h, y_tmp,k3,params);
     if(s != 0) return s;
     for (int i = 0; i < params->dimension; i++){
 //        printf("      k3[%d] = %.10f\n",i,k3[i]);
         y_tmp[i] = y[i] + h * (b4[0] * k1[i] + b4[1] * k2[i] + b4[2] * k3[i]);
     }
     /* k4 */
-    s = params->cpu_function(t + ah[2] * h, y_tmp,k4,(void*)params->ppc);
+    s = params->cpu_function(t + ah[2] * h, y_tmp,k4,params);
     if(s != 0) return s;
     for (int i = 0; i < params->dimension; i++){
 //        printf("      k4[%d] = %.10f\n",i,k4[i]);
         y_tmp[i] = y[i] + h * (b5[0] * k1[i] + b5[1] * k2[i] + b5[2] * k3[i] + b5[3] * k4[i]);
     }
     /* k5 */
-    s = params->cpu_function(t + ah[3] * h, y_tmp,k5,(void*)params->ppc);
+    s = params->cpu_function(t + ah[3] * h, y_tmp,k5,params);
     if(s != 0) return s;
     for (int i = 0; i < params->dimension; i++){
 //        printf("      k5[%d] = %.10f\n",i,k5[i]);
         y_tmp[i] = y[i] + h * (b6[0] * k1[i] + b6[1] * k2[i] + b6[2] * k3[i] + b6[3] * k4[i] + b6[4] * k5[i]);
     }
     /* k6 */
-    s = params->cpu_function(t + ah[4] * h, y_tmp,k6,(void*)params->ppc);
+    s = params->cpu_function(t + ah[4] * h, y_tmp,k6,params);
     if(s != 0) return s;
     /* final sum */
     for (int i = 0; i < params->dimension; i++){
@@ -184,7 +184,7 @@ int CPU_RK45::rk45_cpu_step_apply(double t, double h, double y[], double y_err[]
         y[i] += h * d_i;
     }
     /* Derivatives at output */
-    s = params->cpu_function(t + h, y, dydt_out,(void*)params->ppc);
+    s = params->cpu_function(t + h, y, dydt_out,params);
     if(s != 0) return s;
     /* difference between 4th and 5th order */
     for (int i = 0; i < params->dimension; i++){
@@ -382,7 +382,7 @@ int CPU_RK45::rk45_cpu_simulate(){
     return 0;
 }
 
-void CPU_RK45::predict(double t0, double t1, double* y0, cpu_prms* ppc) {
+void CPU_RK45::predict(double t0, double t1, double* y0) {
     while (t0 < t1)
     {
         rk45_cpu_evolve_apply(t0, t1,params->h,y0);
@@ -393,7 +393,7 @@ void CPU_RK45::predict(double t0, double t1, double* y0, cpu_prms* ppc) {
 void CPU_RK45::run() {
     auto start = std::chrono::high_resolution_clock::now();
 
-    for(int k = 0; k < NUMODE; k++){
+    for(int k = 0; k < params->number_of_ode; k++){
         while( params->t0 < params->t_target )
         {
             // print trajectory to stdout
@@ -406,7 +406,7 @@ void CPU_RK45::run() {
 //        printf("  ps=%1.5f  \n", popsum(params->y) );
 
             // integrate ODEs one day forward
-            predict( params->t0, params->t0 + 1.0, params->y[k], params->ppc);
+            predict( params->t0, params->t0 + 1.0, params->y[k]);
 
 //        printf("t0=%.10f\t", params->t0); //fflush(stdout); // print time to stdout
 //        printf("   stf=%1.5f   \t", params->ppc->seasonal_transmission_factor(params->t0) );

@@ -1,7 +1,8 @@
-#include "gpu_functions.h"
+#include "gpu_rk45.h"
 #include "../flu_default_params.h"
+
 __host__ __device__
-void gpu_func(double t, const double y[], double f[], void *params)
+void gpu_func_flu(double t, const double y[], double f[], void *params)
 {
 
 //    printf("gpu_function start\n");
@@ -142,8 +143,8 @@ void gpu_func(double t, const double y[], double f[], void *params)
             // add to dS/dt the inflow of recovereds from the final R-stage
             f[ STARTS + loc ] += trr * y[ NUMSEROTYPES*NUMR*loc + NUMR*vir + (NUMR-1) ]; // "NUMR-1" gets you the final R-stage only
         }
-
     }
+
 //    printf("gpu_function end\n");
 //    for(int i = 0; i < DIM; i++){
 //        printf("f[%d] = %.10f\n",i,f[i]);

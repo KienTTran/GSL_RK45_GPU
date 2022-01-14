@@ -12,7 +12,6 @@ CPU_Parameters::CPU_Parameters(){
     t_target = 1.0;
     t0 = 0.0;
     h = 1e-6;
-    ppc = new cpu_prms();
 }
 
 CPU_Parameters::~CPU_Parameters(){
@@ -22,20 +21,19 @@ CPU_Parameters::~CPU_Parameters(){
     t_target = 1.0;
     t0 = 0.0;
     h = 1e-6;
-    ppc = nullptr;
 }
 
-bool CPU_Parameters::isFloat( string myString ) {
+bool CPU_Parameters::isFloat( std::string myString ) {
     std::istringstream iss(myString);
     float f;
-    iss >> noskipws >> f; // noskipws considers leading whitespace invalid
+    iss >> std::noskipws >> f; // noskipws considers leading whitespace invalid
     // Check the entire string was consumed and if either failbit or badbit is set
     return iss.eof() && !iss.fail();
 }
 
-void CPU_Parameters::ParseArgs(int argc, char **argv)
+void CPU_Parameters::initFlu(int argc, char **argv)
 {
-    string str;
+    std::string str;
     int i, start;
     i=1;    // this is the position where you start reading command line options
     // you skip "i=0" which is the text string "odesim"
@@ -46,6 +44,31 @@ void CPU_Parameters::ParseArgs(int argc, char **argv)
         exit(-1);
     }*/
 
+    v.insert( v.begin(), num_params, 0.0 );
+    assert( v.size()==num_params );
+
+    //dim = num_params;
+
+    for(int i=0; i<NUMSEROTYPES; i++)
+    {
+        for(int j=0; j<NUMSEROTYPES; j++)
+        {
+            sigma[i][j] = 0.0; // this initializes the system with full cross-immunity among serotypes
+        }
+    }
+
+    for(int i=0; i<NUMLOC; i++)
+    {
+        for(int j=0; j<NUMLOC; j++)
+        {
+            if(i==j) eta[i][j] = 1.0;  // the diagonal elements have to be 1.0, as a population mixes fully with itself
+            if(i!=j) eta[i][j] = 0.0;  // these are initialized to 0.0 indicating that the different sub-populations do not mix at all
+        }
+    }
+
+    // set initial values for the population sizes, 1 million for first location and 100K for others
+    N[0] = POPSIZE_MAIN;
+    for(int i=1; i<NUMLOC; i++) N[i] = POPSIZE_OUT;
 
     // read in options from left to right
     while(i<argc)
@@ -57,13 +80,13 @@ void CPU_Parameters::ParseArgs(int argc, char **argv)
         // ### 1 ### IF BLOCK FOR PHI
         if( str == "-phi" )
         {
-            ppc->phis.clear();
+            phis.clear();
             i++;
 
             //BEGIN LOOPING THROUGH THE LIST OF BETAS
             while(i<argc)
             {
-                string s( argv[i] );    // convert argv[i] into a normal string object
+                std::string s( argv[i] );    // convert argv[i] into a normal string object
                 if( isFloat(s) )        // if the current string is a floating point number, write it into the phis array
                 {
                     // if the command line argument is <0, just set it back to zero
@@ -71,7 +94,7 @@ void CPU_Parameters::ParseArgs(int argc, char **argv)
                     if( d < 0.0 ) d = 0.0;
                     //TODO print warning here and probably should exit
 
-                    ppc->phis.push_back( d );
+                    phis.push_back( d );
 
                     // increment and move on in this sub-loop
                     i++;
@@ -88,7 +111,7 @@ void CPU_Parameters::ParseArgs(int argc, char **argv)
             //END OF LOOPING THROUGH THE LIST OF BETAS
 
             // make sure at least one phi-value was read in
-            if( ppc->phis.size() == 0 )
+            if( phis.size() == 0 )
             {
                 fprintf(stderr,"\n\n\tWARNING : No phi-values were read in after the command-line option \"-phi\".\n\n");
             }
@@ -101,12 +124,12 @@ void CPU_Parameters::ParseArgs(int argc, char **argv)
         else if( str == "-beta1" )    {     G_CLO_BETA1 = atof( argv[++i] );        }
         else if( str == "-beta2" )    {     G_CLO_BETA2 = atof( argv[++i] );        } //atof is character to floating point
         else if( str == "-beta3" )    {     G_CLO_BETA3 = atof( argv[++i] );        } //atoi changes it to integer
-        else if( str == "-sigma12" )    {     ppc->sigma[0][1] = atof( argv[++i] );        } //atoi changes it to integer
-        else if( str == "-sigma13" )    {     ppc->sigma[0][2] = atof( argv[++i] );        } //atoi changes it to integer
-        else if( str == "-sigma23" )    {     ppc->sigma[1][2] = atof( argv[++i] );        } //atoi changes it to integer
-        else if( str == "-amp" )    {     ppc->v[ppc->i_amp] = atof( argv[++i] );        } //atoi changes it to integer
-        else if( str == "-nu" )    {     ppc->v[ppc->i_nu] = atof( argv[++i] );        }
-        else if( str == "-rho_denom" )    {     ppc->v[ppc->i_immune_duration] = atof( argv[++i] );        }
+        else if( str == "-sigma12" )    {     sigma[0][1] = atof( argv[++i] );        } //atoi changes it to integer
+        else if( str == "-sigma13" )    {     sigma[0][2] = atof( argv[++i] );        } //atoi changes it to integer
+        else if( str == "-sigma23" )    {     sigma[1][2] = atof( argv[++i] );        } //atoi changes it to integer
+        else if( str == "-amp" )    {     v[i_amp] = atof( argv[++i] );        } //atoi changes it to integer
+        else if( str == "-nu" )    {     v[i_nu] = atof( argv[++i] );        }
+        else if( str == "-rho_denom" )    {     v[i_immune_duration] = atof( argv[++i] );        }
         else
         {
             fprintf(stderr, "\n\tUnknown option [%s] on command line.\n\n", argv[i]);
@@ -117,14 +140,11 @@ void CPU_Parameters::ParseArgs(int argc, char **argv)
         // increment i so we can look at the next command-line option
         i++;
     }
-    return;
-}
 
 
-void CPU_Parameters::initPPC(){
-    if (ppc->sigma[0][1] > 1) {
-        fprintf(stderr,"\n\n\tWARNING : Sigma can't be over 1. %1.3f\n\n", ppc->sigma[0][1]); // %1.3f is a placeholder for what is being printed
-        exit(-1);
+    if (sigma[0][1] > 1) {
+      fprintf(stderr,"\n\n\tWARNING : Sigma can't be over 1. %1.3f\n\n", sigma[0][1]); // %1.3f is a placeholder for what is being printed
+      exit(-1);
     }
 
     //
@@ -134,30 +154,30 @@ void CPU_Parameters::initPPC(){
     // if the phi-parameters are not initialized on the command line
     if( !G_PHIS_INITIALIZED_ON_COMMAND_LINE )
     {
-        for(int i=0;  i<10; i++) ppc->v[i] = ((double)i)*365.0 + 240.0; // sets the peak epidemic time in late August for the first 10 years
-        for(int i=10; i<20; i++) ppc->v[i] = -99.0;
+      for(int i=0;  i<10; i++) v[i] = ((double)i)*365.0 + 240.0; // sets the peak epidemic time in late August for the first 10 years
+      for(int i=10; i<20; i++) v[i] = -99.0;
     }
 
-    ppc->v[ ppc->i_amp ]   = 0.1;
-    ppc->beta[0] = G_CLO_BETA1 / POPSIZE_MAIN;    // NOTE this is in a density-dependent transmission scheme
-    ppc->beta[1] = G_CLO_BETA2 / POPSIZE_MAIN;
-    ppc->beta[2] = G_CLO_BETA3 / POPSIZE_MAIN;
+    v[ i_amp ]   = 0.1;
+    beta[0] = G_CLO_BETA1 / POPSIZE_MAIN;    // NOTE this is in a density-dependent transmission scheme
+    beta[1] = G_CLO_BETA2 / POPSIZE_MAIN;
+    beta[2] = G_CLO_BETA3 / POPSIZE_MAIN;
 
-    ppc->sigma[0][1] = 0.7; // the level of susceptibility to H1 if you've had B
-    ppc->sigma[1][0] = 0.7; // and vice versa
+    sigma[0][1] = 0.7; // the level of susceptibility to H1 if you've had B
+    sigma[1][0] = 0.7; // and vice versa
 
-    ppc->sigma[1][2] = 0.7; // the level of susceptibility to H3 if you've had B
-    ppc->sigma[2][1] = 0.7; // and vice versa
+    sigma[1][2] = 0.7; // the level of susceptibility to H3 if you've had B
+    sigma[2][1] = 0.7; // and vice versa
 
-    ppc->sigma[0][2] = 0.3; // the level of susceptibility to H3 if you've had H1
-    ppc->sigma[2][0] = 0.3; // and vice versa
+    sigma[0][2] = 0.3; // the level of susceptibility to H3 if you've had H1
+    sigma[2][0] = 0.3; // and vice versa
 
-    ppc->sigma[0][0] = 0;
-    ppc->sigma[1][1] = 0;
-    ppc->sigma[2][2] = 0;
+    sigma[0][0] = 0;
+    sigma[1][1] = 0;
+    sigma[2][2] = 0;
 
-    ppc->v[ ppc->i_nu ]    = 0.2;                // recovery rate
-    ppc->v[ ppc->i_immune_duration ] = 900.0;    // 2.5 years of immunity to recent infection
+    v[ i_nu ]    = 0.2;                // recovery rate
+    v[ i_immune_duration ] = 900.0;    // 2.5 years of immunity to recent infection
 
     //
     // ###  4.  SET INITIAL CONDITIONS FOR ODE SYSTEM
@@ -167,40 +187,75 @@ void CPU_Parameters::initPPC(){
     // below you are declaring a vector of size DIM
 
     //init already
-//    double y[DIM];
+    //    double y[DIM];
 
-    for(int i = 0; i < NUMODE; i++){
-        for(int j = 0; j < DIM; j++){
-            y[i][j] = 0.0;
-        }
+    y = new double*[number_of_ode]();
+    for(int i = 0; i < number_of_ode; i++){
+      y[i] = new double[dimension];
+      for(int j = 0; j < dimension; j++){
+        y[i][j] = 0.0;
+      }
     }
 
 
-    for(int i = 0; i < NUMODE; i++) {
-        for (int loc = 0; loc < NUMLOC; loc++) {
-            // put half of the individuals in the susceptible class
-            y[i][STARTS + loc] = 0.5 * ppc->N[loc];
+    for(int i = 0; i < number_of_ode; i++) {
+      for (int loc = 0; loc < NUMLOC; loc++) {
+        // put half of the individuals in the susceptible class
+        y[i][STARTS + loc] = 0.5 * N[loc];
 
-            // put small number (but slightly different amounts each time) of individuals into the infected classes
-            double x = 0.010;
-            double sumx = 0.0;
-            for (int vir = 0; vir < NUMSEROTYPES; vir++) {
-                sumx += x;
-                y[i][STARTI + NUMSEROTYPES * loc + vir] = x * ppc->N[loc];
-                y[i][STARTJ + NUMSEROTYPES * loc + vir] = 0.0;     // initialize all of the J-variables to zero
+        // put small number (but slightly different amounts each time) of individuals into the infected classes
+        double x = 0.010;
+        double sumx = 0.0;
+        for (int vir = 0; vir < NUMSEROTYPES; vir++) {
+          sumx += x;
+          y[i][STARTI + NUMSEROTYPES * loc + vir] = x * N[loc];
+          y[i][STARTJ + NUMSEROTYPES * loc + vir] = 0.0;     // initialize all of the J-variables to zero
 
-                x += 0.001;
-            }
-            x = 0.010; // reset x
+          x += 0.001;
+        }
+        x = 0.010; // reset x
 
-            // distribute the remainder of individuals into the different recovered stages equally
-            for (int vir = 0; vir < NUMSEROTYPES; vir++) {
-                double z = (0.5 - sumx) / ((double) NUMR *
-                                           NUMSEROTYPES);  // this is the remaining fraction of individuals to be distributed
-                for (int stg = 0; stg < NUMR; stg++) {
-                    y[i][NUMSEROTYPES * NUMR * loc + NUMR * vir + stg] = z * ppc->N[loc];
-                }
-            }
+        // distribute the remainder of individuals into the different recovered stages equally
+        for (int vir = 0; vir < NUMSEROTYPES; vir++) {
+          double z = (0.5 - sumx) / ((double) NUMR *
+                                     NUMSEROTYPES);  // this is the remaining fraction of individuals to be distributed
+          for (int stg = 0; stg < NUMR; stg++) {
+            y[i][NUMSEROTYPES * NUMR * loc + NUMR * vir + stg] = z * N[loc];
+          }
+        }
+      }
+    }
+
+    return;
+}
+
+
+double CPU_Parameters::seasonal_transmission_factor( double t )
+{
+    /*
+     Ok, here's what's going down:
+        We're gonna make this thing go for 40 years. 30 years of burn in and 10 years of real modeling.
+        We're creating a "10-year model cycle" and need the code below to find a time point's "place" in the "cycle"
+        modulus (denoted with % in C++) only works with integers, so need the acrobatics below
+
+    // This is some code that's needed to create the 10-year "cycles" in transmission.
+
+    int x = (int)t; // This is now to turn a double into an integer
+    double remainder = t - (double)x;
+    int xx = x % NUMDAYSOUTPUT;
+    double yy = (double)xx + remainder
+    // put yy into the sine function, let it return the beta value
+    */
+    double sine_function_value = 0.0;
+
+    for(int i=0; i<phis.size(); i++)
+    {
+        if( fabs( t - phis[i] ) < 91.25 )
+        {
+            sine_function_value = sin( 2.0 * 3.141592653589793238 * (phis[i]-t+91.25) / 365.0 );
+            //printf("\n\t\t\t %1.3f %1.3f \n\n", t, phis[i] );
         }
     }
+
+    return 1.0 + v[i_amp] * sine_function_value;
 }

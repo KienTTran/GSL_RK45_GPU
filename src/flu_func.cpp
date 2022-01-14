@@ -1,5 +1,5 @@
 #include "flu_default_params.h"
-#include "flu_cpu_prms.h"
+#include "cpu_parameters.h"
 #include <chrono>
 #include <random>
 
@@ -22,16 +22,16 @@ double seasonal_transmission_factor( double t);
 int func(double t, const double y[], double f[], void *params)
 {
     // just to be safe, cast the void-pointer to convert it to a prms-pointer
-    cpu_prms* ppc = (cpu_prms*) params;
+    CPU_Parameters* cpu_params = (CPU_Parameters*) params;
 
     // everything will be indexed by location (loc), the infecting subtype/serotype (vir), and the stage of recovery (stg) in the R-classes
     int loc, vir, stg;
 
     // force of infection
-    // double foi = ppc->v[i_beta] * y[NUMR+2];
+    // double foi = cpu_params->v[i_beta] * y[NUMR+2];
 
     // the transition rate among R-classes
-    double trr = ((double)NUMR) / ppc->v[ppc->i_immune_duration];
+    double trr = ((double)NUMR) / cpu_params->v[cpu_params->i_immune_duration];
 
     //for(int k=0; k<DIM; k++) f[k] = 0.0;
 
@@ -71,7 +71,7 @@ int func(double t, const double y[], double f[], void *params)
                 if( stg==0 )
                 {
                     // if this is the first R-class, add the recovery term for individuals coming from I
-                    f[ NUMSEROTYPES*NUMR*loc + NUMR*vir + stg ] += ppc->v[ppc->i_nu] * y[ STARTI + NUMSEROTYPES*loc + vir ];
+                    f[ NUMSEROTYPES*NUMR*loc + NUMR*vir + stg ] += cpu_params->v[cpu_params->i_nu] * y[ STARTI + NUMSEROTYPES*loc + vir ];
                 }
                 else
                 {
@@ -84,7 +84,7 @@ int func(double t, const double y[], double f[], void *params)
                 double sum_foi = 0.0;
                 for(int l=0; l<NUMLOC; l++)
                     for(int v=0; v<NUMSEROTYPES; v++)
-                        sum_foi += ppc->sigma[vir][v] * ppc->beta[v] * ppc->eta[loc][l] * y[ STARTI + NUMSEROTYPES*l + v ];
+                        sum_foi += cpu_params->sigma[vir][v] * cpu_params->beta[v] * cpu_params->eta[loc][l] * y[ STARTI + NUMSEROTYPES*l + v ];
 
                 // now add the term to dR/dt that accounts for the force of infection removing some R-individuals
                 f[ NUMSEROTYPES*NUMR*loc + NUMR*vir + stg ] += ( -sum_foi ) * y[ NUMSEROTYPES*NUMR*loc + NUMR*vir + stg ];
@@ -109,7 +109,7 @@ int func(double t, const double y[], double f[], void *params)
             // sum over locations to get the force of infection of virus vir on susceptibles in location loc
             double foi_on_susc_single_virus = 0.0;
             for(int l=0; l<NUMLOC; l++)
-                foi_on_susc_single_virus += ppc->eta[loc][l] * ppc->beta[vir] * y[ STARTI + NUMSEROTYPES*l + vir ];
+                foi_on_susc_single_virus += cpu_params->eta[loc][l] * cpu_params->beta[vir] * y[ STARTI + NUMSEROTYPES*l + vir ];
 
             // add the in-flow of new infections from the susceptible class
             f[ STARTI + NUMSEROTYPES*loc + vir ] += y[ STARTS + loc ] * foi_on_susc_single_virus;
@@ -121,14 +121,14 @@ int func(double t, const double y[], double f[], void *params)
             for(int l=0; l<NUMLOC; l++)             // sum over locations
                 for(int v=0; v<NUMSEROTYPES; v++)   // sum over recent immunity
                     for(int s=0; s<NUMR; s++)       // sum over R stage
-                        inflow_from_recovereds += ppc->sigma[vir][v] * ppc->beta[vir] * ppc->eta[loc][l] * y[ STARTI + NUMSEROTYPES*l + vir ] * y[ NUMSEROTYPES*NUMR*loc + NUMR*v + s ];
+                        inflow_from_recovereds += cpu_params->sigma[vir][v] * cpu_params->beta[vir] * cpu_params->eta[loc][l] * y[ STARTI + NUMSEROTYPES*l + vir ] * y[ NUMSEROTYPES*NUMR*loc + NUMR*v + s ];
 
             // add the in-flow of new infections from the recovered classes (all histories, all stages)
             f[ STARTI + NUMSEROTYPES*loc + vir ] += inflow_from_recovereds;
             f[ STARTJ + NUMSEROTYPES*loc + vir ] += inflow_from_recovereds;
 
             // add the recovery rate - NOTE only for I-classes
-            f[ STARTI + NUMSEROTYPES*loc + vir ] += - ppc->v[ppc->i_nu] * y[ STARTI + NUMSEROTYPES*loc + vir ];
+            f[ STARTI + NUMSEROTYPES*loc + vir ] += - cpu_params->v[cpu_params->i_nu] * y[ STARTI + NUMSEROTYPES*loc + vir ];
 
         }
     }
@@ -145,7 +145,7 @@ int func(double t, const double y[], double f[], void *params)
         double foi_on_susc_all_viruses = 0.0;
         for(int l=0; l<NUMLOC; l++)
             for(int v=0; v<NUMSEROTYPES; v++)
-                foi_on_susc_all_viruses += ppc->eta[loc][l] * ppc->beta[v] * y[ STARTI + NUMSEROTYPES*l + v ];
+                foi_on_susc_all_viruses += cpu_params->eta[loc][l] * cpu_params->beta[v] * y[ STARTI + NUMSEROTYPES*l + v ];
 
         // add to ODE dS/dt equation the removal of susceptibles by all types of infection
         f[ STARTS + loc ] = ( - foi_on_susc_all_viruses ) * y[ STARTS + loc ];

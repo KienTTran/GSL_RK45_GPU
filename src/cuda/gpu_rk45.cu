@@ -1,4 +1,4 @@
-#include "gpu_functions.h"
+#include "gpu_rk45.h"
 
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
@@ -132,20 +132,29 @@ void rk45_gpu_step_apply(double t, double h, double y[], double y_err[], double 
 //    printf("    [step apply] index = %d start\n",index);
 //    printf("      t = %.10f h = %.10f\n",t,h);
 
-//    double* y_tmp = (double*)std::malloc(params->dimension);
-//    double* k1 = (double*)std::malloc(params->dimension);
-//    double* k2 = (double*)std::malloc(params->dimension);
-//    double* k3 = (double*)std::malloc(params->dimension);
-//    double* k4 = (double*)std::malloc(params->dimension);
-//    double* k5 = (double*)std::malloc(params->dimension);
-//    double* k6 = (double*)std::malloc(params->dimension);
-    double y_tmp[DIM];
-    double k1[DIM];
-    double k2[DIM];
-    double k3[DIM];
-    double k4[DIM];
-    double k5[DIM];
-    double k6[DIM];
+    double* y_tmp = (double*)std::malloc(params->dimension);
+    double* k1 = (double*)std::malloc(params->dimension);
+    double* k2 = (double*)std::malloc(params->dimension);
+    double* k3 = (double*)std::malloc(params->dimension);
+    double* k4 = (double*)std::malloc(params->dimension);
+    double* k5 = (double*)std::malloc(params->dimension);
+    double* k6 = (double*)std::malloc(params->dimension);
+
+//    double y_tmp[GPU_FLU_DIM];
+//    double k1[GPU_FLU_DIM];
+//    double k2[GPU_FLU_DIM];
+//    double k3[GPU_FLU_DIM];
+//    double k4[GPU_FLU_DIM];
+//    double k5[GPU_FLU_DIM];
+//    double k6[GPU_FLU_DIM];
+
+//    double y_tmp[GPU_PEN_DIM];
+//    double k1[GPU_PEN_DIM];
+//    double k2[GPU_PEN_DIM];
+//    double k3[GPU_PEN_DIM];
+//    double k4[GPU_PEN_DIM];
+//    double k5[GPU_PEN_DIM];
+//    double k6[GPU_PEN_DIM];
 
     for(int i = 0; i < params->dimension; i++){
         y_tmp[i] = 0.0;
@@ -168,42 +177,42 @@ void rk45_gpu_step_apply(double t, double h, double y[], double y_err[], double 
 //    }
 
     /* k1 */
-    gpu_func(t,y,k1,params);
+    gpu_func_test(t,y,k1,params);
     for (int i = 0; i < params->dimension; i ++)
     {
 //        printf("      k1[%d] = %.10f\n",i,k1[i]);
         y_tmp[i] = y[i] +  ah[0] * h * k1[i];
     }
     /* k2 */
-    gpu_func(t + ah[0] * h, y_tmp,k2,params);
+    gpu_func_test(t + ah[0] * h, y_tmp,k2,params);
     for (int i = 0; i < params->dimension; i ++)
     {
 //        printf("      k2[%d] = %.10f\n",i,k2[i]);
         y_tmp[i] = y[i] + h * (b3[0] * k1[i] + b3[1] * k2[i]);
     }
     /* k3 */
-    gpu_func(t + ah[1] * h, y_tmp,k3,params);
+    gpu_func_test(t + ah[1] * h, y_tmp,k3,params);
     for (int i = 0; i < params->dimension; i ++)
     {
 //        printf("      k3[%d] = %.10f\n",i,k3[i]);
         y_tmp[i] = y[i] + h * (b4[0] * k1[i] + b4[1] * k2[i] + b4[2] * k3[i]);
     }
     /* k4 */
-    gpu_func(t + ah[2] * h, y_tmp,k4,params);
+    gpu_func_test(t + ah[2] * h, y_tmp,k4,params);
     for (int i = 0; i < params->dimension; i ++)
     {
 //        printf("      k4[%d] = %.10f\n",i,k4[i]);
         y_tmp[i] = y[i] + h * (b5[0] * k1[i] + b5[1] * k2[i] + b5[2] * k3[i] + b5[3] * k4[i]);
     }
     /* k5 */
-    gpu_func(t + ah[3] * h, y_tmp,k5,params);
+    gpu_func_test(t + ah[3] * h, y_tmp,k5,params);
     for (int i = 0; i < params->dimension; i ++)
     {
 //        printf("      k5[%d] = %.10f\n",i,k5[i]);
         y_tmp[i] = y[i] + h * (b6[0] * k1[i] + b6[1] * k2[i] + b6[2] * k3[i] + b6[3] * k4[i] + b6[4] * k5[i]);
     }
     /* k6 */
-    gpu_func(t + ah[4] * h, y_tmp,k6,params);
+    gpu_func_test(t + ah[4] * h, y_tmp,k6,params);
     /* final sum */
     for (int i = 0; i < params->dimension; i ++)
     {
@@ -212,7 +221,7 @@ void rk45_gpu_step_apply(double t, double h, double y[], double y_err[], double 
         y[i] += h * d_i;
     }
     /* Derivatives at output */
-    gpu_func(t + h, y, dydt_out,params);
+    gpu_func_test(t + h, y, dydt_out,params);
     /* difference between 4th and 5th order */
     for (int i = 0; i < params->dimension; i ++)
     {
@@ -245,22 +254,27 @@ __global__
     int device_adjustment_out = 999;
     int device_final_step = 0;
 
-//    double* device_y = (double*)std::malloc(params->dimension);
-//    double* device_y_0 = (double*)std::malloc(params->dimension);
-//    double* device_y_err = (double*)std::malloc(params->dimension);
-//    double* device_dydt_out = (double*)std::malloc(params->dimension);
+    double* device_y = (double*)std::malloc(params->dimension);
+    double* device_y_0 = (double*)std::malloc(params->dimension);
+    double* device_y_err = (double*)std::malloc(params->dimension);
+    double* device_dydt_out = (double*)std::malloc(params->dimension);
 
-    double device_y[DIM];
-    double device_y_0[DIM];
-    double device_y_err[DIM];
-    double device_dydt_out[DIM];
+//    double device_y[GPU_FLU_DIM];
+//    double device_y_0[GPU_FLU_DIM];
+//    double device_y_err[GPU_FLU_DIM];
+//    double device_dydt_out[GPU_FLU_DIM];
+
+//    double device_y[GPU_PEN_DIM];
+//    double device_y_0[GPU_PEN_DIM];
+//    double device_y_err[GPU_PEN_DIM];
+//    double device_dydt_out[GPU_PEN_DIM];
 
     for(int index = index_gpu; index < params->number_of_ode; index += stride){
         device_t1 = t1;
         device_t = t;
         device_h = h;
 
-//        printf("    Will run from %f to %f, step %.10f\n", t, t1, h);
+//        printf("\n  Will run from %f to %f, step %.10f\n", t, t1, h);
 //        printf("    t = %.10f t_1 = %.10f  h = %.10f\n",device_t,device_t1,device_h);
 
         while(device_t < device_t1)
@@ -269,8 +283,7 @@ __global__
             device_h_0 = device_h;
             double device_dt = device_t1 - device_t_0;
 
-//            printf("\n  [evolve apply] index = %d start\n",index);
-
+//            printf("  [evolve apply] index = %d start\n",index);
 //            printf("    t = %.10f t_0 = %.10f  h = %.10f h_0 = %.10f dt = %.10f\n",device_t,device_t_0,device_h,device_h_0,device_dt);
 //            for (int i = 0; i < params->dimension; i ++){
 //                printf("    y[%d][%d] = %.10f\n",index,i,y[index][i]);
@@ -371,137 +384,19 @@ void GPU_RK45::setParameters(GPU_Parameters* params_) {
     params = &(*params_);
 }
 
-int GPU_RK45::rk45_gpu_simulate(){
-
-    auto start = std::chrono::high_resolution_clock::now();
-
-    double t1 = 2.0;
-    double t = 0.0;
-    double h = 1e-6;
-    double y_0 = 0.5;
-
-    //CPU memory
-    double **y = new double*[params->number_of_ode]();
-    for (int i = 0; i < params->number_of_ode; i++)
-    {
-        y[i] = new double[params->dimension];
-        for(int j = 0; j < params->dimension; j++){
-            y[i][j] = 0.5;
-        }
-    }
-    //GPU memory
-    double **y_d = 0;
-    //temp pointers
-    double **tmp_ptr = (double**)malloc (params->number_of_ode * sizeof (double));
-    for (int i = 0; i < params->number_of_ode; i++) {
-        gpuErrchk(cudaMalloc ((void **)&tmp_ptr[i], params->dimension * sizeof (double)));
-        gpuErrchk(cudaMemcpy(tmp_ptr[i], y[i], params->dimension * sizeof(double), cudaMemcpyHostToDevice));
-    }
-    gpuErrchk(cudaMalloc ((void **)&y_d, params->number_of_ode * sizeof (double)));
-    gpuErrchk(cudaMemcpy (y_d, tmp_ptr, params->number_of_ode * sizeof (double), cudaMemcpyHostToDevice));
-    for (int i = 0; i < params->number_of_ode; i++) {
-        gpuErrchk(cudaMemcpy (tmp_ptr[i], y[i], params->dimension * sizeof (double), cudaMemcpyHostToDevice));
-    }
-    delete(y);
-    delete(tmp_ptr);
-
-    //Unified memory
-//    double** y_d;
-//    cudaMallocManaged((void**)&y_d, gpu_threads * sizeof(double*));
-//    for (int i = 0; i < gpu_threads; i++) {
-//        cudaMallocManaged((void**)&y_d[i], params->dimension * sizeof(double));
-////        for (int j = 0; j < params->dimension; j++) {
-////            y_d[i][j] = 0.5;
-////        }
-//    }
-
-    auto stop = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-    printf("[GSL GPU] Time for allocate mem CPU to GPU: %lld micro seconds which is %.10f seconds\n",duration.count(),(duration.count()/1e6));
-
-    int num_SMs;
-    int block_size = 128; //max is 1024
-    int num_blocks = (params->number_of_ode + block_size - 1) / block_size;
-    printf("[GSL GPU] block_size = %d num_blocks = %d\n",block_size,num_blocks);
-    start = std::chrono::high_resolution_clock::now();
-    gpuErrchk(cudaDeviceGetAttribute(&num_SMs, cudaDevAttrMultiProcessorCount, 0));
-//    cudaProfilerStart();
-    rk45_gpu_evolve_apply<<<num_blocks, block_size>>>(t1, t, h, y_d,params);
-
-//    cudaProfilerStop();
-    gpuErrchk(cudaDeviceSynchronize());
-    stop = std::chrono::high_resolution_clock::now();
-    duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-    printf("[GSL GPU] Time for calculating %d ODE with %d parameters on GPU: %lld micro seconds which is %.10f seconds\n",params->number_of_ode,params->dimension,duration.count(),(duration.count()/1e6));
-
-    start = std::chrono::high_resolution_clock::now();
-    tmp_ptr = (double**)malloc (params->number_of_ode * sizeof (double));
-    double** host_y_output = (double**)malloc (params->number_of_ode * sizeof (double));
-    for (int i = 0; i < params->number_of_ode; i++) {
-        host_y_output[i] = (double *)malloc (params->dimension * sizeof (double));
-    }
-    gpuErrchk(cudaMemcpy (tmp_ptr, y_d, params->number_of_ode * sizeof (double), cudaMemcpyDeviceToHost));
-    for (int i = 0; i < params->number_of_ode; i++) {
-        gpuErrchk(cudaMemcpy (host_y_output[i], tmp_ptr[i], params->dimension * sizeof (double), cudaMemcpyDeviceToHost));
-    }
-    stop = std::chrono::high_resolution_clock::now();
-    duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-    printf("[GSL GPU] Time for data transfer GPU to CPU: %lld micro seconds which is %.10f seconds\n",duration.count(),(duration.count()/1e6));
-
-    start = std::chrono::high_resolution_clock::now();
-    std::random_device rd; // obtain a random number from hardware
-    std::mt19937 gen(rd()); // seed the generator
-    std::uniform_int_distribution<> distr(0, params->number_of_ode); // define the range
-
-    for(int i = 0; i < params->display_number; i++){
-        int random_index = 0;
-        if(params->number_of_ode > 1){
-            //random_index = 0 + (rand() % static_cast<int>(gpu_threads - 0 + 1))
-            random_index = distr(gen);
-        }
-        else{
-            random_index = 0;
-        }
-        for(int index = 0; index < params->dimension; index++){
-            //GPU memory
-            printf("[GSL GPU] Thread %d y[%d][%d] = %.10f\n",random_index,random_index,index,host_y_output[random_index][index]);
-            //unified memoery output
-//            printf("[main] Thread %d y[%d][%d] = %.10f\n",random_index,random_index,index,y_d[random_index][index]);
-        }
-    }
-    stop = std::chrono::high_resolution_clock::now();
-    duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-    printf("[GSL GPU] Time for get %d random results on CPU: %lld micro seconds which is %.10f seconds\n",params->display_number,duration.count(),(duration.count()/1e6));
-    printf("\n");
-    // Free memory
-    delete(tmp_ptr);
-    gpuErrchk(cudaFree(y_d));
-    return 0;
-}
-
-void GPU_RK45::predict(double t0, double t1, double h, double ** y0, GPU_Parameters* params_d){
-//    while (t0 < t1)
-//    {
-//        rk45_gpu_evolve_apply<<<1, 1>>>(t0, t1, h, y0, params_d);
-//        gpuErrchk(cudaDeviceSynchronize());
-//    }
-}
-
 void GPU_RK45::run(){
     auto start = std::chrono::high_resolution_clock::now();
     //GPU memory
     double **y_d = 0;
+    gpuErrchk(cudaMalloc ((void **)&y_d, params->number_of_ode * sizeof (double)));
     //temp pointers
     double **tmp_ptr = (double**)malloc (params->number_of_ode * sizeof (double));
     for (int i = 0; i < params->number_of_ode; i++) {
         gpuErrchk(cudaMalloc ((void **)&tmp_ptr[i], params->dimension * sizeof (double)));
         gpuErrchk(cudaMemcpy(tmp_ptr[i], params->y[i], params->dimension * sizeof(double), cudaMemcpyHostToDevice));
     }
-    gpuErrchk(cudaMalloc ((void **)&y_d, params->number_of_ode * sizeof (double)));
     gpuErrchk(cudaMemcpy (y_d, tmp_ptr, params->number_of_ode * sizeof (double), cudaMemcpyHostToDevice));
-    for (int i = 0; i < params->number_of_ode; i++) {
-        gpuErrchk(cudaMemcpy (tmp_ptr[i], params->y[i], params->dimension * sizeof (double), cudaMemcpyHostToDevice));
-    }
+    delete(params->y);
     delete(tmp_ptr);
 
     //Unified memory
@@ -515,8 +410,8 @@ void GPU_RK45::run(){
 //    }
 
     GPU_Parameters* params_d;
-    gpuErrchk(cudaMalloc(&params_d, params->number_of_ode * sizeof(GPU_Parameters)));
-    gpuErrchk(cudaMemcpy(params_d, params, params->number_of_ode * sizeof(GPU_Parameters), cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMalloc(&params_d, sizeof(GPU_Parameters)));
+    gpuErrchk(cudaMemcpy(params_d, params, sizeof(GPU_Parameters), cudaMemcpyHostToDevice));
 
     int num_SMs;
     gpuErrchk(cudaDeviceGetAttribute(&num_SMs, cudaDevAttrMultiProcessorCount, 0));
@@ -530,15 +425,19 @@ void GPU_RK45::run(){
     printf("[GSL GPU] Time for allocate mem CPU to GPU: %lld micro seconds which is %.10f seconds\n",duration.count(),(duration.count()/1e6));
 
     start = std::chrono::high_resolution_clock::now();
+
     while( params->t0 < params->t_target )
     {
         // integrate ODEs one day forward
 //        predict( params->t0, params->t0 + 1.0, params->h, y_d, params_d);
-        rk45_gpu_evolve_apply<<<num_blocks, block_size>>>(params->t0, params->t0 + 1.0, params->h, y_d, params_d);
-        gpuErrchk(cudaDeviceSynchronize());
+        rk45_gpu_evolve_apply<<<1, 1>>>(params->t0, params->t0 + 1.0, params->h, y_d, params_d);
         // increment time by one day
         params->t0 += 1.0;
     }
+    gpuErrchk(cudaDeviceSynchronize());
+//    rk45_gpu_evolve_apply<<<num_blocks, block_size>>>(params->t0, params->t_target, params->h, y_d, params_d);
+//    gpuErrchk(cudaDeviceSynchronize());
+
     stop = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
     printf("[GSL GPU] Time for compute %d ODE with %d parameters, step %.10f in %f days on GPU: %lld micro seconds which is %.10f seconds\n",params->number_of_ode,params->dimension,params->h,params->t_target,duration.count(),(duration.count()/1e6));
