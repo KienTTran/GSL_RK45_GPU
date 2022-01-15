@@ -47,18 +47,9 @@ public:
     thrust::device_vector<double> phis_temp;
     double* phis_d;
 
-    // these are pointers to GSL ODE structures that integrate the ODE system
-//    gsl_odeiv_step* 	os;
-//    gsl_odeiv_control* 	oc;
-//    gsl_odeiv_evolve*	oe;
-//
-
-    // auxiliary functions for this class
-    double seasonal_transmission_factor( double t );
-
     enum parameter_index {	i_phi01, i_phi02, i_phi03, i_phi04, i_phi05, i_phi06, i_phi07, i_phi08, i_phi09, i_phi10,        // the peak epidemic times
         i_phi11, i_phi12, i_phi13, i_phi14, i_phi15, i_phi16, i_phi17, i_phi18, i_phi19, i_phi20,
-        i_amp, i_nu, i_immune_duration, num_params };
+        i_amp, i_nu, i_epidur, i_immune_duration, num_params };
 
     typedef enum parameter_index prm_index;
 

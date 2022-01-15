@@ -17,6 +17,17 @@ namespace {
     double G_CLO_BETA2 = 1.40;
     double G_CLO_BETA3 = 1.60;
 
+    double G_CLO_SIGMA12 = 0.70;
+    double G_CLO_SIGMA13 = 0.30;
+    double G_CLO_SIGMA23 = 0.70;
+
+    double G_CLO_AMPL = 0.10;
+
+    double G_CLO_NU_DENOM = 5;
+    double G_CLO_RHO_DENOM = 900;
+
+    double G_CLO_EPIDUR = 365;
+
     bool G_CLO_CHECKPOP_MODE = false;
 
 //double G_CLO_OUTPUT_ALL_TRAJ = false;
@@ -26,6 +37,8 @@ namespace {
 
     std::string G_CLO_STR_PARAMSFILE;
     int G_CLO_INT_PARAMSFILE_INDEX = 0;
+
+
 
     bool G_PHIS_INITIALIZED_ON_COMMAND_LINE = false;
 }
@@ -37,7 +50,7 @@ namespace {
 #define NUMSEROTYPES 3
 
 // number of R stages in the recovery class
-#define NUMR 1
+#define NUMR 4
 
 // the start index of the infected classes; the I-classes start after all of the R-classes
 // have been listed
@@ -53,11 +66,12 @@ namespace {
 #define DIM STARTS+NUMLOC // 16
 
 // this is the number of days of simulation that will be sent to standard output (and used for model fitting)
-#define NUMDAYSOUTPUT 2*365*10 // use this to define "cycle" lengths
+#define NUMDAYSOUTPUT 3650*2 // use this to define "cycle" lengths
 
 // Two population sizes: main population and all outer populations have the same size
 #define POPSIZE_MAIN 1000000.00
 #define POPSIZE_OUT 100000.00
+
 
 //
 //
