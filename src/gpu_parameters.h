@@ -22,10 +22,11 @@ public:
     double t0;
     double h;
     double **y;
+    double* y_test;
     bool isFloat( std::string myString);
     void initFlu(int argc, char **argv);
     void initPen();
-    void initTest();
+    void initTest(int argc, char **argv);
 
     //from Flu
     thrust::host_vector<double> v;           // this holds some of the parameters -- they are indexed by the enums above

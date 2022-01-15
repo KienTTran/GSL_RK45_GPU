@@ -18,7 +18,7 @@ if (BUILD_CLUSTER)
             src/flu_default_params.h
             src/main.cpp)
 else()
-    include_directories("E:\\SDK\\CUDA\\11.5\\Toolkit\\include")
+    include_directories("E:\\SDK\\CUDA\\11.5\\Toolkit\\include\\")
     add_executable(rk45_cuda
             src/cuda/gpu_func_flu.cu
             src/cuda/gpu_func_pen.cu

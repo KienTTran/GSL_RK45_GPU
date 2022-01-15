@@ -21,6 +21,11 @@ double seasonal_transmission_factor( double t);
 //
 int func(double t, const double y[], double f[], void *params)
 {
+//    printf("        function start\n");
+//    for(int i = 0; i < DIM; i++){
+//        printf("          f[%d] = %.10f\n",i,f[i]);
+//    }
+
     // just to be safe, cast the void-pointer to convert it to a prms-pointer
     CPU_Parameters* cpu_params = (CPU_Parameters*) params;
 
@@ -156,8 +161,12 @@ int func(double t, const double y[], double f[], void *params)
             // add to dS/dt the inflow of recovereds from the final R-stage
             f[ STARTS + loc ] += trr * y[ NUMSEROTYPES*NUMR*loc + NUMR*vir + (NUMR-1) ]; // "NUMR-1" gets you the final R-stage only
         }
-
     }
+
+//    printf("        function end\n");
+//    for(int i = 0; i < DIM; i++){
+//        printf("          f[%d] = %.10f\n",i,f[i]);
+//    }
     return 0;
 }
 

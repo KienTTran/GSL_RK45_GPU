@@ -40,28 +40,28 @@ int CPU_RK45::rk45_cpu_adjust_h(double y[],double y_err[], double dydt_out[], do
 
     double r_max = 2.2250738585072014e-308;
 
-//    printf("    [adjust h] begin\n");
-//    for (int i = 0; i < dim; i ++)
-//    {
-//        printf("      y[%d] = %.10f\n",i,y[i]);
-//    }
-//    for (int i = 0; i < dim; i ++)
-//    {
-//        printf("      y_err[%d] = %.10f\n",i,y_err[i]);
-//    }
-//    for (int i = 0; i < dim; i ++)
-//    {
-//        printf("      dydt_out[%d] = %.10f\n",i,dydt_out[i]);
-//    }
+    printf("    [adjust h] begin\n");
+    for (int i = 0; i < params->dimension; i ++)
+    {
+        printf("      y[%d] = %.10f\n",i,y[i]);
+    }
+    for (int i = 0; i < params->dimension; i ++)
+    {
+        printf("      y_err[%d] = %.10f\n",i,y_err[i]);
+    }
+    for (int i = 0; i < params->dimension; i ++)
+    {
+        printf("      dydt_out[%d] = %.10f\n",i,dydt_out[i]);
+    }
 
     for(int i=0; i<params->dimension; i++) {
         const double D0 = eps_rel * (a_y * fabs(y[i]) + a_dydt * fabs(h_old * dydt_out[i])) + eps_abs;
         const double r  = fabs(y_err[i]) / fabs(D0);
-//        printf("      compare r = %.10f r_max = %.10f\n",r,r_max);
+        printf("      i = %d compare r = %.10f r_max = %.10f\n",i,r,r_max);
         r_max = std::max(r, r_max);
     }
 
-//    printf("      r_max = %.10f\n",r_max);
+    printf("      r_max = %.10f\n",r_max);
 
     if(r_max > 1.1) {
         /* decrease step, no more than factor of 5, but a fraction S more
@@ -72,8 +72,8 @@ int CPU_RK45::rk45_cpu_adjust_h(double y[],double y_err[], double dydt_out[], do
             r = 0.2;
 
         h = r * h_old;
-
-//        printf("      decrease by %.10f, h_old is %.10f new h is %.10f\n", r, h_old, h);
+//
+        printf("      decrease by %.10f, h_old is %.10f new h is %.10f\n", r, h_old, h);
 //        printf("    [adjust h] end\n");
         return -1;
     }
@@ -89,14 +89,14 @@ int CPU_RK45::rk45_cpu_adjust_h(double y[],double y_err[], double dydt_out[], do
 
         h = r * h_old;
 
-//        printf("      increase by %.10f, h_old is %.10f new h is %.10f\n", r, h_old, h);
-//        printf("    [adjust h] end\n");
+        printf("      increase by %.10f, h_old is %.10f new h is %.10f\n", r, h_old, h);
+        printf("    [adjust h] end\n");
         return 1;
     }
     else {
         /* no change */
-//        printf("  no change\n");
-//        printf("    [adjust h] end\n");
+        printf("  no change\n");
+        printf("    [adjust h] end\n");
         return 0;
     }
 }
@@ -130,48 +130,48 @@ int CPU_RK45::rk45_cpu_step_apply(double t, double h, double y[], double y_err[]
     static double* k5 = new double[params->dimension]();
     static double* k6 = new double[params->dimension]();
 
-//    printf("    [step apply] start\n");
-//    printf("      t = %.10f h = %.10f\n",t,h);
-//    for (int i = 0; i < params->dimension; i ++)
-//    {
-//        printf("      y[%d] = %.10f\n",i,y[i]);
-//        printf("      y_err[%d] = %.10f\n",i,y_err[i]);
-//        printf("      dydt_out[%d] = %.10f\n",i,dydt_out[i]);
-//    }
+    printf("    [step apply] start\n");
+    printf("      t = %.10f h = %.10f\n",t,h);
+    for (int i = 0; i < params->dimension; i ++)
+    {
+        printf("      y[%d] = %.10f\n",i,y[i]);
+        printf("      y_err[%d] = %.10f\n",i,y_err[i]);
+        printf("      dydt_out[%d] = %.10f\n",i,dydt_out[i]);
+    }
 
     /* k1 */
     bool s = params->cpu_function(t,y,k1,params);
     if(s != 0) return s;
     for (int i = 0; i < params->dimension; i++){
-//        printf("      k1[%d] = %.10f\n",i,k1[i]);
+        printf("      k1[%d] = %.10f\n",i,k1[i]);
         y_tmp[i] = y[i] +  ah[0] * h * k1[i];
     }
     /* k2 */
     s = params->cpu_function(t + ah[0] * h, y_tmp,k2,params);
     if(s != 0) return s;
     for (int i = 0; i < params->dimension; i++){
-//        printf("      k2[%d] = %.10f\n",i,k2[i]);
+        printf("      k2[%d] = %.10f\n",i,k2[i]);
         y_tmp[i] = y[i] + h * (b3[0] * k1[i] + b3[1] * k2[i]);
     }
     /* k3 */
     s = params->cpu_function(t + ah[1] * h, y_tmp,k3,params);
     if(s != 0) return s;
     for (int i = 0; i < params->dimension; i++){
-//        printf("      k3[%d] = %.10f\n",i,k3[i]);
+        printf("      k3[%d] = %.10f\n",i,k3[i]);
         y_tmp[i] = y[i] + h * (b4[0] * k1[i] + b4[1] * k2[i] + b4[2] * k3[i]);
     }
     /* k4 */
     s = params->cpu_function(t + ah[2] * h, y_tmp,k4,params);
     if(s != 0) return s;
     for (int i = 0; i < params->dimension; i++){
-//        printf("      k4[%d] = %.10f\n",i,k4[i]);
+        printf("      k4[%d] = %.10f\n",i,k4[i]);
         y_tmp[i] = y[i] + h * (b5[0] * k1[i] + b5[1] * k2[i] + b5[2] * k3[i] + b5[3] * k4[i]);
     }
     /* k5 */
     s = params->cpu_function(t + ah[3] * h, y_tmp,k5,params);
     if(s != 0) return s;
     for (int i = 0; i < params->dimension; i++){
-//        printf("      k5[%d] = %.10f\n",i,k5[i]);
+        printf("      k5[%d] = %.10f\n",i,k5[i]);
         y_tmp[i] = y[i] + h * (b6[0] * k1[i] + b6[1] * k2[i] + b6[2] * k3[i] + b6[3] * k4[i] + b6[4] * k5[i]);
     }
     /* k6 */
@@ -179,7 +179,7 @@ int CPU_RK45::rk45_cpu_step_apply(double t, double h, double y[], double y_err[]
     if(s != 0) return s;
     /* final sum */
     for (int i = 0; i < params->dimension; i++){
-//        printf("      k6[%d] = %.10f\n",i,k6[i]);
+        printf("      k6[%d] = %.10f\n",i,k6[i]);
         const double d_i = c1 * k1[i] + c3 * k3[i] + c4 * k4[i] + c5 * k5[i] + c6 * k6[i];
         y[i] += h * d_i;
     }
@@ -190,16 +190,16 @@ int CPU_RK45::rk45_cpu_step_apply(double t, double h, double y[], double y_err[]
     for (int i = 0; i < params->dimension; i++){
         y_err[i] = h * (ec[1] * k1[i] + ec[3] * k3[i] + ec[4] * k4[i] + ec[5] * k5[i] + ec[6] * k6[i]);
     }
-//    for (int i = 0; i < params->dimension; i++) {
-//        printf("      y[%d] = %.10f\n",i,y[i]);
-//    }
-//    for (int i = 0; i < params->dimension; i++) {
-//        printf("      y_err[%d] = %.10f\n",i,y_err[i]);
-//    }
-//    for (int i = 0; i < params->dimension; i++) {
-//        printf("      dydt_out[%d] = %.10f\n",i,dydt_out[i]);
-//    }
-//    printf("    [step apply] end\n");
+    for (int i = 0; i < params->dimension; i++) {
+        printf("      y[%d] = %.10f\n",i,y[i]);
+    }
+    for (int i = 0; i < params->dimension; i++) {
+        printf("      y_err[%d] = %.10f\n",i,y_err[i]);
+    }
+    for (int i = 0; i < params->dimension; i++) {
+        printf("      dydt_out[%d] = %.10f\n",i,dydt_out[i]);
+    }
+    printf("    [step apply] end\n");
     return 0;
 }
 
@@ -213,16 +213,14 @@ int CPU_RK45::rk45_cpu_evolve_apply(double& t, double t1, double& h, double y[])
     double* y_err = new double[params->dimension]();
     double* dydt_out = new double[params->dimension]();
 
-//    printf("\n  [evolve apply] start\n");
+    printf("\n  [evolve apply] start\n");
 
-//    printf("    t = %.10f t_0 = %.10f  h = %.10f h_0 = %.10f dt = %.10f\n",t,t_0,h,h_0,dt);
-//    for (int i = 0; i < params->dimension; i++){
-//        printf("    y[%d] = %.10f\n",i,y[i]);
-//    }
-
-    for (int i = 0; i < params->dimension; i++) {
-        y0[i] = y[i];
+    printf("    t = %.10f t_0 = %.10f  h = %.10f h_0 = %.10f dt = %.10f\n",t,t_0,h,h_0,dt);
+    for (int i = 0; i < params->dimension; i++){
+        printf("    y[%d] = %.10f\n",i,y[i]);
     }
+
+    memcpy(y0,y,params->dimension * sizeof(double));
 
     int h_adjust_status;
     while(true){
@@ -256,14 +254,14 @@ int CPU_RK45::rk45_cpu_evolve_apply(double& t, double t1, double& h, double y[])
 
         double h_old = h_0;
 
-//        printf("    before adjust t = %.10f t_0 = %.10f  h = %.10f h_0 = %.10f h_old = %.10f\n",t,t_0,h,h_0,h_old);
+        printf("    before adjust t = %.10f t_0 = %.10f  h = %.10f h_0 = %.10f h_old = %.10f\n",t,t_0,h,h_0,h_old);
         
         h_adjust_status = rk45_cpu_adjust_h(y, y_err, dydt_out, h, final_step, h_0);
 
         //Extra step to get data from h
         h_0 = h;
 
-//        printf("    after adjust t = %.10f t_0 = %.10f  h = %.10f h_0 = %.10f h_old = %.10f\n",t,t_0,h,h_0,h_old);
+        printf("    after adjust t = %.10f t_0 = %.10f  h = %.10f h_0 = %.10f h_old = %.10f\n",t,t_0,h,h_0,h_old);
 
         if (h_adjust_status == -1)
         {
@@ -273,35 +271,33 @@ int CPU_RK45::rk45_cpu_evolve_apply(double& t, double t1, double& h, double y[])
             if (fabs(h_0) < fabs(h_old) && t_next != t_curr)
             {
                 /* Step was decreased. Undo step, and try again with new h_0. */
-//                printf("  [evolve apply] step decreased, y = y0\n");
-                for (int i = 0; i < params->dimension; i++) {
-                    y[i] = y0[i];
-                }
+                printf("  [evolve apply] step decreased, y = y0\n");
+                memcpy(y,y0,params->dimension * sizeof(double));
             }
             else
             {
-//                printf("  [evolve apply] step decreased h_0 = h_old\n");
+                printf("  [evolve apply] step decreased h_0 = h_old\n");
                 h_0 = h_old; /* keep current step size */
                 break;
             }
         }
         else{
-//            printf("  [evolve apply] step increased or no change\n");
+            printf("  [evolve apply] step increased or no change\n");
             break;
         }
     }
     h = h_0;  /* suggest step size for next time-step */
-//    printf("    t = %.10f t_0 = %.10f  h = %.10f h_0 = %.10f dt = %.10f\n",t,t_0,h,h_0,dt);
-//    for (int i = 0; i < params->dimension; i++){
-//        printf("    y[%d] = %.10f\n",i,y[i]);
-//    }
+    printf("    t = %.10f t_0 = %.10f  h = %.10f h_0 = %.10f dt = %.10f\n",t,t_0,h,h_0,dt);
+    for (int i = 0; i < params->dimension; i++){
+        printf("    y[%d] = %.10f\n",i,y[i]);
+    }
 //    if(final_step){
 //        printf("[output]    t = %.10f t_0 = %.10f  h = %.10f h_0 = %.10f dt = %.10f\n",t,t_0,h,h_0,dt);
 //        for (int i = 0; i < params->dimension; i++){
 //            printf("[output]    y[%d] = %.10f\n",i,y[i]);
 //        }
 //    }
-//    printf("  [evolve apply] end\n");
+    printf("  [evolve apply] end\n");
     return step_status;
 }
 
@@ -410,9 +406,9 @@ void CPU_RK45::run() {
 
 //        printf("t0=%.10f\t", params->t0); //fflush(stdout); // print time to stdout
 //        printf("   stf=%1.5f   \t", params->ppc->seasonal_transmission_factor(params->t0) );
-//        for(int i=0; i<DIM; i++) {
-//            printf("y[%d]=%.10f\t",i,params->y[i]); //fflush(stdout);
-//        }
+//            for(int i=0; i<2; i++) {
+//                printf("y[%d]=%.10f\n",i,params->y[i]); //fflush(stdout);
+//            }
 //        printf("  ps=%1.5f  \n", popsum(params->y));
 
             // increment time by one day

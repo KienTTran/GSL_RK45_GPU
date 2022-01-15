@@ -1,6 +1,19 @@
 #include "gpu_rk45.h"
 
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
+
+GPU_RK45::GPU_RK45(){
+    params = new GPU_Parameters();
+}
+
+GPU_RK45::~GPU_RK45(){
+    params = nullptr;
+}
+
+void GPU_RK45::setParameters(GPU_Parameters* params_) {
+    params = &(*params_);
+}
+
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
 {
     if (code != cudaSuccess)
@@ -12,7 +25,9 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
 
 __device__
 void rk45_gpu_adjust_h(double y[], double y_err[], double dydt_out[],
-                             double &h, double h_0, int &adjustment_out, int final_step, const int index, GPU_Parameters* params){
+                       double &h, double h_0, int &adjustment_out, int final_step,
+                       double* r, double* D0, double* r_max,
+                       const int index, GPU_Parameters* params_d){
     /* adaptive adjustment */
     /* Available control object constructors.
      *
@@ -47,44 +62,44 @@ void rk45_gpu_adjust_h(double y[], double y_err[], double dydt_out[],
     }
 
 //    printf("    [adjust h] index = %d begin\n",index);
-//    for (int i = 0; i < params->dimension; i ++)
-//    {
-//        printf("      y[%d] = %.10f\n",i,y[i]);
-//    }
-//    for (int i = 0; i < params->dimension; i ++)
-//    {
-//        printf("      y_err[%d] = %.10f\n",i,y_err[i]);
-//    }
-//    for (int i = 0; i < params->dimension; i ++)
-//    {
-//        printf("      dydt_out[%d] = %.10f\n",i,dydt_out[i]);
-//    }
+//    printf("      y[%d] = %.20f\n",index,y[index]);
+//    printf("      y_err[%d] = %.20f\n",index,y_err[index]);
+//    printf("      dydt_out[%d] = %.20f\n",index,dydt_out[index]);
 
-    double r_max = 2.2250738585072014e-308;
-    for (int i = 0; i < params->dimension; i ++)
+    cooperative_groups::thread_block block = cooperative_groups::this_thread_block();
+
+    r_max[index] = 2.2250738585072014e-308;
+    D0[index] = eps_rel * (a_y * fabs(y[index]) + a_dydt * fabs((h_old) * dydt_out[index])) + eps_abs;
+    r[index]  = fabs(y_err[index]) / fabs(D0[index]);
+
+//    printf("      index = %d D0[%d] = %.20f\n",index,index,D0[index]);
+//    printf("      index = %d r[%d] = %.20f\n",index,index,D0[index]);
+
+    for (int i = 0; i < params_d->dimension; i++)
     {
-        const double D0 = eps_rel * (a_y * fabs(y[i]) + a_dydt * fabs((h_old) * dydt_out[i])) + eps_abs;
-        const double r  = fabs(y_err[i]) / fabs(D0);
-//        printf("      compare r = %.10f r_max = %.10f\n",r,r_max);
-        r_max = max(r, r_max);
+//        const double D0 = eps_rel * (a_y * fabs(y[i]) + a_dydt * fabs((h_old) * dydt_out[i])) + eps_abs;
+//        const double r  = fabs(y_err[i]) / fabs(D0);
+//        printf("      index = %d i = %d compare r[%d] = %.20f r_max = %.20f\n",index,i,i,r[i],r_max[index]);
+        r_max[index] = max(r[i], r_max[index]);
     }
+    block.sync();
 
-//    printf("      r_max = %.10f\n",r_max);
+//    printf("      r_max = %.20f\n",r_max[index]);
 
-    if (r_max > 1.1) {
+    if (r_max[index] > 1.1) {
         /* decrease step, no more than factor of 5, but a fraction S more
            than scaling suggests (for better accuracy) */
-        double r = S / pow(r_max, 1.0 / ord);
+        double r = S / pow(r_max[index], 1.0 / ord);
 
         if (r < 0.2)
             r = 0.2;
         h = r * (h_old);
 
-//        printf("      index = %d decrease by %.10f, h_old is %.10f new h is %.10f\n",index, r, h_old, h);
+//        printf("      index = %d decrease by %.20f, h_old is %.20f new h is %.20f\n",index, r, h_old, h);
         adjustment_out = -1;
-    } else if (r_max < 0.5) {
+    } else if (r_max[index] < 0.5) {
         /* increase step, no more than factor of 5 */
-        double r = S / pow(r_max, 1.0 / (ord + 1.0));
+        double r = S / pow(r_max[index], 1.0 / (ord + 1.0));
 
         if (r > 5.0)
             r = 5.0;
@@ -94,7 +109,7 @@ void rk45_gpu_adjust_h(double y[], double y_err[], double dydt_out[],
 
         h = r * (h_old);
 
-//        printf("      index = %d increase by %.10f, h_old is %.10f new h is %.10f\n",index, r, h_old, h);
+//        printf("      index = %d increase by %.20f, h_old is %.20f new h is %.20f\n",index, r, h_old, h);
         adjustment_out = 1;
     } else {
         /* no change */
@@ -106,7 +121,10 @@ void rk45_gpu_adjust_h(double y[], double y_err[], double dydt_out[],
 }
 
 __device__
-void rk45_gpu_step_apply(double t, double h, double y[], double y_err[], double dydt_out[],const int index, GPU_Parameters* params)
+void rk45_gpu_step_apply(double t, double h,
+                         double y[], double y_tmp[], double y_err[], double dydt_out[],
+                         double k1[], double k2[], double k3[], double k4[], double k5[], double k6[],
+                         const int index, GPU_Parameters* params_d)
 {
     static const double ah[] = { 1.0/4.0, 3.0/8.0, 12.0/13.0, 1.0, 1.0/2.0 };
     static const double b3[] = { 3.0/32.0, 9.0/32.0 };
@@ -130,274 +148,207 @@ void rk45_gpu_step_apply(double t, double h, double y[], double y_err[], double 
     };
 
 //    printf("    [step apply] index = %d start\n",index);
-//    printf("      t = %.10f h = %.10f\n",t,h);
+//    printf("      t = %.20f h = %.20f\n",t,h);
 
-    double* y_tmp = (double*)std::malloc(params->dimension);
-    double* k1 = (double*)std::malloc(params->dimension);
-    double* k2 = (double*)std::malloc(params->dimension);
-    double* k3 = (double*)std::malloc(params->dimension);
-    double* k4 = (double*)std::malloc(params->dimension);
-    double* k5 = (double*)std::malloc(params->dimension);
-    double* k6 = (double*)std::malloc(params->dimension);
+    y_tmp[index] = 0.0;
+    y_err[index] = 0.0;
+    dydt_out[index] = 0.0;
+    k1[index] = 0.0;
+    k2[index] = 0.0;
+    k3[index] = 0.0;
+    k4[index] = 0.0;
+    k5[index] = 0.0;
+    k6[index] = 0.0;
 
-//    double y_tmp[GPU_FLU_DIM];
-//    double k1[GPU_FLU_DIM];
-//    double k2[GPU_FLU_DIM];
-//    double k3[GPU_FLU_DIM];
-//    double k4[GPU_FLU_DIM];
-//    double k5[GPU_FLU_DIM];
-//    double k6[GPU_FLU_DIM];
-
-//    double y_tmp[GPU_PEN_DIM];
-//    double k1[GPU_PEN_DIM];
-//    double k2[GPU_PEN_DIM];
-//    double k3[GPU_PEN_DIM];
-//    double k4[GPU_PEN_DIM];
-//    double k5[GPU_PEN_DIM];
-//    double k6[GPU_PEN_DIM];
-
-    for(int i = 0; i < params->dimension; i++){
-        y_tmp[i] = 0.0;
-        y_err[i] = 0.0;
-        dydt_out[i] = 0.0;
-        k1[i] = 0.0;
-        k2[i] = 0.0;
-        k3[i] = 0.0;
-        k4[i] = 0.0;
-        k5[i] = 0.0;
-        k6[i] = 0.0;
-    }
-
-//    for (int i = 0; i < params->dimension; i ++)
-//    {
-//        printf("      y[%d] = %.10f\n",i,y[i]);
-//        printf("      y_tmp[%d] = %.10f\n",i,y_tmp[i]);
-//        printf("      y_err[%d] = %.10f\n",i,y_err[i]);
-//        printf("      dydt_out[%d] = %.10f\n",i,dydt_out[i]);
-//    }
+//    printf("      y[%d] = %.20f\n",index,y[index]);
+//    printf("      y_tmp[%d] = %.20f\n",index,y_tmp[index]);
+//    printf("      y_err[%d] = %.20f\n",index,y_err[index]);
+//    printf("      dydt_out[%d] = %.20f\n",index,dydt_out[index]);
 
     /* k1 */
-    gpu_func_test(t,y,k1,params);
-    for (int i = 0; i < params->dimension; i ++)
-    {
-//        printf("      k1[%d] = %.10f\n",i,k1[i]);
-        y_tmp[i] = y[i] +  ah[0] * h * k1[i];
-    }
+    gpu_func_test(t,y,k1,index,params_d);
+//    printf("      k1[%d] = %.20f\n",index,k1[index]);
+    y_tmp[index] = y[index] +  ah[0] * h * k1[index];
     /* k2 */
-    gpu_func_test(t + ah[0] * h, y_tmp,k2,params);
-    for (int i = 0; i < params->dimension; i ++)
-    {
-//        printf("      k2[%d] = %.10f\n",i,k2[i]);
-        y_tmp[i] = y[i] + h * (b3[0] * k1[i] + b3[1] * k2[i]);
-    }
+    gpu_func_test(t + ah[0] * h, y_tmp, k2, index, params_d);
+//    printf("      k2[%d] = %.20f\n",index,k2[index]);
+    y_tmp[index] = y[index] + h * (b3[0] * k1[index] + b3[1] * k2[index]);
     /* k3 */
-    gpu_func_test(t + ah[1] * h, y_tmp,k3,params);
-    for (int i = 0; i < params->dimension; i ++)
-    {
-//        printf("      k3[%d] = %.10f\n",i,k3[i]);
-        y_tmp[i] = y[i] + h * (b4[0] * k1[i] + b4[1] * k2[i] + b4[2] * k3[i]);
-    }
+    gpu_func_test(t + ah[1] * h, y_tmp, k3, index, params_d);
+//    printf("      k3[%d] = %.20f\n",index,k3[index]);
+    y_tmp[index] = y[index] + h * (b4[0] * k1[index] + b4[1] * k2[index] + b4[2] * k3[index]);
     /* k4 */
-    gpu_func_test(t + ah[2] * h, y_tmp,k4,params);
-    for (int i = 0; i < params->dimension; i ++)
-    {
-//        printf("      k4[%d] = %.10f\n",i,k4[i]);
-        y_tmp[i] = y[i] + h * (b5[0] * k1[i] + b5[1] * k2[i] + b5[2] * k3[i] + b5[3] * k4[i]);
-    }
+    gpu_func_test(t + ah[2] * h, y_tmp, k4, index, params_d);
+//    printf("      k4[%d] = %.20f\n",index,k4[index]);
+    y_tmp[index] = y[index] + h * (b5[0] * k1[index] + b5[1] * k2[index] + b5[2] * k3[index] + b5[3] * k4[index]);
     /* k5 */
-    gpu_func_test(t + ah[3] * h, y_tmp,k5,params);
-    for (int i = 0; i < params->dimension; i ++)
-    {
-//        printf("      k5[%d] = %.10f\n",i,k5[i]);
-        y_tmp[i] = y[i] + h * (b6[0] * k1[i] + b6[1] * k2[i] + b6[2] * k3[i] + b6[3] * k4[i] + b6[4] * k5[i]);
-    }
+    gpu_func_test(t + ah[3] * h, y_tmp, k5, index, params_d);
+//    printf("      k5[%d] = %.20f\n",index,k5[index]);
+    y_tmp[index] = y[index] + h * (b6[0] * k1[index] + b6[1] * k2[index] + b6[2] * k3[index] + b6[3] * k4[index] + b6[4] * k5[index]);
     /* k6 */
-    gpu_func_test(t + ah[4] * h, y_tmp,k6,params);
+    gpu_func_test(t + ah[4] * h, y_tmp, k6, index, params_d);
     /* final sum */
-    for (int i = 0; i < params->dimension; i ++)
-    {
-//        printf("      k6[%d] = %.10f\n",i,k6[i]);
-        const double d_i = c1 * k1[i] + c3 * k3[i] + c4 * k4[i] + c5 * k5[i] + c6 * k6[i];
-        y[i] += h * d_i;
-    }
+//    printf("      k6[%d] = %.20f\n",index,k6[index]);
+    const double d_i = c1 * k1[index] + c3 * k3[index] + c4 * k4[index] + c5 * k5[index] + c6 * k6[index];
+    y[index] += h * d_i;
     /* Derivatives at output */
-    gpu_func_test(t + h, y, dydt_out,params);
+    gpu_func_test(t + h, y, dydt_out,index,params_d);
     /* difference between 4th and 5th order */
-    for (int i = 0; i < params->dimension; i ++)
-    {
-        y_err[i] = h * (ec[1] * k1[i] + ec[3] * k3[i] + ec[4] * k4[i] + ec[5] * k5[i] + ec[6] * k6[i]);
-    }
+    y_err[index] = h * (ec[1] * k1[index] + ec[3] * k3[index] + ec[4] * k4[index] + ec[5] * k5[index] + ec[6] * k6[index]);
     //debug printout
-//    for (int i = 0; i < params->dimension; i++) {
-//        printf("      index = %d y[%d] = %.10f\n",index,i,y[i]);
-//    }
-//    for (int i = 0; i < params->dimension; i++) {
-//        printf("      index = %d y_err[%d] = %.10f\n",index,i,y_err[i]);
-//    }
-//    for (int i = 0; i < params->dimension; i++) {
-//        printf("      index = %d dydt_out[%d] = %.10f\n",index,i,dydt_out[i]);
-//    }
+//    printf("      y[%d] = %.20f\n",index,y[index]);
+//    printf("      y_err[%d] = %.20f\n",index,y_err[index]);
+//    printf("      dydt_out[%d] = %.20f\n",index,dydt_out[index]);
 //    printf("    [step apply] index = %d end\n",index);
     return;
 }
 
 __global__
- void rk45_gpu_evolve_apply(double t, double t1, double h, double** y, GPU_Parameters* params){
+void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, double* y, GPU_Parameters* params_d){
 
     int index_gpu = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x * gridDim.x;
 
-    double device_t;
-    double device_t1;
-    double device_h;
-    double device_h_0;
-    int device_adjustment_out = 999;
-    int device_final_step = 0;
+    __shared__ double r_max[DIM];
+    __shared__ double D0[DIM];
+    __shared__ double r[DIM];
+    __shared__ double y_0[DIM];
+    __shared__ double y_tmp[DIM];
+    __shared__ double y_err[DIM];
+    __shared__ double dydt_out[DIM];
+    __shared__ double k1[DIM];
+    __shared__ double k2[DIM];
+    __shared__ double k3[DIM];
+    __shared__ double k4[DIM];
+    __shared__ double k5[DIM];
+    __shared__ double k6[DIM];
 
-    double* device_y = (double*)std::malloc(params->dimension);
-    double* device_y_0 = (double*)std::malloc(params->dimension);
-    double* device_y_err = (double*)std::malloc(params->dimension);
-    double* device_dydt_out = (double*)std::malloc(params->dimension);
+    for(int index = index_gpu; index < params_d->dimension; index += stride){
+        while(t < t_target){
+            double device_t;
+            double device_t1;
+            double device_h;
+            double device_h_0;
+            int device_adjustment_out = 999;
+            int device_final_step = 0;
+            device_t1 = t_target;
+            device_t = t;
+            device_h = h;
 
-//    double device_y[GPU_FLU_DIM];
-//    double device_y_0[GPU_FLU_DIM];
-//    double device_y_err[GPU_FLU_DIM];
-//    double device_dydt_out[GPU_FLU_DIM];
+//            printf("\n  Will run from %f to %f, step %.20f\n", t, device_t1, h);
+//            printf("    t = %.20f t_1 = %.20f  h = %.20f\n",device_t,device_t1,device_h);
 
-//    double device_y[GPU_PEN_DIM];
-//    double device_y_0[GPU_PEN_DIM];
-//    double device_y_err[GPU_PEN_DIM];
-//    double device_dydt_out[GPU_PEN_DIM];
-
-    for(int index = index_gpu; index < params->number_of_ode; index += stride){
-        device_t1 = t1;
-        device_t = t;
-        device_h = h;
-
-//        printf("\n  Will run from %f to %f, step %.10f\n", t, t1, h);
-//        printf("    t = %.10f t_1 = %.10f  h = %.10f\n",device_t,device_t1,device_h);
-
-        while(device_t < device_t1)
-        {
-            const double device_t_0 = device_t;
-            device_h_0 = device_h;
-            double device_dt = device_t1 - device_t_0;
-
-//            printf("  [evolve apply] index = %d start\n",index);
-//            printf("    t = %.10f t_0 = %.10f  h = %.10f h_0 = %.10f dt = %.10f\n",device_t,device_t_0,device_h,device_h_0,device_dt);
-//            for (int i = 0; i < params->dimension; i ++){
-//                printf("    y[%d][%d] = %.10f\n",index,i,y[index][i]);
-//            }
-
-            for (int i = 0; i < params->dimension; i ++){
-                device_y[i] = y[index][i];
-                device_y_0[i] = device_y[i];
-            }
-
-            device_final_step = 0;
-
-            while(true)
+            while(device_t < device_t1)
             {
-                if ((device_dt >= 0.0 && device_h_0 > device_dt) || (device_dt < 0.0 && device_h_0 < device_dt)) {
-                    device_h_0 = device_dt;
-                    device_final_step = 1;
-                } else {
-                    device_final_step = 0;
-                }
-
-                rk45_gpu_step_apply(device_t_0,device_h_0,device_y,device_y_err,device_dydt_out,index,params);
-//                cudaDeviceSynchronize();
-
-                if (device_final_step) {
-                    device_t = device_t1;
-                } else {
-                    device_t = device_t_0 + device_h_0;
-                }
-
-                double h_old = device_h_0;
-
-//                printf("    before adjust t = %.10f t_0 = %.10f  h = %.10f h_0 = %.10f h_old = %.10f\n",device_t,device_t_0,device_h,device_h_0,h_old);
-
-                rk45_gpu_adjust_h(device_y, device_y_err, device_dydt_out,
-                                        device_h, device_h_0, device_adjustment_out, device_final_step,index,params);
-//                cudaDeviceSynchronize();
-
-                //Extra step to get data from h
+                const double device_t_0 = device_t;
                 device_h_0 = device_h;
+                double device_dt = device_t1 - device_t_0;
 
-//                printf("    after adjust t = %.10f t_0 = %.10f  h = %.10f h_0 = %.10f h_old = %.10f\n",device_t,device_t_0,device_h,device_h_0,h_old);
+//                printf("  [evolve apply] index = %d start\n",index);
+//                printf("    t = %.20f t_0 = %.20f  h = %.20f h_0 = %.20f dt = %.20f\n",device_t,device_t_0,device_h,device_h_0,device_dt);
 
-                if (device_adjustment_out == -1)
+                y_0[index] = y[index];
+
+                device_final_step = 0;
+
+                while(true)
                 {
-                    double t_curr = (device_t);
-                    double t_next = (device_t) + device_h_0;
-
-                    if (fabs(device_h_0) < fabs(h_old) && t_next != t_curr) {
-                        /* Step was decreased. Undo step, and try again with new h0. */
-//                        printf("  [evolve apply] index = %d step decreased, y = y0\n",index);
-                        for (int i = 0; i < params->dimension; i++) {
-                            device_y[i] = device_y_0[i];
-                        }
+                    if ((device_dt >= 0.0 && device_h_0 > device_dt) || (device_dt < 0.0 && device_h_0 < device_dt)) {
+                        device_h_0 = device_dt;
+                        device_final_step = 1;
                     } else {
-//                        printf("  [evolve apply] index = %d step decreased h_0 = h_old\n",index);
-                        device_h_0 = h_old; /* keep current step size */
+                        device_final_step = 0;
+                    }
+
+                    rk45_gpu_step_apply(device_t_0, device_h_0,
+                                        y,y_tmp,y_err, dydt_out,
+                                        k1, k2, k3, k4, k5, k6,
+                                        index, params_d);
+
+                    if (device_final_step) {
+                        device_t = device_t1;
+                    } else {
+                        device_t = device_t_0 + device_h_0;
+                    }
+
+                    double h_old = device_h_0;
+
+//                    printf("    before adjust t = %.20f t_0 = %.20f  h = %.20f h_0 = %.20f h_old = %.20f\n",device_t,device_t_0,device_h,device_h_0,h_old);
+
+                    rk45_gpu_adjust_h(y, y_err, dydt_out,
+                                      device_h, device_h_0, device_adjustment_out, device_final_step,
+                                      r, D0, r_max,
+                                      index, params_d);
+
+                    //Extra step to get data from h
+                    device_h_0 = device_h;
+
+//                  printf("    after adjust t = %.20f t_0 = %.20f  h = %.20f h_0 = %.20f h_old = %.20f\n",device_t,device_t_0,device_h,device_h_0,h_old);
+
+                    if (device_adjustment_out == -1)
+                    {
+                        double t_curr = (device_t);
+                        double t_next = (device_t) + device_h_0;
+
+                        if (fabs(device_h_0) < fabs(h_old) && t_next != t_curr) {
+                            /* Step was decreased. Undo step, and try again with new h0. */
+//                          printf("  [evolve apply] index = %d step decreased, y = y0\n",index);
+                            y[index] = y_0[index];
+                        } else {
+//                            printf("  [evolve apply] index = %d step decreased h_0 = h_old\n",index);
+                            device_h_0 = h_old; /* keep current step size */
+                            break;
+                        }
+                    }
+                    else{
+//                        printf("  [evolve apply] index = %d step increased or no change\n",index);
                         break;
                     }
                 }
-                else{
-//                    printf("  [evolve apply] index = %d step increased or no change\n",index);
-                    break;
-                }
-            }
-            device_h = device_h_0;  /* suggest step size for next time-step */
-            for (int i = 0; i < params->dimension; i++){
-                y[index][i] = device_y[i];
-            }
-            t = device_t;
-            h = device_h;
-//            printf("    index = %d t = %.10f t_0 = %.10f  h = %.10f h_0 = %.10f\n",index,device_t,device_t_0,device_h,device_h_0);
-//            for (int i = 0; i < params->dimension; i++){
-//                printf("    index = %d y[%d][%d] = %.10f\n",index,index,i,device_y[i]);
-//            }
-//            if(device_final_step){
-//                printf("[output] index = %d t = %.10f t_0 = %.10f  h = %.10f h_0 = %.10f\n",index,device_t,device_t_0,device_h,device_h_0);
-//                for (int i = 0; i < params->dimension; i++){
-//                    printf("[output] index = %d y[%d] = %.10f\n",index,i,device_y[i]);
+                device_h = device_h_0;  /* suggest step size for next time-step */
+                t = device_t;
+                h = device_h;
+//                printf("    index = %d t = %.20f t_0 = %.20f  h = %.20f h_0 = %.20f\n",index,device_t,device_t_0,device_h,device_h_0);
+//                printf("    index = %d y[%d] = %.20f\n",index,index,y[index]);
+//                if(device_final_step)
+//                {
+//                    if(index == 0 || index == params_d->dimension - 1) {
+//                        if(index == 0)
+//                        {
+//                            printf("[output] index = %d t = %.20f t_0 = %.20f  h = %.20f h_0 = %.20f\n", index, device_t,
+//                               device_t_0, device_h, device_h_0);
+//                            printf("[output] index = %d y[%d] = %.20f\n", index, index, y[index]);
+//                            printf("\n");
+//                        }
+//                    }
 //                }
+//                printf("  [evolve apply] index = %d end\n",index);
+            }
+//            if(index == 0 || index == params_d->dimension - 1)
+//            {
+//                printf("after evolve t = %.20f h = %.20f\n",t,h);
+//                printf("  y[%d] = %.20f\n",index,y[index]);
 //            }
-//            printf("  [evolve apply] index = %d end\n",index);
-//            cudaDeviceSynchronize();
+            t += t_delta;
         }
     }
     return;
 }
 
-GPU_RK45::GPU_RK45(){
-    params = new GPU_Parameters();
-}
-
-GPU_RK45::~GPU_RK45(){
-    params = nullptr;
-}
-
-void GPU_RK45::setParameters(GPU_Parameters* params_) {
-    params = &(*params_);
-}
-
 void GPU_RK45::run(){
     auto start = std::chrono::high_resolution_clock::now();
     //GPU memory
-    double **y_d = 0;
-    gpuErrchk(cudaMalloc ((void **)&y_d, params->number_of_ode * sizeof (double)));
-    //temp pointers
-    double **tmp_ptr = (double**)malloc (params->number_of_ode * sizeof (double));
-    for (int i = 0; i < params->number_of_ode; i++) {
-        gpuErrchk(cudaMalloc ((void **)&tmp_ptr[i], params->dimension * sizeof (double)));
-        gpuErrchk(cudaMemcpy(tmp_ptr[i], params->y[i], params->dimension * sizeof(double), cudaMemcpyHostToDevice));
-    }
-    gpuErrchk(cudaMemcpy (y_d, tmp_ptr, params->number_of_ode * sizeof (double), cudaMemcpyHostToDevice));
-    delete(params->y);
-    delete(tmp_ptr);
+//    double **y_d = 0;
+//    gpuErrchk(cudaMalloc ((void **)&y_d, params->number_of_ode * sizeof (double)));
+//    //temp pointers
+//    double **tmp_ptr = (double**)malloc (params->number_of_ode * sizeof (double));
+//    for (int i = 0; i < params->number_of_ode; i++) {
+//        gpuErrchk(cudaMalloc ((void **)&tmp_ptr[i], params->dimension * sizeof (double)));
+//        gpuErrchk(cudaMemcpy(tmp_ptr[i], params->y[i], params->dimension * sizeof(double), cudaMemcpyHostToDevice));
+//    }
+//    gpuErrchk(cudaMemcpy (y_d, tmp_ptr, params->number_of_ode * sizeof (double), cudaMemcpyHostToDevice));
+//    delete(params->y);
+//    delete(tmp_ptr);
 
     //Unified memory
 //    double** y_d;
@@ -409,37 +360,41 @@ void GPU_RK45::run(){
 ////        }
 //    }
 
+    //y_test
+    double *y_test_d;
+    gpuErrchk(cudaMalloc ((void **)&y_test_d, params->dimension * sizeof (double)));
+    gpuErrchk(cudaMemcpy (y_test_d, params->y_test, params->dimension * sizeof (double), cudaMemcpyHostToDevice));
+
     GPU_Parameters* params_d;
-    gpuErrchk(cudaMalloc(&params_d, sizeof(GPU_Parameters)));
+    gpuErrchk(cudaMalloc((void **)&params_d, sizeof(GPU_Parameters)));
     gpuErrchk(cudaMemcpy(params_d, params, sizeof(GPU_Parameters), cudaMemcpyHostToDevice));
 
     int num_SMs;
     gpuErrchk(cudaDeviceGetAttribute(&num_SMs, cudaDevAttrMultiProcessorCount, 0));
 //    int numBlocks = 32*num_SMs; //multiple of 32
     int block_size = 128; //max is 1024
-    int num_blocks = (params->number_of_ode + block_size - 1) / block_size;
+    int num_blocks = (params->dimension + block_size - 1) / block_size;
     printf("[GSL GPU] block_size = %d num_blocks = %d\n",block_size,num_blocks);
+    dim3 dimBlock(block_size, block_size); // so your threads are BLOCK_SIZE*BLOCK_SIZE, 256 in this case
+    dim3 dimGrid(num_blocks, num_blocks); // 1*1 blocks in a grid
 
     auto stop = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-    printf("[GSL GPU] Time for allocate mem CPU to GPU: %lld micro seconds which is %.10f seconds\n",duration.count(),(duration.count()/1e6));
+    printf("[GSL GPU] Time for allocate mem CPU to GPU: %lld micro seconds which is %.20f seconds\n",duration.count(),(duration.count()/1e6));
 
     start = std::chrono::high_resolution_clock::now();
 
-    while( params->t0 < params->t_target )
-    {
-        // integrate ODEs one day forward
-//        predict( params->t0, params->t0 + 1.0, params->h, y_d, params_d);
-        rk45_gpu_evolve_apply<<<1, 1>>>(params->t0, params->t0 + 1.0, params->h, y_d, params_d);
-        // increment time by one day
-        params->t0 += 1.0;
-    }
+    rk45_gpu_evolve_apply<<<num_blocks, block_size>>>(params->t0, params->t_target, 1.0, params->h, y_test_d, params_d);
     gpuErrchk(cudaDeviceSynchronize());
-//    rk45_gpu_evolve_apply<<<num_blocks, block_size>>>(params->t0, params->t_target, params->h, y_d, params_d);
-//    gpuErrchk(cudaDeviceSynchronize());
 
     stop = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-    printf("[GSL GPU] Time for compute %d ODE with %d parameters, step %.10f in %f days on GPU: %lld micro seconds which is %.10f seconds\n",params->number_of_ode,params->dimension,params->h,params->t_target,duration.count(),(duration.count()/1e6));
+    printf("[GSL GPU] Time for compute %d ODE with %d parameters, step %.20f in %f days on GPU: %lld micro seconds which is %.20f seconds\n",params->number_of_ode,params->dimension,params->h,params->t_target,duration.count(),(duration.count()/1e6));
+
+    gpuErrchk(cudaMemcpy (params->y_test, y_test_d, params->dimension * sizeof (double), cudaMemcpyDeviceToHost));
+    printf("Display on Host\n");
+    for(int i = 0; i < params->dimension; i++){
+        printf("  y[%d] = %.20f\n",i,params->y_test[i]);
+    }
     return;
 }

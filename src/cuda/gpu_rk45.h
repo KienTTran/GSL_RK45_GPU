@@ -7,11 +7,12 @@
 #include <cuda_runtime_api.h>
 #include <cuda_profiler_api.h>
 #include <random>
+#include <cooperative_groups.h>
 #include "../gpu_parameters.h"
 
 __host__ __device__ void gpu_func_flu(double t, const double y[], double dydt[], void *params);
 __host__ __device__ void gpu_func_pen(double t, const double y[], double f[], void *params);
-__host__ __device__ void gpu_func_test(double t, const double y[], double f[], void *params);
+__host__ __device__ void gpu_func_test(double t, const double y[], double f[], int index, void *params);
 
 class GPU_RK45{
 public:

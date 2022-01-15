@@ -77,7 +77,7 @@ int test_cuda_0() {
 #include <math.h>
 // Kernel function to add the elements of two arrays
 __global__
-void add(int n, float *x, float *y)
+void add(int n, double *x, double *y)
 {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x * gridDim.x;
@@ -88,11 +88,11 @@ void add(int n, float *x, float *y)
 int test_cuda_1()
 {
     int N1 = 1<<20;
-    float *x, *y;
+    double *x, *y;
 
     // Allocate Unified Memory – accessible from CPU or GPU
-    gpuErrchk(cudaMallocManaged(&x, N1*sizeof(float)));
-    gpuErrchk(cudaMallocManaged(&y, N1*sizeof(float)));
+    gpuErrchk(cudaMallocManaged(&x, N1*sizeof(double)));
+    gpuErrchk(cudaMallocManaged(&y, N1*sizeof(double)));
 
     // initialize x and y arrays on the host
     for (int i = 0; i < N1; i++) {
@@ -108,7 +108,7 @@ int test_cuda_1()
     gpuErrchk(cudaDeviceSynchronize());
 
     // Check for errors (all values should be 3.0f)
-    float maxError = 0.0f;
+    double maxError = 0.0f;
     for (int i = 0; i < N1; i++)
         maxError = fmax(maxError, fabs(y[i]-3.0f));
     std::cout << "[TEST] Max error: " << maxError << std::endl;
@@ -123,7 +123,7 @@ int test_cuda_1()
 #define N2  (2)
 #define M  (4)
 
-typedef std::complex<float> T;
+typedef std::complex<double> T;
 
 __global__ void print_device_matrix (cuComplex** mat)
 {
@@ -147,7 +147,7 @@ int test_cuda_2()
     /* fill in host "matrix" */
     for (int i = 0; i < N2; i++) {
         for (int j = 0; j < M; j++) {
-            mat[i][j] = T (float(i)+1, float(j)+1);
+            mat[i][j] = T (double(i)+1, double(j)+1);
         }
     }
 
