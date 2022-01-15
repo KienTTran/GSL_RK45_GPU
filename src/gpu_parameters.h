@@ -13,20 +13,21 @@
 
 class GPU_Parameters {
 public:
-    explicit GPU_Parameters();
-    ~GPU_Parameters();
+    __device__ __host__ GPU_Parameters();
+    __device__ __host__ ~GPU_Parameters();
     int number_of_ode;
     int dimension;
     int display_number;
-    double t_target;
-    double t0;
-    double h;
-    double **y;
+    double t_target_initial;
+    double t0_initial;
+    double h_initial;
     double* y_test;
-    bool isFloat( std::string myString);
-    void initFlu(int argc, char **argv);
-    void initPen();
-    void initTest(int argc, char **argv);
+    double* t0;
+    double* t_target;
+    double* h;
+    __device__ __host__ bool isFloat( std::string myString);
+    __device__ __host__ void initTestFlu(int argc, char **argv);
+    __device__ __host__ void initTestPen(int argc, char **argv);
 
     //from Flu
     thrust::host_vector<double> v;           // this holds some of the parameters -- they are indexed by the enums above

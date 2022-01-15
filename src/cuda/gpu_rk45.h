@@ -12,16 +12,19 @@
 
 __host__ __device__ void gpu_func_flu(double t, const double y[], double dydt[], void *params);
 __host__ __device__ void gpu_func_pen(double t, const double y[], double f[], void *params);
-__host__ __device__ void gpu_func_test(double t, const double y[], double f[], int index, void *params);
+__device__ void gpu_func_test(double t, const double y[], double f[],
+                              double* sum_foi, double* foi_on_susc_single_virus,
+                              double* inflow_from_recovereds, double* foi_on_susc_all_viruses,
+                              int index, void *params);
+
+void testMax(int n, bool verbose);
 
 class GPU_RK45{
 public:
     explicit GPU_RK45();
     ~GPU_RK45();
-    void setParameters(GPU_Parameters* params);
-    void run();
+    void run(int argc, char** argv);
 private:
-    GPU_Parameters* params;
 };
 
 #endif

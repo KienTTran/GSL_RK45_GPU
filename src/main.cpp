@@ -6,19 +6,19 @@
 #include "cpu_parameters.h"
 #include "cuda/gpu_rk45.h"
 
-int ode_function(double t, const double y[], double dydt[], void* params){
-    // 2 dim
-    const double m = 5.2;		// Mass of pendulum
-    const double g = -9.81;		// g
-    const double l = 2;		// Length of pendulum
-    const double A = 0.5;		// Amplitude of driving force
-    const double wd = 1;		// Angular frequency of driving force
-    const double b = 0.5;		// Damping coefficient
-
-    dydt[0] = y[1];
-    dydt[1] = -(g / l) * sin(y[0]) + (A * cos(wd * t) - b * y[1]) / (m * l * l);
-    return 0;
-}
+//int ode_function(double t, const double y[], double dydt[], void* params){
+//    // 2 dim
+//    const double m = 5.2;		// Mass of pendulum
+//    const double g = -9.81;		// g
+//    const double l = 2;		// Length of pendulum
+//    const double A = 0.5;		// Amplitude of driving force
+//    const double wd = 1;		// Angular frequency of driving force
+//    const double b = 0.5;		// Damping coefficient
+//
+//    dydt[0] = y[1];
+//    dydt[1] = -(g / l) * sin(y[0]) + (A * cos(wd * t) - b * y[1]) / (m * l * l);
+//    return 0;
+//}
 
 int main(int argc, char* argv[])
 {
@@ -240,17 +240,9 @@ int main(int argc, char* argv[])
 
     std::cout << "Running TEST on GPU" << std::endl;
     GPU_RK45* gpu_rk45 = new GPU_RK45();
-    GPU_Parameters* gpu_params_test = new GPU_Parameters();
-    gpu_params_test->number_of_ode = 1;
-    gpu_params_test->dimension = DIM;
-    gpu_params_test->initTest(argc,argv);
-    gpu_params_test->display_number = display;
-    gpu_params_test->t_target = NUMDAYSOUTPUT;
-    gpu_params_test->t0 = 0.0;
-    gpu_params_test->h = 1e-6;
-    gpu_rk45->setParameters(gpu_params_test);
-    gpu_rk45->run();
+    gpu_rk45->run(argc,argv);
 
+    delete gpu_rk45;
     return 0;
 
 }

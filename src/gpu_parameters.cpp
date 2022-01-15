@@ -8,17 +8,17 @@
 GPU_Parameters::GPU_Parameters(){
     dimension = 0;
     number_of_ode = 0;
-    t_target = 0.0;
-    t0 = 0.0;
-    h = 1e-6;
+    t_target_initial = 0.0;
+    t0_initial = 0.0;
+    h_initial = 1e-6;
 }
 
 GPU_Parameters::~GPU_Parameters(){
     dimension = 0;
     number_of_ode = 0;
-    t_target = 0.0;
-    t0 = 0.0;
-    h = 1e-6;
+    t_target_initial = 0.0;
+    t0_initial = 0.0;
+    h_initial = 1e-6;
 }
 
 bool GPU_Parameters::isFloat( std::string myString ) {
@@ -29,20 +29,41 @@ bool GPU_Parameters::isFloat( std::string myString ) {
     return iss.eof() && !iss.fail();
 }
 
-void GPU_Parameters::initPen(){
-    y = new double*[number_of_ode]();
-    for(int i = 0; i < number_of_ode; i++){
-        y[i] = new double[dimension];
-        for(int j = 0; j < dimension; j++){
-            y[i][j] = 0.0;
-        }
+void GPU_Parameters::initTestPen(int argc, char **argv) {
+    y_test = new double[dimension]();
+    for (int j = 0; j < dimension; j++) {
+        y_test[j] = 0.5;
+    }
+    t_target = new double[dimension]();
+    for (int j = 0; j < dimension; j++) {
+        t_target[j] = t_target_initial;
+    }
+    t0 = new double[dimension]();
+    for (int j = 0; j < dimension; j++) {
+        t0[j] = t0_initial;
+    }
+    h = new double[dimension]();
+    for (int j = 0; j < dimension; j++) {
+        h[j] = h_initial;
     }
 }
 
-void GPU_Parameters::initTest(int argc, char **argv){
+void GPU_Parameters::initTestFlu(int argc, char **argv){
     y_test = new double[dimension]();
     for(int j = 0; j < dimension; j++){
         y_test[j] = 0.5;
+    }
+    t_target = new double[dimension]();
+    for(int j = 0; j < dimension; j++){
+        t_target[j] = t_target_initial;
+    }
+    t0 = new double[dimension]();
+    for(int j = 0; j < dimension; j++){
+        t0[j] = t0_initial;
+    }
+    h = new double[dimension]();
+    for(int j = 0; j < dimension; j++){
+        h[j] = h_initial;
     }
 
     v.insert( v.begin(), num_params, 0.0 );
@@ -250,7 +271,7 @@ void GPU_Parameters::initTest(int argc, char **argv){
         // distribute the remainder of individuals into the different recovered stages equally
         for(int vir=0; vir<NUMSEROTYPES; vir++)
         {
-            double z = (0.5 - sumx)/((double)NUMR*NUMSEROTYPES);  // this is the remaining fraction of individuals to be distributed 
+            double z = (0.5 - sumx)/((double)NUMR*NUMSEROTYPES);  // this is the remaining fraction of individuals to be distributed
             for(int stg=0; stg<NUMR; stg++)
             {
                 y_test[ NUMSEROTYPES*NUMR*loc + NUMR*vir + stg ] = z * N[loc];

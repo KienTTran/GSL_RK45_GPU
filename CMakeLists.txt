@@ -7,14 +7,20 @@ if (BUILD_CLUSTER)
     add_compile_definitions( ON_CLUSTER )
     include_directories("/usr/local/cuda/")
     add_executable(rk45_cuda
+            src/cuda/gpu_func_flu.cu
+            src/cuda/gpu_func_pen.cu
+            src/cuda/gpu_func_test.cu
             src/cuda/gpu_rk45.cu
             src/cuda/gpu_sample.cu
             src/cuda/gpu_rk45.h
             src/cpu_rk45.cpp
-            src/gsl_functions.cpp
             src/cpu_rk45.h
+            src/flu_func.cpp
+            src/gsl_functions.cpp
             src/cpu_parameters.cpp
             src/cpu_parameters.h
+            src/gpu_parameters.cpp
+            src/gpu_parameters.h
             src/flu_default_params.h
             src/main.cpp)
 else()
