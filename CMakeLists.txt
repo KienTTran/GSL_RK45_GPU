@@ -10,6 +10,7 @@ if (BUILD_CLUSTER)
             src/cuda/gpu_func_flu.cu
             src/cuda/gpu_func_pen.cu
             src/cuda/gpu_func_test.cu
+            src/cuda/gpu_reduce.cu
             src/cuda/gpu_rk45.cu
             src/cuda/gpu_sample.cu
             src/cuda/gpu_rk45.h
