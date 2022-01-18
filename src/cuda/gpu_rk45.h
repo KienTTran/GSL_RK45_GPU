@@ -24,6 +24,13 @@ __device__ void reduce_sum_n(double *data, double *out, unsigned int n);
 __device__ void reduce_sum_0(double *data, double *out, unsigned int n);
 __device__ void test_reduce_sum_max(double* data, double* out, unsigned n);
 
+__device__ void reduce_max_n(double *data, double *out, unsigned int n);
+__device__ void reduce_max_0(double *data, double *out, unsigned int n);
+__device__ void reduce_sum_n(double *data, double *out, unsigned int n);
+__device__ void reduce_sum_0(double *data, double *out, unsigned int n);
+__device__ void test_reduce_sum_max(double* data, double* out, unsigned n);
+
+
 class GPU_RK45{
 public:
     explicit GPU_RK45();
