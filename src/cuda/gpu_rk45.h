@@ -12,12 +12,17 @@
 
 __host__ __device__ void gpu_func_flu(double t, const double y[], double dydt[], void *params);
 __host__ __device__ void gpu_func_pen(double t, const double y[], double f[], void *params);
-__device__ void gpu_func_test(double t, const double y[], double f[],
-                              double* sum_foi, double* foi_on_susc_single_virus,
-                              double* inflow_from_recovereds, double* foi_on_susc_all_viruses,
-                              int index, void *params);
+//__device__ void gpu_func_test(double t, const double y[], double f[],
+//                              double* sum_foi, double* foi_on_susc_single_virus,
+//                              double* inflow_from_recovereds, double* foi_on_susc_all_viruses,
+//                              int index, void *params);
+__device__ void gpu_func_test(double t, const double y[], double f[], void *params);
 
-void testMax(int n, bool verbose);
+__device__ void reduce_max_n(double *data, double *out, unsigned int n);
+__device__ void reduce_max_0(double *data, double *out, unsigned int n);
+__device__ void reduce_sum_n(double *data, double *out, unsigned int n);
+__device__ void reduce_sum_0(double *data, double *out, unsigned int n);
+__device__ void test_reduce_sum_max(double* data, double* out, unsigned n);
 
 class GPU_RK45{
 public:

@@ -8,17 +8,15 @@
 GPU_Parameters::GPU_Parameters(){
     dimension = 0;
     number_of_ode = 0;
-    t_target_initial = 0.0;
-    t0_initial = 0.0;
-    h_initial = 1e-6;
+    num_blocks = 0;
+    block_size = 0;
 }
 
 GPU_Parameters::~GPU_Parameters(){
     dimension = 0;
     number_of_ode = 0;
-    t_target_initial = 0.0;
-    t0_initial = 0.0;
-    h_initial = 1e-6;
+    num_blocks = 0;
+    block_size = 0;
 }
 
 bool GPU_Parameters::isFloat( std::string myString ) {
@@ -30,9 +28,9 @@ bool GPU_Parameters::isFloat( std::string myString ) {
 }
 
 void GPU_Parameters::initTestPen(int argc, char **argv) {
-    y_test = new double[dimension]();
+    y = new double[dimension]();
     for (int j = 0; j < dimension; j++) {
-        y_test[j] = 0.5;
+        y[j] = 0.5;
     }
     t_target = new double[dimension]();
     for (int j = 0; j < dimension; j++) {
@@ -49,20 +47,20 @@ void GPU_Parameters::initTestPen(int argc, char **argv) {
 }
 
 void GPU_Parameters::initTestFlu(int argc, char **argv){
-    y_test = new double[dimension]();
+    y = new double[dimension]();
     for(int j = 0; j < dimension; j++){
-        y_test[j] = 0.5;
+        y[j] = 0.0;
     }
     t_target = new double[dimension]();
-    for(int j = 0; j < dimension; j++){
+    for (int j = 0; j < dimension; j++) {
         t_target[j] = t_target_initial;
     }
     t0 = new double[dimension]();
-    for(int j = 0; j < dimension; j++){
+    for (int j = 0; j < dimension; j++) {
         t0[j] = t0_initial;
     }
     h = new double[dimension]();
-    for(int j = 0; j < dimension; j++){
+    for (int j = 0; j < dimension; j++) {
         h[j] = h_initial;
     }
 
@@ -242,7 +240,7 @@ void GPU_Parameters::initTestFlu(int argc, char **argv){
     for(int loc=0; loc<NUMLOC; loc++)
     {
         // put half of the individuals in the susceptible class
-        y_test[ STARTS + loc ] = 0.5 * N[loc];
+        y[ STARTS + loc ] = 0.5 * N[loc];
 
         // put small number (but slightly different amounts each time) of individuals into the infected classes
         // double r = rand() % 50 + 10;
@@ -261,8 +259,8 @@ void GPU_Parameters::initTestFlu(int argc, char **argv){
             // fprintf(stderr, "r = %1.4f, x = %1.6f", r, x);
 
             sumx += x;
-            y_test[ STARTI + NUMSEROTYPES*loc + vir ] = x * N[loc];
-            y_test[ STARTJ + NUMSEROTYPES*loc + vir ] = 0.0;     // initialize all of the J-variables to zero
+            y[ STARTI + NUMSEROTYPES*loc + vir ] = x * N[loc];
+            y[ STARTJ + NUMSEROTYPES*loc + vir ] = 0.0;     // initialize all of the J-variables to zero
 
             x += 0.001;
         }
@@ -274,7 +272,7 @@ void GPU_Parameters::initTestFlu(int argc, char **argv){
             double z = (0.5 - sumx)/((double)NUMR*NUMSEROTYPES);  // this is the remaining fraction of individuals to be distributed
             for(int stg=0; stg<NUMR; stg++)
             {
-                y_test[ NUMSEROTYPES*NUMR*loc + NUMR*vir + stg ] = z * N[loc];
+                y[ NUMSEROTYPES*NUMR*loc + NUMR*vir + stg ] = z * N[loc];
             }
         }
     }

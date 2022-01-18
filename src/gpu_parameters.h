@@ -18,13 +18,16 @@ public:
     int number_of_ode;
     int dimension;
     int display_number;
+    double *t_target;
+    double *t0;
+    double *h;
     double t_target_initial;
     double t0_initial;
     double h_initial;
-    double* y_test;
-    double* t0;
-    double* t_target;
-    double* h;
+    double* y;
+    int num_blocks;
+    int block_size;
+
     __device__ __host__ bool isFloat( std::string myString);
     __device__ __host__ void initTestFlu(int argc, char **argv);
     __device__ __host__ void initTestPen(int argc, char **argv);

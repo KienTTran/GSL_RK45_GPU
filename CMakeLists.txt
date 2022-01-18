@@ -31,6 +31,7 @@ else()
             src/cuda/gpu_func_test.cu
             src/cuda/gpu_rk45.cu
             src/cuda/gpu_sample.cu
+            src/cuda/gpu_reduce.cu
             src/cuda/gpu_rk45.h
             src/cpu_rk45.cpp
             src/cpu_rk45.h
@@ -52,6 +53,8 @@ if (BUILD_CLUSTER)
     set_target_properties(rk45_cuda PROPERTIES CUDA_ARCHITECTURES 37)
 else()
     set_target_properties(rk45_cuda PROPERTIES CUDA_ARCHITECTURES 52)
+    string(APPEND CMAKE_CUDA_FLAGS " -gencode arch=compute_52,code=sm_52" )
+    set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -lineinfo" )
 endif()
 
 if (BUILD_CLUSTER)
