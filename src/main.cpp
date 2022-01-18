@@ -212,35 +212,20 @@ int main(int argc, char* argv[])
 ////    test_cuda_2();
 //    std::cout << std::endl;
 
-//    std::cout << "Running PEN on GPU" << std::endl;
-//    GPU_RK45* gpu_rk45_pen = new GPU_RK45();
-//    GPU_Parameters* gpu_params_pen = new GPU_Parameters();
-//    gpu_params_pen->number_of_ode = 1;
-//    gpu_params_pen->dimension = 2;
-//    gpu_params_pen->initPen();
-//    gpu_params_pen->display_number = display;
-//    gpu_params_pen->t_target = 2.0;
-//    gpu_params_pen->t0 = 0.0;
-//    gpu_params_pen->h = 0.2;
-//    gpu_rk45_pen->setParameters(gpu_params_pen);
-//    gpu_rk45_pen->run();
+    
 
-//    std::cout << "Running FLU on GPU" << std::endl;
-//    GPU_RK45* gpu_rk45_flu = new GPU_RK45();
-//    GPU_Parameters* gpu_params_flu = new GPU_Parameters();
-//    gpu_params_flu->number_of_ode = 1024;
-//    gpu_params_flu->dimension = 16;
-//    gpu_params_flu->initFlu(argc, argv);
-//    gpu_params_flu->display_number = display;
-//    gpu_params_flu->t_target = 1.0;
-//    gpu_params_flu->t0 = 0.0;
-//    gpu_params_flu->h = 1e-6;
-//    gpu_rk45_flu->setParameters(gpu_params_flu);
-//    gpu_rk45_flu->run();
-
-    std::cout << "Running TEST on GPU" << std::endl;
+std::cout << "Running TEST on GPU" << std::endl;
     GPU_RK45* gpu_rk45 = new GPU_RK45();
-    gpu_rk45->run(argc,argv);
+    GPU_Parameters* gpu_params_test = new GPU_Parameters();
+    gpu_params_test->number_of_ode = 1;
+    gpu_params_test->dimension = DIM;
+    gpu_params_test->initTest(argc,argv);
+    gpu_params_test->display_number = display;
+    gpu_params_test->t_target = NUMDAYSOUTPUT;
+    gpu_params_test->t0 = 0.0;
+    gpu_params_test->h = 1e-6;
+    gpu_rk45->setParameters(gpu_params_test);
+    gpu_rk45->run();
 
     delete gpu_rk45;
     return 0;

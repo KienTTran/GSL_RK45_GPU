@@ -8,15 +8,17 @@
 GPU_Parameters::GPU_Parameters(){
     dimension = 0;
     number_of_ode = 0;
-    num_blocks = 0;
-    block_size = 0;
+    t_target = 0.0;
+    t0 = 0.0;
+    h = 1e-6;
 }
 
 GPU_Parameters::~GPU_Parameters(){
     dimension = 0;
     number_of_ode = 0;
-    num_blocks = 0;
-    block_size = 0;
+    t_target = 0.0;
+    t0 = 0.0;
+    h = 1e-6;
 }
 
 bool GPU_Parameters::isFloat( std::string myString ) {
@@ -27,41 +29,17 @@ bool GPU_Parameters::isFloat( std::string myString ) {
     return iss.eof() && !iss.fail();
 }
 
-void GPU_Parameters::initTestPen(int argc, char **argv) {
+void GPU_Parameters::initPen(){
     y = new double[dimension]();
-    for (int j = 0; j < dimension; j++) {
+    for(int j = 0; j < dimension; j++){
         y[j] = 0.5;
-    }
-    t_target = new double[dimension]();
-    for (int j = 0; j < dimension; j++) {
-        t_target[j] = t_target_initial;
-    }
-    t0 = new double[dimension]();
-    for (int j = 0; j < dimension; j++) {
-        t0[j] = t0_initial;
-    }
-    h = new double[dimension]();
-    for (int j = 0; j < dimension; j++) {
-        h[j] = h_initial;
     }
 }
 
-void GPU_Parameters::initTestFlu(int argc, char **argv){
+void GPU_Parameters::initTest(int argc, char **argv){
     y = new double[dimension]();
     for(int j = 0; j < dimension; j++){
-        y[j] = 0.0;
-    }
-    t_target = new double[dimension]();
-    for (int j = 0; j < dimension; j++) {
-        t_target[j] = t_target_initial;
-    }
-    t0 = new double[dimension]();
-    for (int j = 0; j < dimension; j++) {
-        t0[j] = t0_initial;
-    }
-    h = new double[dimension]();
-    for (int j = 0; j < dimension; j++) {
-        h[j] = h_initial;
+        y[j] = 0.5;
     }
 
     v.insert( v.begin(), num_params, 0.0 );
