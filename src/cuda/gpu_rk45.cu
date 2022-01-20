@@ -297,7 +297,7 @@ void rk45_gpu_step_apply(double t, double h,
 }
 
 __global__
-void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, double* y, GPU_Parameters* params){
+void rk45_gpu_evolve_apply(double t, double t1, double h, double* y, GPU_Parameters* params){
     __shared__ double r_max[DIM];
     __shared__ double D0[DIM];
     __shared__ double r[DIM];
@@ -333,7 +333,7 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
         D0[index] = 0.0;
         r[index] = 0.0;
 
-        while(t < t_target)
+//        while(t < t_target)
         {
 //            if(index == 0 || index == params->dimension - 1) {
 //                printf("[evolve apply] Index = %d t = %.20f h = %.20f start one day\n", index, t_start, h[index]);
@@ -345,7 +345,7 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
             double device_dt;
             int device_adjustment_out = 999;
             int device_final_step = 0;
-            device_t1 = t_target;
+            device_t1 = t1;
             device_t = t;
             device_h = h;
 
@@ -450,21 +450,21 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
 //                }
 //                /* Test */
 //                t += device_h;
-                cooperative_groups::thread_block block = cooperative_groups::this_thread_block();
-                if(index_gpu == 0) {
-                    double stf = 0.0;
-                    seasonal_transmission_factor(params, device_t, stf);
-                    printf("%1.1f\t", device_t);
-                    printf("   %1.5f   \t", stf);
-                    for (int i = 0; i < DIM; i++) printf("%1.1f\t", y[i]);
-                    printf("\n");
-                }
-                block.sync();
+//                cooperative_groups::thread_block block = cooperative_groups::this_thread_block();
+//                if(index_gpu == 0) {
+//                    double stf = 0.0;
+//                    seasonal_transmission_factor(params, device_t, stf);
+//                    printf("%1.1f\t", device_t);
+//                    printf("   %1.5f   \t", stf);
+//                    for (int i = 0; i < DIM; i++) printf("%1.1f\t", y[i]);
+//                    printf("\n");
+//                }
+//                block.sync();
             }
             if(index == 0) {
 //                printf("[evolve apply] Index = %d t = %.20f h = %.20f end one day\n", index, t, h);
             }
-            t += t_delta;
+//            t += t_delta;
         }
     }
     return;
@@ -500,8 +500,31 @@ void GPU_RK45::run(){
     cudaDeviceSetLimit(cudaLimitPrintfFifoSize, 1024000*100);
 
 //    start = std::chrono::high_resolution_clock::now();
-    rk45_gpu_evolve_apply<<<num_blocks, block_size>>>(params->t0, params->t_target, 1.0, params->h, y_d, params_d);
-    gpuErrchk(cudaDeviceSynchronize());
+    std::vector<std::vector<double>> output;
+    while(params->t0 < params->t_target){
+        rk45_gpu_evolve_apply<<<num_blocks, block_size>>>(params->t0, params->t0 + 1.0, params->h, y_d, params_d);
+        gpuErrchk(cudaDeviceSynchronize());
+        gpuErrchk(cudaMemcpy (params->y, y_d, params->dimension * sizeof (double), cudaMemcpyDeviceToHost));
+        std::vector<double> output_elem;
+//        printf("%1.1f\t", params->t0);
+        output_elem.push_back(params->t0);
+//        printf("   %1.5f   \t", 1.0);
+        output_elem.push_back(1.0);
+        for (int i = 0; i < DIM; i++){
+//            printf("%1.1f\t", params->y[i]);
+            output_elem.push_back(params->y[i]);
+        }
+//        printf("\n");
+        output.push_back(output_elem);
+        params->t0 += 1;
+    }
+
+    for(auto elem : output){
+        for(auto data : elem){
+            printf("%1.1f\t",data);
+        }
+        printf("\n");
+    }
 
 //    stop = std::chrono::high_resolution_clock::now();
 //    duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
