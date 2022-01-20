@@ -26,6 +26,8 @@ public:
     void initFlu(int argc, char **argv);
     void initPen();
     void initTest(int argc, char **argv);
+    double sum_foi_sbe[NUMLOC * NUMSEROTYPES * NUMR * NUMLOC * NUMSEROTYPES];
+    double inflow_from_recovereds_sbe[NUMLOC*NUMSEROTYPES*NUMLOC*NUMSEROTYPES*NUMR];
 
     //from Flu
     thrust::host_vector<double> v;           // this holds some of the parameters -- they are indexed by the enums above

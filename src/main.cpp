@@ -6,72 +6,63 @@
 #include "cpu_parameters.h"
 #include "cuda/gpu_rk45.h"
 
-//int ode_function(double t, const double y[], double dydt[], void* params){
-//    // 2 dim
-//    const double m = 5.2;		// Mass of pendulum
-//    const double g = -9.81;		// g
-//    const double l = 2;		// Length of pendulum
-//    const double A = 0.5;		// Amplitude of driving force
-//    const double wd = 1;		// Angular frequency of driving force
-//    const double b = 0.5;		// Damping coefficient
-//
-//    dydt[0] = y[1];
-//    dydt[1] = -(g / l) * sin(y[0]) + (A * cos(wd * t) - b * y[1]) / (m * l * l);
-//    return 0;
-//}
-
 int main(int argc, char* argv[])
 {
     int threads = 1;
     int display = 1;
-//    std::cout << "Enter number of ODE equations to run: " << std::endl;
-//    std::cin >> threads;
-//    std::cout << "Enter number of results to display randomly: " << std::endl;
-//    std::cin >> display;
 #ifdef ON_CLUSTER
     std::cout << "Running GSL on CPU" << std::endl;
     rk45_gsl_simulate(threads,display);
 #endif
-//    std::cout << "Running PEN on CPU" << std::endl;
-//    CPU_RK45* cpu_rk45 = new CPU_RK45();
-//    CPU_Parameters* cpu_params = new CPU_Parameters();
-//    cpu_params->number_of_ode = 1;
-//    cpu_params->dimension = 2;
-//    cpu_params->initFlu(argc, argv);
-//    cpu_params->display_number = display;
-//    cpu_params->cpu_function = ode_function;
-//    cpu_params->t_target = 2;
-//    cpu_params->t0 = 0.0;
-//    cpu_params->h = 0.2;
-//    cpu_rk45->setParameters(cpu_params);
-//    cpu_rk45->run();
+    int loc,vir,stg;
+    std::string f[] = {"0-R1a","0-R1b","0-R1c","0-R1d",
+                       "0-R2a","0-R2b","0-R2c","0-R2d",
+                       "0-R3a","0-R3b","0-R3c","0-R3d",
+                       "1-R1a","1-R1b","1-R1c","1-R1d",
+                       "1-R2a","1-R2b","1-R2c","1-R2d",
+                       "1-R3a","1-R3b","1-R3c","1-R3d",
+//                       "2-R1a","2-R1b","2-R1c","2-R1d",
+//                       "2-R2a","2-R2b","2-R2c","2-R2d",
+//                       "2-R3a","2-R3b","2-R3c","2-R3d",
+//                       "3-R1a","3-R1b","3-R1c","3-R1d",
+//                       "3-R2a","3-R2b","3-R2c","3-R2d",
+//                       "3-R3a","3-R3b","3-R3c","3-R3d",
+//                       "4-R1a","4-R1b","4-R1c","4-R1d",
+//                       "4-R2a","4-R2b","4-R2c","4-R2d",
+//                       "4-R3a","4-R3b","4-R3c","4-R3d",
+                       "0-I1", "0-I2", "0-I3",
+                       "1-I1", "1-I2", "1-I3",
+//                       "2-I1", "2-I2", "2-I3",
+//                       "3-I1", "3-I2", "3-I3",
+//                       "4-I1", "4-I2", "4-I3",
+                       "0-J1", "0-J2", "0-J3",
+                       "1-J1", "1-J2", "1-J3",
+//                       "2-J1", "2-J2", "2-J3",
+//                       "3-J1", "3-J2", "3-J3",
+//                       "4-J1", "4-J2", "4-J3",
+                       "0-S",
+                       "1-S",
+//                       "2-S",
+//                       "3-S",
+//                       "4-S"
+                        };
 
-//    std::cout << "Running FLU on CPU" << std::endl;
-//    CPU_RK45* cpu_rk45 = new CPU_RK45();
-//    CPU_Parameters* cpu_params = new CPU_Parameters();
-//    cpu_params->number_of_ode = 1;
-//    cpu_params->dimension = DIM;
-//    cpu_params->initFlu(argc, argv);
-//    cpu_params->display_number = display;
-//    cpu_params->cpu_function = func;
-//    cpu_params->t_target = 10;
-//    cpu_params->t0 = 0.0;
-//    cpu_params->h = 0.2;
-//    cpu_rk45->setParameters(cpu_params);
-//    cpu_rk45->run();
-//
-//    // 0 - R1
-//    // 1 - R2
-//    // 2 - R3
-//    // 3 - I1
-//    // 4 - I2
-//    // 5 - I3
-//    // 6 - J1
-//    // 7 - J2
-//    // 8 - J3
-//    // 9 - S
-//    std::string f[] = {"R1", "R2", "R3", "I1", "I2", "I3", "J1", "J2", "J3", "S"};
-//    int loc,vir,stg;
+//    for(int i = 0; i < DIM ; i++){
+//        if(i < STARTI){
+//            printf("R -  i = %d f[%d] = %s\n",i,i,f[i].c_str());
+//        }
+//        else if(i < STARTJ){
+//            printf("I -  i = %d f[%d] = %s\n",i,i,f[i].c_str());
+//        }
+//        else if(i < STARTS){
+//            printf("J -  i = %d f[%d] = %s\n",i,i,f[i].c_str());
+//        }
+//        else{
+//            printf("S -  i = %d f[%d] = %s\n",i,i,f[i].c_str());
+//        }
+//    }
+
+//    int sum_foi_count = 0;
 //    for(loc=0; loc<NUMLOC; loc++) //1
 //    {
 //        printf("location %d\n",loc);
@@ -104,6 +95,7 @@ int main(int argc, char* argv[])
 //                        printf("        for virus %d\n",v);
 //                        printf("          sum_foi += ppc->sigma[%d][%d] * ppc->beta[%d] * ppc->eta[%d][%d] * y[%d]\n",vir,v,v,loc,l,STARTI + NUMSEROTYPES*l + v);
 //                        printf("        end virus %d\n",v);
+//                        sum_foi_count++;
 //                    }
 //                    printf("      end location %d\n",l);
 //                }
@@ -112,10 +104,11 @@ int main(int argc, char* argv[])
 //                printf("      f[%d] += ( -sum_foi ) * y[%d]\n",NUMSEROTYPES*NUMR*loc + NUMR*vir + stg ,NUMSEROTYPES*NUMR*loc + NUMR*vir + stg);
 //                printf("    end stage %d\n",stg);
 //            }
-//            printf("  end virus type %d\n",stg);
+//            printf("  end virus type %d\n",vir);
 //        }
-//        printf("end location %d\n",stg);
+//        printf("end location %d\n",loc);
 //    }
+//
 //
 //    printf("\nstep 2\n");
 //
@@ -135,9 +128,9 @@ int main(int argc, char* argv[])
 //            // sum over locations to get the force of infection of virus vir on susceptibles in location loc
 //            printf("    foi_on_susc_single_virus = 0.0\n");
 //            for(int l=0; l<NUMLOC; l++){
-//                printf("    for location %d\n",loc);
+//                printf("    for location %d\n",l);
 //                printf("      foi_on_susc_single_virus += ppc->eta[%d][%d] * ppc->beta[%d] * y[%d]\n",loc,l,vir,STARTI + NUMSEROTYPES*l + vir);
-//                printf("    end location %d\n",loc);
+//                printf("    end location %d\n",l);
 //            }
 //
 //            // add the in-flow of new infections from the susceptible class
@@ -168,9 +161,9 @@ int main(int argc, char* argv[])
 //
 //            // add the recovery rate - NOTE only for I-classes
 //            printf("    f[%d] += - ppc->v[i_nu] * y[%d]\n",STARTI + NUMSEROTYPES*loc + vir,STARTI + NUMSEROTYPES*loc + vir);
-//            printf("  end virus type %d\n",stg);
+//            printf("  end virus type %d\n",vir);
 //        }
-//        printf("end location %d\n",stg);
+//        printf("end location %d\n",loc);
 //    }
 //
 //    printf("\nstep 3\n");
@@ -203,18 +196,9 @@ int main(int argc, char* argv[])
 //        }
 //        printf("location %d\n",loc);
 //    }
+//    printf("sum_foi_count = %d\n",sum_foi_count);
 
-//    std::cout << std::endl;
-//    std::cout << "Performing test 1 on GPU" << std::endl;
-////    test_cuda_1();
-//    std::cout << std::endl;
-//    std::cout << "Performing test 2 on GPU" << std::endl;
-////    test_cuda_2();
-//    std::cout << std::endl;
-
-    
-
-std::cout << "Running TEST on GPU" << std::endl;
+    std::cout << "Running TEST on GPU" << std::endl;
     GPU_RK45* gpu_rk45 = new GPU_RK45();
     GPU_Parameters* gpu_params_test = new GPU_Parameters();
     gpu_params_test->number_of_ode = 1;

@@ -12,13 +12,14 @@
 
 __host__ __device__ void gpu_func_flu(double t, const double y[], double dydt[], void *params);
 __host__ __device__ void gpu_func_pen(double t, const double y[], double f[], void *params);
-__host__ __device__ void gpu_func_test(double t, const double y[], double f[], int index, void *params);
+__device__ void gpu_func_test(double t, const double y[], double f[], int index, void *params);
+__device__ void seasonal_transmission_factor(GPU_Parameters* gpu_params, double t, double &factor );
 
-__device__ void reduce_max_n(double *data, double *out, unsigned int n);
-__device__ void reduce_max_0(double *data, double *out, unsigned int n);
-__device__ void reduce_sum_n(double *data, double *out, unsigned int n);
-__device__ void reduce_sum_0(double *data, double *out, unsigned int n);
-__device__ void test_reduce_sum_max(double* data, double* out, unsigned n);
+//__device__ void reduce_max_n(double *data, double *out, unsigned int n);
+//__device__ void reduce_max_0(double *data, double *out, unsigned int n);
+//__device__ void reduce_sum_n(double *data, double *out, unsigned int n);
+//__device__ void reduce_sum_0(double *data, double *out, unsigned int n);
+//__device__ void test_reduce_sum_max(double* data, double* out, unsigned n);
 
 
 class GPU_RK45{

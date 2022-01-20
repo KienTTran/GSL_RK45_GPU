@@ -23,10 +23,53 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
     }
 }
 
+
+__device__
+void seasonal_transmission_factor(GPU_Parameters* gpu_params, double t, double &factor )
+{
+    /*
+
+
+        We're gonna make this thing go for 40 years. 30 years of burn in and 10 years of real modeling.
+        We're creating a "10-year model cycle" and need the code below to find a time point's "place" in the "cycle"
+        modulus (denoted with % in C++) only works with integers, so need the acrobatics below
+
+     */
+
+    // This is some code that's needed to create the 10-year "cycles" in transmission.
+
+    if(gpu_params->phis_d == nullptr){
+        factor = 1.0;
+        return;
+    }
+
+    int x = (int)t; // This is now to turn a double into an integer
+    double remainder = t - (double)x;
+    int xx = x % 3650; // int xx = x % NUMDAYSOUTPUT;
+    double yy = (double)xx + remainder;
+    // put yy into the sine function, let it return the beta value
+    t = yy;
+    double sine_function_value = 0.0;
+
+    int phis_length = sizeof(gpu_params->phis_d)/ sizeof(gpu_params->phis_d[0]);
+
+    for(int i=0; i<phis_length; i++)
+    {
+        if( fabs( t - gpu_params->phis_d[i] ) < (gpu_params->v_d[gpu_params->i_epidur] / 2))
+        {
+            // sine_function_value = sin( 2.0 * 3.141592653589793238 * (phis[i]-t+91.25) / 365.0 );
+            sine_function_value = sin( 2.0 * 3.141592653589793238 * (gpu_params->phis_d[i]-t+(gpu_params->v_d[gpu_params->i_epidur] / 2)) / (gpu_params->v_d[gpu_params->i_epidur] * 2));
+            // printf("\n\t\t\t %1.3f %1.3f %1.3f \n\n", t, phis[i], sine_function_value );
+        }
+    }
+    factor = 1.0 + gpu_params->v_d[gpu_params->i_amp] * sine_function_value;
+    return;
+}
+
 __device__
 void rk45_gpu_adjust_h(double y[], double y_err[], double dydt_out[],
                        double* h, double h_0, int* adjustment_out, int final_step,
-                       double* r, double* D0, double* r_max,
+                       double r[], double D0[], double r_max[],
                        const int index, GPU_Parameters* params)
                        {
     /* adaptive adjustment */
@@ -61,11 +104,12 @@ void rk45_gpu_adjust_h(double y[], double y_err[], double dydt_out[],
     else{
         h_old = *h;
     }
-//    if(index == 0 || index == params->dimension - 1) {
+//    if(index == 0 || index == params->dimension - 1)
+//    {
 //        printf("  [gpu_adjust_h] Index = %d D0 = %.20f r = %.20f\n", index, D0, r);
-//        printf("    IN y_d[%d] = %.20f\n",index,y[index]);
-//        printf("    IN y_err_d[%d] = %.20f\n",index,y_err[index]);
-//        printf("    IN dydt_out_d[%d] = %.20f\n",index,dydt_out[index]);
+//        printf("    IN y[%d] = %.20f\n",index,y[index]);
+//        printf("    IN y_err[%d] = %.20f\n",index,y_err[index]);
+//        printf("    IN dydt_out[%d] = %.20f\n",index,dydt_out[index]);
 //        printf("    eps_rel[%d] = %.20f\n",index,eps_rel);
 //        printf("    a_y[%d] = %.20f\n",index,a_y);
 //        printf("    h_old[%d] = %.20f\n",index,h_old);
@@ -76,19 +120,6 @@ void rk45_gpu_adjust_h(double y[], double y_err[], double dydt_out[],
 //    }
 
     //finding r_max
-//        double D0 = eps_rel * (a_y * fabs(y_d[index]) + a_dydt * fabs((h_old) * dydt_out_d[index])) + eps_abs;
-//        double r = fabs(y_err_d[index]) / fabs(D0);
-//        max_in_d[index] = r;
-//        __syncthreads();
-//        if(index == 0 || index == params->dimension - 1) {
-//            printf("    Index = %d max_in_d[%d] =  %.20f\n", index, index, max_in_d[index]);
-//        }
-//        reduce_max_0(max_in_d,max_out_d,DIM);
-//        __syncthreads();
-//        double r_max = max_out_d[0];
-//        r_max = 0.4;
-//        __syncthreads();
-
     r_max[index] = 2.2250738585072014e-308;
     D0[index] = eps_rel * (a_y * fabs(y[index]) + a_dydt * fabs((h_old) * dydt_out[index])) + eps_abs;
     r[index]  = fabs(y_err[index]) / fabs(D0[index]);
@@ -101,9 +132,11 @@ void rk45_gpu_adjust_h(double y[], double y_err[], double dydt_out[],
     cooperative_groups::thread_block block = cooperative_groups::this_thread_block();
     for (int i = 0; i < params->dimension; i++)
     {
-//        const double D0 = eps_rel * (a_y * fabs(y[i]) + a_dydt * fabs((h_old) * dydt_out[i])) + eps_abs;
-//        const double r  = fabs(y_err[i]) / fabs(D0);
-//        printf("      index = %d i = %d compare r[%d] = %.20f r_max = %.20f\n",index,i,i,r[i],r_max[index]);
+//        if(index == 0 || index == params->dimension - 1)
+//        if(r[i] != 0)
+//        {
+//            printf("      compare r[%d] = %.20f with r_max[%d] = %.20f\n",i,r[i],index,r_max[index]);
+//        }
         r_max[index] = max(r[i], r_max[index]);
     }
     block.sync();
@@ -190,7 +223,10 @@ void rk45_gpu_step_apply(double t, double h,
     k4[index] = 0.0;
     k5[index] = 0.0;
     k6[index] = 0.0;
-//    if(index == 0 || index == params->dimension - 1) {
+
+//    if(index == 0 || index == params->dimension - 1)
+//    if(index == 29)
+//    {
 //        printf("  [gpu_step_apply] Index = %d t = %.20f h = %.20f start\n",index,t,h);
 //        printf("    IN y[%d] = %.20f\n",index,y[index]);
 //        printf("    IN y_err[%d] = %.20f\n",index,y_err[index]);
@@ -249,7 +285,9 @@ void rk45_gpu_step_apply(double t, double h,
     /* difference between 4th and 5th order */
     y_err[index] = h * (ec[1] * k1[index] + ec[3] * k3[index] + ec[4] * k4[index] + ec[5] * k5[index] + ec[6] * k6[index]);
     //debug printout
-//    if(index == 0 || index == params->dimension - 1) {
+//    if(index == 0 || index == params->dimension - 1)
+//    if(index == 29)
+//    {
 //        printf("    OUT y[%d] = %.20f\n",index,y[index]);
 //        printf("    OUT y_err[%d] = %.20f\n",index,y_err[index]);
 //        printf("    OUT dydt_out[%d] = %.20f\n",index,dydt_out[index]);
@@ -295,7 +333,8 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
         D0[index] = 0.0;
         r[index] = 0.0;
 
-        while(t < t_target){
+        while(t < t_target)
+        {
 //            if(index == 0 || index == params->dimension - 1) {
 //                printf("[evolve apply] Index = %d t = %.20f h = %.20f start one day\n", index, t_start, h[index]);
 //            }
@@ -327,6 +366,14 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
 //                if(index == 0 || index == params->dimension - 1) {
 //                    printf("[evolve apply] Useydt_in\n");
 //                }
+//                for(int i = 0; i<10; i++){
+//                    gpu_func_test(device_t_0, y, dydt_in, index, params);
+//                    if(index >= STARTI && index < STARTS){
+//                        y[index] = dydt_in[index];
+//                        dydt_in[index] = 0;
+//                    }
+//                }
+//                return;
                 gpu_func_test(device_t_0, y, dydt_in, index, params);
                 while(true)
                 {
@@ -381,30 +428,42 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
                 device_h = device_h_0;  /* suggest step size for next time-step */
                 t = device_t;
                 h = device_h;
-//                if(index == 0 || index == params_d->dimension - 1) {
+//                if(index == 0 || index == params->dimension - 1)
+//                if(index == 29)
+//                {
 //                    printf("    index = %d t = %.20f t_0 = %.20f  h = %.20f h_0 = %.20f\n", index, device_t, device_t_0, device_h, device_h_0);
 //                    printf("    index = %d y[%d] = %.20f\n", index, index, y[index]);
 //                    printf("\n");
-////                    if(device_final_step)
-////                    {
-////                        if(index == 0 || index == params_d->dimension - 1) {
-////                            if(index == 0)
-////                            {
-////                                printf("[output] index = %d t = %.20f t_0 = %.20f  h = %.20f h_0 = %.20f\n", index, device_t,
-////                                   device_t_0, device_h, device_h_0);
-////                                printf("[output] index = %d y[%d] = %.20f\n", index, index, y[index]);
-////                                printf("\n");
-////                            }
-////                        }
-////                    }
-////                    printf("  [evolve apply] index = %d end\n\n",index);
+//                    if(device_final_step)
+//                    {
+//                        if(index == 0 || index == params->dimension - 1) {
+//                            if(index == 0)
+//                            {
+//                                printf("[output] index = %d t = %.20f t_0 = %.20f  h = %.20f h_0 = %.20f\n", index, device_t,
+//                                   device_t_0, device_h, device_h_0);
+//                                printf("[output] index = %d y[%d] = %.20f\n", index, index, y[index]);
+//                                printf("\n");
+//                            }
+//                        }
+//                    }
+//                    printf("  [evolve apply] index = %d end\n\n",index);
 //                }
 //                /* Test */
-//                t += h[index];
+//                t += device_h;
+                cooperative_groups::thread_block block = cooperative_groups::this_thread_block();
+                if(index_gpu == 0) {
+                    double stf = 0.0;
+                    seasonal_transmission_factor(params, device_t, stf);
+                    printf("%1.1f\t", device_t);
+                    printf("   %1.5f   \t", stf);
+                    for (int i = 0; i < DIM; i++) printf("%1.1f\t", y[i]);
+                    printf("\n");
+                }
+                block.sync();
             }
-//            if(index == 0 || index == params->dimension - 1) {
-//                printf("[evolve apply] Index = %d t = %.20f h = %.20f end one day\n", index, t_start, h);
-//            }
+            if(index == 0) {
+//                printf("[evolve apply] Index = %d t = %.20f h = %.20f end one day\n", index, t, h);
+            }
             t += t_delta;
         }
     }
@@ -412,7 +471,8 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
 }
 
 void GPU_RK45::run(){
-    auto start = std::chrono::high_resolution_clock::now();
+
+//    auto start = std::chrono::high_resolution_clock::now();
 
     //y
     double *y_d;
@@ -426,30 +486,37 @@ void GPU_RK45::run(){
     int num_SMs;
     gpuErrchk(cudaDeviceGetAttribute(&num_SMs, cudaDevAttrMultiProcessorCount, 0));
 //    int numBlocks = 32*num_SMs; //multiple of 32
-    int block_size = 128; //max is 1024
+    int block_size = 256; //max is 1024
     int num_blocks = (params->dimension + block_size - 1) / block_size;
-    printf("[GSL GPU] SMs = %d block_size = %d num_blocks = %d\n",num_SMs,block_size,num_blocks);
+//    printf("[GSL GPU] SMs = %d block_size = %d num_blocks = %d\n",num_SMs,block_size,num_blocks);
     dim3 dimBlock(block_size, block_size); // so your threads are BLOCK_SIZE*BLOCK_SIZE, 256 in this case
     dim3 dimGrid(num_blocks, num_blocks); // 1*1 blocks in a grid
 
-    auto stop = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-    printf("[GSL GPU] Time for allocate mem CPU to GPU: %lld micro seconds which is %.20f seconds\n",duration.count(),(duration.count()/1e6));
+//    auto stop = std::chrono::high_resolution_clock::now();
+//    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+//    printf("[GSL GPU] Time for allocate mem CPU to GPU: %lld micro seconds which is %.20f seconds\n",duration.count(),(duration.count()/1e6));
 
-//    cudaFuncSetCacheConfig(gpu_evolve_apply, cudaFuncCachePreferShared);
+    cudaFuncSetCacheConfig(rk45_gpu_evolve_apply, cudaFuncCachePreferL1);
+    cudaDeviceSetLimit(cudaLimitPrintfFifoSize, 1024000*100);
 
-    start = std::chrono::high_resolution_clock::now();
+//    start = std::chrono::high_resolution_clock::now();
     rk45_gpu_evolve_apply<<<num_blocks, block_size>>>(params->t0, params->t_target, 1.0, params->h, y_d, params_d);
     gpuErrchk(cudaDeviceSynchronize());
 
-    stop = std::chrono::high_resolution_clock::now();
-    duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-    printf("[GSL GPU] Time for compute %d ODE with %d parameters, step %.20f in %.20f days on GPU: %lld micro seconds which is %.20f seconds\n",params->number_of_ode,params->dimension,params->h,params->t_target,duration.count(),(duration.count()/1e6));
+//    stop = std::chrono::high_resolution_clock::now();
+//    duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+//    printf("[GSL GPU] Time for compute %d ODE with %d parameters, step %.20f in %.20f days on GPU: %lld micro seconds which is %.20f seconds\n",params->number_of_ode,params->dimension,params->h,params->t_target,duration.count(),(duration.count()/1e6));
 
-    gpuErrchk(cudaMemcpy (params->y, y_d, params->dimension * sizeof (double), cudaMemcpyDeviceToHost));
-    printf("Display on Host\n");
-    for(int i = 0; i < params->dimension; i++){
-        printf("  y[%d] = %.20f\n",i,params->y[i]);
-    }
+//    start = std::chrono::high_resolution_clock::now();
+
+//    gpuErrchk(cudaMemcpy (params->y, y_d, params->dimension * sizeof (double), cudaMemcpyDeviceToHost));
+
+//    stop = std::chrono::high_resolution_clock::now();
+//    duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+//    printf("[GSL GPU] Time for copy data from GPU on CPU: %lld micro seconds which is %.20f seconds\n",duration.count(),(duration.count()/1e6));
+//    printf("Display on Host\n");
+//    for(int i = 0; i < params->dimension; i++){
+//        printf("  y[%d] = %.20f\n",i,params->y[i]);
+//    }
     return;
 }
