@@ -55,7 +55,7 @@ int CPU_RK45::rk45_cpu_adjust_h(double y[],double y_err[], double dydt_out[], do
     }
 
     for(int i=0; i<params->dimension; i++) {
-        const double D0 = eps_rel * (a_y * fabs(y[i]) + a_dydt * fabs(h_old * dydt_out[i])) + eps_abs;
+        const double D0 = eps_rel * (a_y * std::fabs(y[i]) + a_dydt * fabs(h_old * dydt_out[i])) + eps_abs;
         const double r  = fabs(y_err[i]) / fabs(D0);
         printf("      i = %d compare r = %.10f r_max = %.10f\n",i,r,r_max);
         r_max = std::max(r, r_max);
@@ -220,7 +220,7 @@ int CPU_RK45::rk45_cpu_evolve_apply(double& t, double t1, double& h, double y[])
         printf("    y[%d] = %.10f\n",i,y[i]);
     }
 
-    memcpy(y0,y,params->dimension * sizeof(double));
+    std::memcpy(y0,y,params->dimension * sizeof(double));
 
     int h_adjust_status;
     while(true){
@@ -272,7 +272,7 @@ int CPU_RK45::rk45_cpu_evolve_apply(double& t, double t1, double& h, double y[])
             {
                 /* Step was decreased. Undo step, and try again with new h_0. */
                 printf("  [evolve apply] step decreased, y = y0\n");
-                memcpy(y,y0,params->dimension * sizeof(double));
+                std::memcpy(y,y0,params->dimension * sizeof(double));
             }
             else
             {
@@ -337,7 +337,7 @@ int CPU_RK45::rk45_cpu_simulate(){
 
     auto stop = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-    printf("[GSL CPU] Time for allocate mem on CPU: %lld micro seconds which is %.10f seconds\n",duration.count(),(duration.count()/1e6));
+    printf("[GSL CPU] Time for allocate mem on CPU: %ld micro seconds which is %.10f seconds\n",duration.count(),(duration.count()/1e6));
 
     start = std::chrono::high_resolution_clock::now();
     for(int i = 0; i < params->number_of_ode; i++){
@@ -347,7 +347,7 @@ int CPU_RK45::rk45_cpu_simulate(){
     }
     stop = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-    printf("[GSL CPU] Time for compute %d ODE with %d parameters on CPU: %lld micro seconds which is %.10f seconds\n",params->number_of_ode,params->dimension,duration.count(),(duration.count()/1e6));
+    printf("[GSL CPU] Time for compute %d ODE with %d parameters on CPU: %ld micro seconds which is %.10f seconds\n",params->number_of_ode,params->dimension,duration.count(),(duration.count()/1e6));
     start = std::chrono::high_resolution_clock::now();
     std::random_device rd; // obtain a random number from hardware
     std::mt19937 gen(rd()); // seed the generator
@@ -368,7 +368,7 @@ int CPU_RK45::rk45_cpu_simulate(){
     }
     stop = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-    printf("[GSL CPU] Time for get %d random results on CPU: %lld micro seconds which is %.10f seconds\n",params->display_number,duration.count(),(duration.count()/1e6));
+    printf("[GSL CPU] Time for get %d random results on CPU: %ld micro seconds which is %.10f seconds\n",params->display_number,duration.count(),(duration.count()/1e6));
     printf("\n");
 
     delete(t);
@@ -418,6 +418,6 @@ void CPU_RK45::run() {
 
     auto stop = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-    printf("[GSL CPU] Time for compute %d ODE with %d parameters in %f days on CPU: %lld micro seconds which is %.10f seconds\n",params->number_of_ode,params->dimension,params->t_target,duration.count(),(duration.count()/1e6));
+    printf("[GSL CPU] Time for compute %d ODE with %d parameters in %f days on CPU: %ld micro seconds which is %.10f seconds\n",params->number_of_ode,params->dimension,params->t_target,duration.count(),(duration.count()/1e6));
     return;
 }

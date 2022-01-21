@@ -22,10 +22,8 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
         if (abort) exit(code);
     }
 }
-
-
 __device__
-void seasonal_transmission_factor(GPU_Parameters* gpu_params, double t, double &factor )
+double seasonal_transmission_factor(GPU_Parameters* gpu_params, double t)
 {
     /*
 
@@ -38,9 +36,8 @@ void seasonal_transmission_factor(GPU_Parameters* gpu_params, double t, double &
 
     // This is some code that's needed to create the 10-year "cycles" in transmission.
 
-    if(gpu_params->phis_d == nullptr){
-        factor = 1.0;
-        return;
+    if(gpu_params->phis_d_length == 0){
+        return 1.0;
     }
 
     int x = (int)t; // This is now to turn a double into an integer
@@ -51,19 +48,28 @@ void seasonal_transmission_factor(GPU_Parameters* gpu_params, double t, double &
     t = yy;
     double sine_function_value = 0.0;
 
-    int phis_length = sizeof(gpu_params->phis_d)/ sizeof(gpu_params->phis_d[0]);
-
-    for(int i=0; i<phis_length; i++)
+    for(int i=0; i<gpu_params->phis_d_length; i++)
     {
-        if( fabs( t - gpu_params->phis_d[i] ) < (gpu_params->v_d[gpu_params->i_epidur] / 2))
+        if( std::fabs( t - gpu_params->phis_d[i] ) < (gpu_params->v_d[gpu_params->i_epidur] / 2))
         {
             // sine_function_value = sin( 2.0 * 3.141592653589793238 * (phis[i]-t+91.25) / 365.0 );
-            sine_function_value = sin( 2.0 * 3.141592653589793238 * (gpu_params->phis_d[i]-t+(gpu_params->v_d[gpu_params->i_epidur] / 2)) / (gpu_params->v_d[gpu_params->i_epidur] * 2));
-            // printf("\n\t\t\t %1.3f %1.3f %1.3f \n\n", t, phis[i], sine_function_value );
+            sine_function_value = std::sin( 2.0 * 3.141592653589793238 * (gpu_params->phis_d[i] - t +(gpu_params->v_d[gpu_params->i_epidur] / 2)) / (gpu_params->v_d[gpu_params->i_epidur] * 2));
+//            printf("      in loop %1.3f %d  %1.3f %1.3f\n", t, i, gpu_params->phis_d[i], sine_function_value );
         }
     }
-    factor = 1.0 + gpu_params->v_d[gpu_params->i_amp] * sine_function_value;
-    return;
+//    printf("    %f sine_function_value %1.3f\n",t,sine_function_value);
+//    printf("    %f return %1.3f\n",t,1.0 + v[i_amp] * sine_function_value);
+    return 1.0 + gpu_params->v_d[gpu_params->i_amp] * sine_function_value;
+}
+
+__device__
+double gpu_pop_sum( double yy[] )
+{
+    double sum=0.0;
+    for(int i=0; i<DIM; i++) sum += yy[i];
+
+    for(int i=STARTJ; i<STARTJ+NUMLOC*NUMSEROTYPES; i++) sum -= yy[i];
+    return sum;
 }
 
 __device__
@@ -297,7 +303,9 @@ void rk45_gpu_step_apply(double t, double h,
 }
 
 __global__
-void rk45_gpu_evolve_apply(double t, double t1, double h, double* y, GPU_Parameters* params){
+void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, double* y,
+                           double* y_output,
+                           GPU_Parameters* params){
     __shared__ double r_max[DIM];
     __shared__ double D0[DIM];
     __shared__ double r[DIM];
@@ -333,7 +341,7 @@ void rk45_gpu_evolve_apply(double t, double t1, double h, double* y, GPU_Paramet
         D0[index] = 0.0;
         r[index] = 0.0;
 
-//        while(t < t_target)
+        while(t < t_target)
         {
 //            if(index == 0 || index == params->dimension - 1) {
 //                printf("[evolve apply] Index = %d t = %.20f h = %.20f start one day\n", index, t_start, h[index]);
@@ -344,18 +352,36 @@ void rk45_gpu_evolve_apply(double t, double t1, double h, double* y, GPU_Paramet
             double device_h_0;
             double device_dt;
             int device_adjustment_out = 999;
-            int device_final_step = 0;
-            device_t1 = t1;
             device_t = t;
+            device_t1 = device_t + 1.0;
             device_h = h;
 
 //            if(index == 0 || index == params->dimension - 1) {
 //                printf("\n  Will run from %f to %f, step %.20f\n", t, device_t1, h);
 //                printf("    t = %.20f t_1 = %.20f  h = %.20f\n", device_t, device_t1, device_h);
 //            }
+//            cooperative_groups::thread_block block = cooperative_groups::this_thread_block();
+            int output_index = static_cast<int>(t) * params->display_dimension + index;
+            if(output_index % params->display_dimension == 0){//write to first column the time
+//                printf("0 - y_output[%d] = %f\n",output_index,std::floor(t));
+                y_output[output_index] = std::floor(t);
+            }
+            if(output_index % params->display_dimension == 1){//write to second column the stf
+//                printf("1 - y_output[%d] = %f\n",output_index,params->stf_d[static_cast<int>(t)]);
+                if(params->phis_d_length == 0){
+                    y_output[output_index] = 1.0;
+                }
+                else{
+                    y_output[output_index] = params->stf_d[static_cast<int>(t)];
+                }
+            }
+            y_output[output_index + 2] = y[index];//write to third column onward y
+//            printf("2 - y_output[%d] = %f\n",output_index + 2,y[index]);
+//            block.sync();
 
             while(device_t < device_t1)
             {
+                int device_final_step = 0;
                 const double device_t_0 = device_t;
                 device_h_0 = device_h;
                 device_dt = device_t1 - device_t_0;
@@ -425,11 +451,7 @@ void rk45_gpu_evolve_apply(double t, double t1, double h, double* y, GPU_Paramet
                         break;
                     }
                 }
-                device_h = device_h_0;  /* suggest step size for next time-step */
-                t = device_t;
-                h = device_h;
 //                if(index == 0 || index == params->dimension - 1)
-//                if(index == 29)
 //                {
 //                    printf("    index = %d t = %.20f t_0 = %.20f  h = %.20f h_0 = %.20f\n", index, device_t, device_t_0, device_h, device_h_0);
 //                    printf("    index = %d y[%d] = %.20f\n", index, index, y[index]);
@@ -450,21 +472,18 @@ void rk45_gpu_evolve_apply(double t, double t1, double h, double* y, GPU_Paramet
 //                }
 //                /* Test */
 //                t += device_h;
-//                cooperative_groups::thread_block block = cooperative_groups::this_thread_block();
-//                if(index_gpu == 0) {
-//                    double stf = 0.0;
-//                    seasonal_transmission_factor(params, device_t, stf);
-//                    printf("%1.1f\t", device_t);
-//                    printf("   %1.5f   \t", stf);
-//                    for (int i = 0; i < DIM; i++) printf("%1.1f\t", y[i]);
-//                    printf("\n");
+                //1D_index = row*width+col
+//                if(index == 0){
+//                    printf("Time = %d index = %d 1D index = %d\n",static_cast<int>(device_t),index,static_cast<int>(device_t)*DIM + index);
 //                }
-//                block.sync();
+                device_h = device_h_0;  /* suggest step size for next time-step */
+//                t = device_t;
+                h = device_h;
             }
-            if(index == 0) {
+//            if(index == 0) {
 //                printf("[evolve apply] Index = %d t = %.20f h = %.20f end one day\n", index, t, h);
-            }
-//            t += t_delta;
+//            }
+            t += t_delta;
         }
     }
     return;
@@ -472,12 +491,16 @@ void rk45_gpu_evolve_apply(double t, double t1, double h, double* y, GPU_Paramet
 
 void GPU_RK45::run(){
 
-//    auto start = std::chrono::high_resolution_clock::now();
+    auto start_all = std::chrono::high_resolution_clock::now();
+    auto start = std::chrono::high_resolution_clock::now();
 
     //y
     double *y_d;
     gpuErrchk(cudaMalloc ((void **)&y_d, params->dimension * sizeof (double)));
     gpuErrchk(cudaMemcpy (y_d, params->y, params->dimension * sizeof (double), cudaMemcpyHostToDevice));
+    double *y_output_d;
+    gpuErrchk(cudaMalloc ((void **)&y_output_d, static_cast<int>(params->t_target) * params->display_dimension * sizeof (double)));
+    gpuErrchk(cudaMemcpy (y_output_d, params->y_output, static_cast<int>(params->t_target) * params->display_dimension * sizeof (double), cudaMemcpyHostToDevice));
 
     GPU_Parameters* params_d;
     gpuErrchk(cudaMalloc((void **)&params_d, sizeof(GPU_Parameters)));
@@ -492,54 +515,42 @@ void GPU_RK45::run(){
     dim3 dimBlock(block_size, block_size); // so your threads are BLOCK_SIZE*BLOCK_SIZE, 256 in this case
     dim3 dimGrid(num_blocks, num_blocks); // 1*1 blocks in a grid
 
-//    auto stop = std::chrono::high_resolution_clock::now();
-//    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-//    printf("[GSL GPU] Time for allocate mem CPU to GPU: %lld micro seconds which is %.20f seconds\n",duration.count(),(duration.count()/1e6));
+    auto stop = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+    printf("[GSL GPU] Time for allocate mem CPU to GPU: %ld micro seconds which is %.20f seconds\n",duration.count(),(duration.count()/1e6));
 
     cudaFuncSetCacheConfig(rk45_gpu_evolve_apply, cudaFuncCachePreferL1);
     cudaDeviceSetLimit(cudaLimitPrintfFifoSize, 1024000*100);
 
-//    start = std::chrono::high_resolution_clock::now();
-    std::vector<std::vector<double>> output;
-    while(params->t0 < params->t_target){
-        rk45_gpu_evolve_apply<<<num_blocks, block_size>>>(params->t0, params->t0 + 1.0, params->h, y_d, params_d);
-        gpuErrchk(cudaDeviceSynchronize());
-        gpuErrchk(cudaMemcpy (params->y, y_d, params->dimension * sizeof (double), cudaMemcpyDeviceToHost));
-        std::vector<double> output_elem;
-//        printf("%1.1f\t", params->t0);
-        output_elem.push_back(params->t0);
-//        printf("   %1.5f   \t", 1.0);
-        output_elem.push_back(1.0);
-        for (int i = 0; i < DIM; i++){
-//            printf("%1.1f\t", params->y[i]);
-            output_elem.push_back(params->y[i]);
+    start = std::chrono::high_resolution_clock::now();
+
+    rk45_gpu_evolve_apply<<<num_blocks, block_size>>>(params->t0, params->t_target, 1.0, params->h, y_d,
+                                                      y_output_d,
+                                                      params_d);
+    gpuErrchk(cudaDeviceSynchronize());
+
+    stop = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+    printf("[GSL GPU] Time for compute %d ODE with %d parameters, step %.20f in %.20f days on GPU: %ld micro seconds which is %.20f seconds\n",params->number_of_ode,params->dimension,params->h,params->t_target,duration.count(),(duration.count()/1e6));
+
+    start = std::chrono::high_resolution_clock::now();
+
+    gpuErrchk(cudaMemcpy (params->y_output, y_output_d, static_cast<int>(params->t_target) * params->display_dimension * sizeof (double), cudaMemcpyDeviceToHost));
+
+    stop = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+    printf("[GSL GPU] Time for copy data from GPU on CPU: %ld micro seconds which is %.20f seconds\n",duration.count(),(duration.count()/1e6));
+    printf("Display on Host\n");
+    for(int i = 0; i < static_cast<int>(params->t_target) * params->display_dimension; i++){
+        printf("%1.1f\t",params->y_output[i]);
+        //reverse position from 1D array
+        if(i > 0 && (i + 1) % params->display_dimension == 0){
+            printf("\n");
         }
-//        printf("\n");
-        output.push_back(output_elem);
-        params->t0 += 1;
     }
+    auto stop_all = std::chrono::high_resolution_clock::now();
+    auto duration_all = std::chrono::duration_cast<std::chrono::microseconds>(stop_all - start_all);
+    printf("[GSL GPU] Time for all: %ld micro seconds which is %.20f seconds\n",duration_all.count(),(duration_all.count()/1e6));
 
-    for(auto elem : output){
-        for(auto data : elem){
-            printf("%1.1f\t",data);
-        }
-        printf("\n");
-    }
-
-//    stop = std::chrono::high_resolution_clock::now();
-//    duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-//    printf("[GSL GPU] Time for compute %d ODE with %d parameters, step %.20f in %.20f days on GPU: %lld micro seconds which is %.20f seconds\n",params->number_of_ode,params->dimension,params->h,params->t_target,duration.count(),(duration.count()/1e6));
-
-//    start = std::chrono::high_resolution_clock::now();
-
-//    gpuErrchk(cudaMemcpy (params->y, y_d, params->dimension * sizeof (double), cudaMemcpyDeviceToHost));
-
-//    stop = std::chrono::high_resolution_clock::now();
-//    duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-//    printf("[GSL GPU] Time for copy data from GPU on CPU: %lld micro seconds which is %.20f seconds\n",duration.count(),(duration.count()/1e6));
-//    printf("Display on Host\n");
-//    for(int i = 0; i < params->dimension; i++){
-//        printf("  y[%d] = %.20f\n",i,params->y[i]);
-//    }
     return;
 }

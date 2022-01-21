@@ -43,7 +43,7 @@ namespace {
     bool G_PHIS_INITIALIZED_ON_COMMAND_LINE = false;
 }
 // number of locations
-#define NUMLOC 1
+#define NUMLOC 2
 
 // number OF types/subtypes of influenza (this will always be three - H1, H3, and B)
 // for generality (and to avoid constantly having to specify type/subtype) we call this serotypes
@@ -68,7 +68,8 @@ namespace {
 //#define DIM 2
 
 // this is the number of days of simulation that will be sent to standard output (and used for model fitting)
-#define NUMDAYSOUTPUT 3650*2 // use this to define "cycle" lengths
+//#define NUMDAYSOUTPUT 3650*2// use this to define "cycle" lengths
+#define NUMDAYSOUTPUT 10 // use this to define "cycle" lengths
 
 // Two population sizes: main population and all outer populations have the same size
 #define POPSIZE_MAIN 1000000.00

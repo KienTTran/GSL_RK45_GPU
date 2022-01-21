@@ -14,38 +14,38 @@ int main(int argc, char* argv[])
     std::cout << "Running GSL on CPU" << std::endl;
     rk45_gsl_simulate(threads,display);
 #endif
-    int loc,vir,stg;
-    std::string f[] = {"0-R1a","0-R1b","0-R1c","0-R1d",
-                       "0-R2a","0-R2b","0-R2c","0-R2d",
-                       "0-R3a","0-R3b","0-R3c","0-R3d",
-                       "1-R1a","1-R1b","1-R1c","1-R1d",
-                       "1-R2a","1-R2b","1-R2c","1-R2d",
-                       "1-R3a","1-R3b","1-R3c","1-R3d",
-//                       "2-R1a","2-R1b","2-R1c","2-R1d",
-//                       "2-R2a","2-R2b","2-R2c","2-R2d",
-//                       "2-R3a","2-R3b","2-R3c","2-R3d",
-//                       "3-R1a","3-R1b","3-R1c","3-R1d",
-//                       "3-R2a","3-R2b","3-R2c","3-R2d",
-//                       "3-R3a","3-R3b","3-R3c","3-R3d",
-//                       "4-R1a","4-R1b","4-R1c","4-R1d",
-//                       "4-R2a","4-R2b","4-R2c","4-R2d",
-//                       "4-R3a","4-R3b","4-R3c","4-R3d",
-                       "0-I1", "0-I2", "0-I3",
-                       "1-I1", "1-I2", "1-I3",
-//                       "2-I1", "2-I2", "2-I3",
-//                       "3-I1", "3-I2", "3-I3",
-//                       "4-I1", "4-I2", "4-I3",
-                       "0-J1", "0-J2", "0-J3",
-                       "1-J1", "1-J2", "1-J3",
-//                       "2-J1", "2-J2", "2-J3",
-//                       "3-J1", "3-J2", "3-J3",
-//                       "4-J1", "4-J2", "4-J3",
-                       "0-S",
-                       "1-S",
-//                       "2-S",
-//                       "3-S",
-//                       "4-S"
-                        };
+//    int loc,vir,stg;
+//    std::string f[] = {"0-R1a","0-R1b","0-R1c","0-R1d",
+//                       "0-R2a","0-R2b","0-R2c","0-R2d",
+//                       "0-R3a","0-R3b","0-R3c","0-R3d",
+//                       "1-R1a","1-R1b","1-R1c","1-R1d",
+//                       "1-R2a","1-R2b","1-R2c","1-R2d",
+//                       "1-R3a","1-R3b","1-R3c","1-R3d",
+////                       "2-R1a","2-R1b","2-R1c","2-R1d",
+////                       "2-R2a","2-R2b","2-R2c","2-R2d",
+////                       "2-R3a","2-R3b","2-R3c","2-R3d",
+////                       "3-R1a","3-R1b","3-R1c","3-R1d",
+////                       "3-R2a","3-R2b","3-R2c","3-R2d",
+////                       "3-R3a","3-R3b","3-R3c","3-R3d",
+////                       "4-R1a","4-R1b","4-R1c","4-R1d",
+////                       "4-R2a","4-R2b","4-R2c","4-R2d",
+////                       "4-R3a","4-R3b","4-R3c","4-R3d",
+//                       "0-I1", "0-I2", "0-I3",
+//                       "1-I1", "1-I2", "1-I3",
+////                       "2-I1", "2-I2", "2-I3",
+////                       "3-I1", "3-I2", "3-I3",
+////                       "4-I1", "4-I2", "4-I3",
+//                       "0-J1", "0-J2", "0-J3",
+//                       "1-J1", "1-J2", "1-J3",
+////                       "2-J1", "2-J2", "2-J3",
+////                       "3-J1", "3-J2", "3-J3",
+////                       "4-J1", "4-J2", "4-J3",
+//                       "0-S",
+//                       "1-S",
+////                       "2-S",
+////                       "3-S",
+////                       "4-S"
+//                        };
 
 //    for(int i = 0; i < DIM ; i++){
 //        if(i < STARTI){
@@ -166,8 +166,8 @@ int main(int argc, char* argv[])
 //        printf("end location %d\n",loc);
 //    }
 //
-//    printf("\nstep 3\n");
-//
+    printf("\nstep 3\n");
+
 //    for(loc=0; loc<NUMLOC; loc++)
 //    {
 //        printf("location %d\n",loc);
@@ -203,11 +203,11 @@ int main(int argc, char* argv[])
     GPU_Parameters* gpu_params_test = new GPU_Parameters();
     gpu_params_test->number_of_ode = 1;
     gpu_params_test->dimension = DIM;
-    gpu_params_test->initTest(argc,argv);
     gpu_params_test->display_number = display;
     gpu_params_test->t_target = NUMDAYSOUTPUT;
     gpu_params_test->t0 = 0.0;
-    gpu_params_test->h = 1e-6;
+    gpu_params_test->h = 0.2;
+    gpu_params_test->initTest(argc,argv);
     gpu_rk45->setParameters(gpu_params_test);
     gpu_rk45->run();
 

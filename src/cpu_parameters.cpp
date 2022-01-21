@@ -260,7 +260,7 @@ double CPU_Parameters::seasonal_transmission_factor( double t )
     {
         if( fabs( t - phis[i] ) < 91.25 )
         {
-            sine_function_value = sin( 2.0 * 3.141592653589793238 * (phis[i]-t+91.25) / 365.0 );
+            sine_function_value = std::sin( 2.0 * 3.141592653589793238 * (phis[i]-t+91.25) / 365.0 );
             //printf("\n\t\t\t %1.3f %1.3f \n\n", t, phis[i] );
         }
     }

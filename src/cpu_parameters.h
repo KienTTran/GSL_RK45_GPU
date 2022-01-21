@@ -4,8 +4,9 @@
 
 #ifndef RK45_CUDA_CPU_PARAMETERS_H
 #define RK45_CUDA_CPU_PARAMETERS_H
-#include <cuda_runtime.h>
 #include "flu_default_params.h"
+#include <cstring>
+#include <cmath>
 
 class CPU_Parameters {
 public:

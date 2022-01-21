@@ -1,30 +1,12 @@
 cmake_minimum_required(VERSION 3.18)
 project(rk45_cuda LANGUAGES CXX CUDA)
 
+#
+# On WSL compile with -DCMAKE_CUDA_COMPILER:PATH=/usr/local/cuda/bin/nvcc
+#
 set(BUILD_CLUSTER false CACHE BOOL "Enable for builds on the cluster")
 
-if (BUILD_CLUSTER)
-    add_compile_definitions( ON_CLUSTER )
-    include_directories("/usr/local/cuda/")
-    add_executable(rk45_cuda
-            src/cuda/gpu_func_flu.cu
-            src/cuda/gpu_func_pen.cu
-            src/cuda/gpu_func_test.cu
-            src/cuda/gpu_reduce.cu
-            src/cuda/gpu_rk45.cu
-            src/cuda/gpu_sample.cu
-            src/cuda/gpu_rk45.h
-            src/cpu_rk45.cpp
-            src/cpu_rk45.h
-            src/flu_func.cpp
-            src/gsl_functions.cpp
-            src/cpu_parameters.cpp
-            src/cpu_parameters.h
-            src/gpu_parameters.cpp
-            src/gpu_parameters.h
-            src/flu_default_params.h
-            src/main.cpp)
-else()
+if (WIN32)
     include_directories("E:\\SDK\\CUDA\\11.5\\Toolkit\\include\\")
     add_executable(rk45_cuda
             src/cuda/gpu_func_flu.cu
@@ -32,7 +14,7 @@ else()
             src/cuda/gpu_func_test.cu
             src/cuda/gpu_rk45.cu
             src/cuda/gpu_sample.cu
-#            src/cuda/gpu_reduce.cu
+            #src/cuda/gpu_reduce.cu
             src/cuda/gpu_rk45.h
             src/cpu_rk45.cpp
             src/cpu_rk45.h
@@ -42,6 +24,27 @@ else()
             src/gpu_parameters.cpp
             src/gpu_parameters.h
             src/flu_default_params.h
+            #src/gsl_functions.cpp
+            src/main.cpp)
+else()
+    include_directories("/usr/local/cuda/include/")
+    add_executable(rk45_cuda
+            src/cuda/gpu_func_flu.cu
+            src/cuda/gpu_func_pen.cu
+            src/cuda/gpu_func_test.cu
+            src/cuda/gpu_rk45.cu
+            src/cuda/gpu_sample.cu
+            #            src/cuda/gpu_reduce.cu
+            src/cuda/gpu_rk45.h
+            src/cpu_rk45.cpp
+            src/cpu_rk45.h
+            src/flu_func.cpp
+            src/cpu_parameters.cpp
+            src/cpu_parameters.h
+            src/gpu_parameters.cpp
+            src/gpu_parameters.h
+            src/flu_default_params.h
+            src/gsl_functions.cpp
             src/main.cpp)
 endif()
 
@@ -58,6 +61,6 @@ else()
     set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -lineinfo" )
 endif()
 
-if (BUILD_CLUSTER)
+if (UNIX)
     target_link_libraries(rk45_cuda gsl gslcblas)
 endif()

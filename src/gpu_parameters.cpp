@@ -2,6 +2,7 @@
 // Created by kient on 1/12/2022.
 //
 
+#include <cmath>
 #include "GPU_Parameters.h"
 #include "flu_default_params.h"
 
@@ -40,6 +41,13 @@ void GPU_Parameters::initTest(int argc, char **argv){
     y = new double[dimension]();
     for(int j = 0; j < dimension; j++){
         y[j] = 0.5;
+    }
+
+    //Todo check this before change output format, added 2 field for time and seasonal factor
+    display_dimension = dimension + 2;
+    y_output = new double[static_cast<int>(t_target) * display_dimension]();
+    for(int j = 0; j < t_target * display_dimension; j++){
+        y_output[j] = 0.0;
     }
 
     v.insert( v.begin(), num_params, 0.0 );
@@ -193,20 +201,18 @@ void GPU_Parameters::initTest(int argc, char **argv){
 
     v[ i_epidur ] = G_CLO_EPIDUR;
 
+//    fprintf(stderr, "Here's the info on params: \n");
+//    fprintf(stderr, "beta1 = %1.9f \n", beta[0]);
+//    fprintf(stderr, "beta2 = %1.9f \n", beta[1]);
+//    fprintf(stderr, "beta3 = %1.9f \n", beta[2]);
+//    fprintf(stderr, "a = %1.3f \n", v[i_amp]);
+//    fprintf(stderr, "sigma_H1B = %1.3f \n", sigma[0][1]);
+//    fprintf(stderr, "sigma_BH3 = %1.3f \n", sigma[1][2]);
+//    fprintf(stderr, "sigma_H1H3 = %1.3f \n", sigma[0][2]);
+//     for (int i = 0; i<phis.size(); i++) {
+//        fprintf(stderr, "phi = %5.1f \n", phis[i]);
+//     }
 
-/*
-    fprintf(stderr, "Here's the info on params: \n");
-    fprintf(stderr, "beta1 = %1.9f \n", beta[0]);
-    fprintf(stderr, "beta2 = %1.9f \n", beta[1]);
-    fprintf(stderr, "beta3 = %1.9f \n", beta[2]);
-    fprintf(stderr, "a = %1.3f \n", v[i_amp]);
-    fprintf(stderr, "sigma_H1B = %1.3f \n", sigma[0][1]);
-    fprintf(stderr, "sigma_BH3 = %1.3f \n", sigma[1][2]);
-    fprintf(stderr, "sigma_H1H3 = %1.3f \n", sigma[0][2]);
-    // for (int i = 0; i<phis.size(); i++) {
-    //    fprintf(stderr, "phi = %5.1f \n", phis[i]);
-    // }
-*/
 
     //
     // ###  4.  SET INITIAL CONDITIONS FOR ODE SYSTEM
@@ -261,22 +267,22 @@ void GPU_Parameters::initTest(int argc, char **argv){
     v_temp = v;
     v_d = thrust::raw_pointer_cast(v_temp.data());
 
-    if(phis.size() == 0){
+    printf("phis size = %lu\n",phis.size());
+
+    if(phis.empty()){
         phis_d = nullptr;
+        phis_d_length = 0;
     }
     else{
         phis_temp = phis;
+        phis_d_length = phis.size();
         phis_d = thrust::raw_pointer_cast(phis_temp.data());
+        for(int t = 0; t < static_cast<int>(t_target); t++){
+            stf_d[t] = seasonal_transmission_factor(t);
+        }
     }
 
-//    for(int l=0; l<NUMLOC; l++) {
-//        for (int v = 0; v < NUMSEROTYPES; v++) {
-//            seasonal_transmission_factor(gpu_params,t,stf);
-//            sum_foi += gpu_params->sigma[vir][v]
-//                       * stf
-//                       * gpu_params->beta[v] * gpu_params->eta[loc][l] * y[STARTI + NUMSEROTYPES * l + v];
-//        }
-//    }
+    printf("\nsum_foi_sbe:\n");
     //sum_foi
 //    m0,m1,.. are dimensions
 //    A(i,j,k,...) -> A0[i + j*m0 + k*m0*m1 + ...]
@@ -290,12 +296,14 @@ void GPU_Parameters::initTest(int argc, char **argv){
                         sum_foi_sbe[index] = sigma[vir][v]
                                                 * beta[v]
                                                 * eta[loc][l];
-//                        printf("loc = %d vir = %d stg = %d l = %d v = %d index = %d sum_foi[%d] = %f\n",loc,vir,stg,l,v,index,index,sum_foi_sbe[index]);
+                        printf("loc = %d vir = %d stg = %d l = %d v = %d index = %d sum_foi[%d] = %f\n",loc,vir,stg,l,v,index,index,sum_foi_sbe[index]);
                     }
                 }
             }
         }
     }
+    printf("\ninflow_from_recovereds_sbe:\n");
+    //inflow_from_recovereds_sbe
     index = 0;
     for(int loc = 0; loc < NUMLOC; loc++) {
         for (int vir = 0; vir < NUMSEROTYPES; vir++) {
@@ -306,17 +314,65 @@ void GPU_Parameters::initTest(int argc, char **argv){
                         inflow_from_recovereds_sbe[index] = sigma[vir][v]
                                                             * beta[vir]
                                                             * eta[loc][l] ;
-//                        printf("loc = %d vir = %d l = %d v = %d s = %d index = %d inflow_from_recovereds[%d] = %f\n",loc,vir,l,v,s,index,index,inflow_from_recovereds_sbe[index]);
-//                        if(index == 12) break;//Ask Joe about this
+                        printf("loc = %d vir = %d l = %d v = %d s = %d index = %d inflow_from_recovereds[%d] = %f\n",loc,vir,l,v,s,index,index,inflow_from_recovereds_sbe[index]);
                     }
                 }
             }
 
         }
     }
+    printf("\nfoi_on_susc_all_viruses_eb:\n");
+    index = 0;
+    for(int loc = 0; loc < NUMLOC; loc++) {
+        for(int l=0; l<NUMLOC; l++){
+            for(int v=0; v<NUMSEROTYPES; v++){
+                index = loc*NUMLOC*NUMSEROTYPES + l*NUMSEROTYPES + v;
+                foi_on_susc_all_viruses_eb[index] =    eta[loc][l]
+                                                    * beta[v];
+                printf("loc = %d vir = %d index = %d foi_on_susc_all_viruses[%d] = %f\n",loc,v,index,index,foi_on_susc_all_viruses_eb[index]);
+            }
+        }
+    }
 
     // Copy host_vector H to device_vector D
-//    printf("copy cpu vector to gpu vector\n");
+//    printf("copy cpu data to gpu\n");
 }
 
+double GPU_Parameters::seasonal_transmission_factor(double t)
+{
+    /*
 
+
+        We're gonna make this thing go for 40 years. 30 years of burn in and 10 years of real modeling.
+        We're creating a "10-year model cycle" and need the code below to find a time point's "place" in the "cycle"
+        modulus (denoted with % in C++) only works with integers, so need the acrobatics below
+
+     */
+
+    // This is some code that's needed to create the 10-year "cycles" in transmission.
+
+    if(phis.size() == 0){
+        return 1.0;
+    }
+
+    int x = (int)t; // This is now to turn a double into an integer
+    double remainder = t - (double)x;
+    int xx = x % 3650; // int xx = x % NUMDAYSOUTPUT;
+    double yy = (double)xx + remainder;
+    // put yy into the sine function, let it return the beta value
+    t = yy;
+    double sine_function_value = 0.0;
+
+    for(int i=0; i<phis.size(); i++)
+    {
+        if( std::fabs( t - phis[i] ) < (v[i_epidur] / 2))
+        {
+            // sine_function_value = sin( 2.0 * 3.141592653589793238 * (phis[i]-t+91.25) / 365.0 );
+            sine_function_value = std::sin( 2.0 * 3.141592653589793238 * (phis[i] - t +(v[i_epidur] / 2)) / (v[i_epidur] * 2));
+//            printf("      in loop %1.3f %d  %1.3f %1.3f\n", t, i, phis[i], sine_function_value );
+        }
+    }
+//    printf("    %f sine_function_value %1.3f\n",t,sine_function_value);
+//    printf("    %f return %1.3f\n",t,1.0 + v[i_amp] * sine_function_value);
+    return 1.0 + v[i_amp] * sine_function_value;
+}
