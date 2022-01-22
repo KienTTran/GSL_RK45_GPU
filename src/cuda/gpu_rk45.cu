@@ -321,6 +321,9 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
     __shared__ double k5[DIM];
     __shared__ double k6[DIM];
 
+//    __shared__ double stf;
+    __shared__ double sum_foi[NUMSEROTYPES*NUMR];
+
     int index_gpu = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x * gridDim.x;
 
@@ -340,6 +343,14 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
         r_max[index] = 0.0;
         D0[index] = 0.0;
         r[index] = 0.0;
+
+//        for(int i = 0; i<10; i++){
+//            gpu_func_test(t, y, dydt_in, index, params);
+//            y[index] = dydt_in[index];
+//            dydt_in[index] = 0;
+//        }
+//        printf("[function] OUT y[%d] = %.20f f[%d] = %.20f\n",index,y[index],index,dydt_in[index]);
+//        return;
 
         while(t < t_target)
         {
@@ -392,14 +403,7 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
 //                if(index == 0 || index == params->dimension - 1) {
 //                    printf("[evolve apply] Useydt_in\n");
 //                }
-//                for(int i = 0; i<10; i++){
-//                    gpu_func_test(device_t_0, y, dydt_in, index, params);
-//                    if(index >= STARTI && index < STARTS){
-//                        y[index] = dydt_in[index];
-//                        dydt_in[index] = 0;
-//                    }
-//                }
-//                return;
+
                 gpu_func_test(device_t_0, y, dydt_in, index, params);
                 while(true)
                 {
@@ -540,6 +544,8 @@ void GPU_RK45::run(){
     stop = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
     printf("[GSL GPU] Time for copy data from GPU on CPU: %ld micro seconds which is %.20f seconds\n",duration.count(),(duration.count()/1e6));
+
+    start = std::chrono::high_resolution_clock::now();
     printf("Display on Host\n");
     for(int i = 0; i < static_cast<int>(params->t_target) * params->display_dimension; i++){
         printf("%1.1f\t",params->y_output[i]);
@@ -548,6 +554,10 @@ void GPU_RK45::run(){
             printf("\n");
         }
     }
+    stop = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+    printf("[GSL GPU] Time for display: %ld micro seconds which is %.20f seconds\n",duration.count(),(duration.count()/1e6));
+
     auto stop_all = std::chrono::high_resolution_clock::now();
     auto duration_all = std::chrono::duration_cast<std::chrono::microseconds>(stop_all - start_all);
     printf("[GSL GPU] Time for all: %ld micro seconds which is %.20f seconds\n",duration_all.count(),(duration_all.count()/1e6));

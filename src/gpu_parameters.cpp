@@ -282,57 +282,57 @@ void GPU_Parameters::initTest(int argc, char **argv){
         }
     }
 
-    printf("\nsum_foi_sbe:\n");
-    //sum_foi
-//    m0,m1,.. are dimensions
-//    A(i,j,k,...) -> A0[i + j*m0 + k*m0*m1 + ...]
-    int index = 0;
-    for(int loc = 0; loc < NUMLOC; loc++) {
-        for (int vir = 0; vir < NUMSEROTYPES; vir++) {
-            for (int stg = 0; stg < NUMR; stg++) {
-                for(int l = 0; l < NUMLOC; l++) {
-                    for (int v = 0; v < NUMSEROTYPES; v++) {
-                        index = loc*NUMSEROTYPES*NUMR*NUMLOC*NUMSEROTYPES + vir*NUMR*NUMLOC*NUMSEROTYPES + stg*NUMLOC*NUMSEROTYPES + l*NUMSEROTYPES + v;
-                        sum_foi_sbe[index] = sigma[vir][v]
-                                                * beta[v]
-                                                * eta[loc][l];
-                        printf("loc = %d vir = %d stg = %d l = %d v = %d index = %d sum_foi[%d] = %f\n",loc,vir,stg,l,v,index,index,sum_foi_sbe[index]);
-                    }
-                }
-            }
-        }
-    }
-    printf("\ninflow_from_recovereds_sbe:\n");
-    //inflow_from_recovereds_sbe
-    index = 0;
-    for(int loc = 0; loc < NUMLOC; loc++) {
-        for (int vir = 0; vir < NUMSEROTYPES; vir++) {
-            for(int l=0; l<NUMLOC; l++) {        // sum over locations
-                for (int v = 0; v < NUMSEROTYPES; v++) { // sum over recent immunity
-                    for (int s = 0; s < NUMR; s++) {    // sum over R stage
-                        index = loc*NUMSEROTYPES*NUMLOC*NUMSEROTYPES*NUMR + vir*NUMLOC*NUMSEROTYPES*NUMR + l*NUMSEROTYPES*NUMR + v*NUMR + s;
-                        inflow_from_recovereds_sbe[index] = sigma[vir][v]
-                                                            * beta[vir]
-                                                            * eta[loc][l] ;
-                        printf("loc = %d vir = %d l = %d v = %d s = %d index = %d inflow_from_recovereds[%d] = %f\n",loc,vir,l,v,s,index,index,inflow_from_recovereds_sbe[index]);
-                    }
-                }
-            }
-
-        }
-    }
-    printf("\nfoi_on_susc_all_viruses_eb:\n");
-    index = 0;
-    for(int loc = 0; loc < NUMLOC; loc++) {
-        for(int l=0; l<NUMLOC; l++){
-            for(int v=0; v<NUMSEROTYPES; v++){
-                index = loc*NUMLOC*NUMSEROTYPES + l*NUMSEROTYPES + v;
-                foi_on_susc_all_viruses_eb[index] =    eta[loc][l]
-                                                    * beta[v];
-                printf("loc = %d vir = %d index = %d foi_on_susc_all_viruses[%d] = %f\n",loc,v,index,index,foi_on_susc_all_viruses_eb[index]);
-            }
-        }
-    }
+//    printf("\nsum_foi_sbe:\n");
+//    //sum_foi
+////    m0,m1,.. are dimensions
+////    A(i,j,k,...) -> A0[i + j*m0 + k*m0*m1 + ...]
+//    int index = 0;
+//    for(int loc = 0; loc < NUMLOC; loc++) {
+//        for (int vir = 0; vir < NUMSEROTYPES; vir++) {
+//            for (int stg = 0; stg < NUMR; stg++) {
+//                for(int l = 0; l < NUMLOC; l++) {
+//                    for (int v = 0; v < NUMSEROTYPES; v++) {
+//                        index = loc*NUMSEROTYPES*NUMR*NUMLOC*NUMSEROTYPES + vir*NUMR*NUMLOC*NUMSEROTYPES + stg*NUMLOC*NUMSEROTYPES + l*NUMSEROTYPES + v;
+//                        sum_foi_sbe[index] = sigma[vir][v]
+//                                                * beta[v]
+//                                                * eta[loc][l];
+//                        printf("loc = %d vir = %d stg = %d l = %d v = %d index = %d sum_foi[%d] = %f\n",loc,vir,stg,l,v,index,index,sum_foi_sbe[index]);
+//                    }
+//                }
+//            }
+//        }
+//    }
+//    printf("\ninflow_from_recovereds_sbe:\n");
+//    //inflow_from_recovereds_sbe
+//    index = 0;
+//    for(int loc = 0; loc < NUMLOC; loc++) {
+//        for (int vir = 0; vir < NUMSEROTYPES; vir++) {
+//            for(int l=0; l<NUMLOC; l++) {        // sum over locations
+//                for (int v = 0; v < NUMSEROTYPES; v++) { // sum over recent immunity
+//                    for (int s = 0; s < NUMR; s++) {    // sum over R stage
+//                        index = loc*NUMSEROTYPES*NUMLOC*NUMSEROTYPES*NUMR + vir*NUMLOC*NUMSEROTYPES*NUMR + l*NUMSEROTYPES*NUMR + v*NUMR + s;
+//                        inflow_from_recovereds_sbe[index] = sigma[vir][v]
+//                                                            * beta[vir]
+//                                                            * eta[loc][l] ;
+//                        printf("loc = %d vir = %d l = %d v = %d s = %d index = %d inflow_from_recovereds[%d] = %f\n",loc,vir,l,v,s,index,index,inflow_from_recovereds_sbe[index]);
+//                    }
+//                }
+//            }
+//
+//        }
+//    }
+//    printf("\nfoi_on_susc_all_viruses_eb:\n");
+//    index = 0;
+//    for(int loc = 0; loc < NUMLOC; loc++) {
+//        for(int l=0; l<NUMLOC; l++){
+//            for(int v=0; v<NUMSEROTYPES; v++){
+//                index = loc*NUMLOC*NUMSEROTYPES + l*NUMSEROTYPES + v;
+//                foi_on_susc_all_viruses_eb[index] =    eta[loc][l]
+//                                                    * beta[v];
+//                printf("loc = %d vir = %d index = %d foi_on_susc_all_viruses[%d] = %f\n",loc,v,index,index,foi_on_susc_all_viruses_eb[index]);
+//            }
+//        }
+//    }
 
     // Copy host_vector H to device_vector D
 //    printf("copy cpu data to gpu\n");
