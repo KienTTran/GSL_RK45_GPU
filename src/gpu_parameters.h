@@ -15,6 +15,8 @@ class GPU_Parameters {
 public:
     explicit GPU_Parameters();
     ~GPU_Parameters();
+    int block_size;
+    int num_blocks;
     int number_of_ode;
     int dimension;
     int display_number;
