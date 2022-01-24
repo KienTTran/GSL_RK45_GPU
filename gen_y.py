@@ -5,7 +5,7 @@ Created on Fri Jan 21 17:51:52 2022
 @author: kient
 """
 
-LOC = ['0','1']
+LOC = ['0']
 VIR = ['1','2','3']
 STAGE = ['a','b','c','d']
 
@@ -47,34 +47,34 @@ for index in range(0,DIM):
     print('f[%d] - %s' % (index, label))
     
 index = 0
-# for loc in range(0,NUMLOC):
-#     for vir in range(0,NUMSEROTYPES):
-#         for stg in range(0,NUMR):
-#             index = loc * NUMSEROTYPES * NUMR + vir *NUMR + stg
-#             print("loc %d vir %d stg %d index %d" % (loc, vir, stg, index))
-#             for l in range(0,NUMLOC):
-#                 for v in range(0,NUMSEROTYPES):
-#                     print("sum_foi += ppc->sigma[%d][%d] "
-#                           "* ppc->beta[%d] "
-#                           "* stf "
-#                           "* ppc->eta[%d][%d] "
-#                           "* y[%d]"
-#                           %
-#                           (vir,v,v,loc,l,STARTI + NUMSEROTYPES*l + v));
-#             print("\n")
+for loc in range(0,NUMLOC):
+    for vir in range(0,NUMSEROTYPES):
+        for stg in range(0,NUMR):
+            index = loc * NUMSEROTYPES * NUMR + vir *NUMR + stg
+            print("loc %d vir %d stg %d index %d" % (loc, vir, stg, index))
+            for l in range(0,NUMLOC):
+                for v in range(0,NUMSEROTYPES):
+                    print("sum_foi += ppc->sigma[%d][%d] "
+                          "* ppc->beta[%d] "
+                          "* stf "
+                          "* ppc->eta[%d][%d] "
+                          "* y[%d]"
+                          %
+                          (vir,v,v,loc,l,STARTI + NUMSEROTYPES*l + v));
+            print("\n")
             
             
-# for loc in range(0,NUMLOC):
-#     for vir in range(0,NUMSEROTYPES):
-#         index = loc * NUMSEROTYPES + vir
-#         print("loc %d vir %d index %d" % (loc, vir, index))
-#         for l in range(0,NUMLOC):
-#             print("foi_on_susc_single_virus += ppc->eta[%d][%d]"
-#                     " * stf" 
-#                     " * ppc->beta[%d]"
-#                     " * y[%d]"
-#                     %(loc,l,vir,STARTI + NUMSEROTYPES*l + vir));
-#         print("\n")
+for loc in range(0,NUMLOC):
+    for vir in range(0,NUMSEROTYPES):
+        index = STARTI + loc * NUMSEROTYPES + vir
+        print("loc %d vir %d index %d" % (loc, vir, index))
+        for l in range(0,NUMLOC):
+            print("foi_on_susc_single_virus += ppc->eta[%d][%d]"
+                    " * stf" 
+                    " * ppc->beta[%d]"
+                    " * y[%d]"
+                    %(loc,l,vir,STARTI + NUMSEROTYPES*l + vir));
+        print("\n")
  
 for loc in range(0,NUMLOC):
     for vir in range(0,NUMSEROTYPES):
@@ -94,19 +94,25 @@ for loc in range(0,NUMLOC):
                               NUMSEROTYPES*NUMR*loc + NUMR*v + s));
         print("\n")
 
-# for loc in range(0,NUMLOC):
-#     print("loc %d" % (loc))
-#     for l in range(0,NUMLOC):
-#         for v in range(0,NUMSEROTYPES):
-#             print("foi_on_susc_all_viruses += ppc->eta[%d][%d] "
-#                   "* stf "
-#                   "* ppc->beta[%d]  "
-#                   "* y[%d] "
-#                   %(loc,l,v,
-#                     STARTI + NUMSEROTYPES*l + v));
-#     print("\n")
-                    
-
+for loc in range(0,NUMLOC):
+    print("loc %d" % (loc))
+    for l in range(0,NUMLOC):
+        for v in range(0,NUMSEROTYPES):
+            print("foi_on_susc_all_viruses += ppc->eta[%d][%d] "
+                  "* stf "
+                  "* ppc->beta[%d]  "
+                  "* y[%d] "
+                  %(loc,l,v,
+                    STARTI + NUMSEROTYPES*l + v));
+    print("\n")
+   
+for loc in range(0,NUMLOC):
+    print("loc %d" % (loc))                 
+    for v in range(0,NUMSEROTYPES):
+        print("f[%d] += trr "
+              "* y[%d]"
+              %
+              (STARTS + loc,NUMSEROTYPES*NUMR*loc + NUMR*vir + (NUMR-1)))
 
 
 

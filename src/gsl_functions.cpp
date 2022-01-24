@@ -91,7 +91,6 @@ bool rk45_gsl_simulate(const int cpu_threads, const int display_numbers){
     for(int i = 0; i < display_numbers; i++) {
         int random_index = 0;
         if(cpu_threads > 1){
-            //random_index = 0 + (rand() % static_cast<int>(gpu_threads - 0 + 1))
             random_index = distr(gen);
         }
         else{

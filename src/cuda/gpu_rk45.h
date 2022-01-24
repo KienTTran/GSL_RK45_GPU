@@ -13,7 +13,7 @@
 __host__ __device__ void gpu_func_flu(double t, const double y[], double dydt[], void *params);
 __host__ __device__ void gpu_func_pen(double t, const double y[], double f[], void *params);
 __device__ void gpu_func_test(double t, const double y[], double f[], int index, void *params);
-__device__ void gpu_func_test(double t, const double y[], double f[], int index, GPU_Parameters* gpu_params);
+__device__ void gpu_func_test(double t, const double y[], double f[], int index, int day, GPU_Parameters* gpu_params);
 __device__ double seasonal_transmission_factor(GPU_Parameters* gpu_params, double t);
 
 //__device__ void reduce_max_n(double *data, double *out, unsigned int n);

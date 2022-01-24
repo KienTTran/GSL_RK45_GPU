@@ -356,7 +356,6 @@ int CPU_RK45::rk45_cpu_simulate(){
     for(int i = 0; i < params->display_number; i++) {
         int random_index = 0;
         if(params->number_of_ode > 1){
-            //random_index = 0 + (rand() % static_cast<int>(gpu_threads - 0 + 1))
             random_index = distr(gen);
         }
         else{

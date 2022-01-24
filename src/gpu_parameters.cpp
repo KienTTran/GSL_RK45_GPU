@@ -45,7 +45,7 @@ void GPU_Parameters::initTest(int argc, char **argv){
 
     //Todo check this before change output format, added 2 field for time and seasonal factor
     display_dimension = dimension + 2;
-    y_output = new double[static_cast<int>(t_target) * display_dimension]();
+    y_output = new double[NUMDAYSOUTPUT * display_dimension]();
     for(int j = 0; j < t_target * display_dimension; j++){
         y_output[j] = 0.0;
     }
@@ -277,8 +277,16 @@ void GPU_Parameters::initTest(int argc, char **argv){
         phis_temp = phis;
         phis_d_length = phis.size();
         phis_d = thrust::raw_pointer_cast(phis_temp.data());
-        for(int t = 0; t < static_cast<int>(t_target); t++){
-            stf_d[t] = seasonal_transmission_factor(t);
+        for(double t = 0; t < NUMDAYSOUTPUT; t+= 1.0){
+            stf_d[(int)t] = seasonal_transmission_factor(t);
+//            stf_d[t] = 1.0;
+//            int d_x = t % 3650;
+//            for (int i=0; i<phis.size(); i++) {
+//                if (fabs(d_x - phis[i]) < (v[i_epidur] / 2)) {
+//                    stf_d[t] += sin(2.0 * 3.141592653589793238 * (phis[i]-t+(v[i_epidur]/2)) /
+//                                    (v[i_epidur] * 2));
+//                }
+//            }
         }
     }
 
