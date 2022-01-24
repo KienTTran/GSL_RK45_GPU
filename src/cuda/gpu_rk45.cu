@@ -63,6 +63,40 @@ double seasonal_transmission_factor(GPU_Parameters* gpu_params, double t)
 }
 
 __device__
+double seasonal_transmission_factor(GPU_Parameters* gpu_params, int day)
+{
+    /*
+
+
+        We're gonna make this thing go for 40 years. 30 years of burn in and 10 years of real modeling.
+        We're creating a "10-year model cycle" and need the code below to find a time point's "place" in the "cycle"
+        modulus (denoted with % in C++) only works with integers, so need the acrobatics below
+
+     */
+
+    // This is some code that's needed to create the 10-year "cycles" in transmission.
+
+    if(gpu_params->phis_d_length == 0){
+        return 1.0;
+    }
+
+    double sine_function_value = 0.0;
+
+    for(int i=0; i<gpu_params->phis_d_length; i++)
+    {
+        if( std::fabs( day - gpu_params->phis_d[i] ) < (gpu_params->v_d[gpu_params->i_epidur] / 2))
+        {
+            // sine_function_value = sin( 2.0 * 3.141592653589793238 * (phis[i]-t+91.25) / 365.0 );
+            sine_function_value = std::sin( 2.0 * 3.141592653589793238 * (gpu_params->phis_d[i] - day +(gpu_params->v_d[gpu_params->i_epidur] / 2)) / (gpu_params->v_d[gpu_params->i_epidur] * 2));
+//            printf("      in loop %1.3f %d  %1.3f %1.3f\n", t, i, gpu_params->phis_d[i], sine_function_value );
+        }
+    }
+//    printf("    %f sine_function_value %1.3f\n",t,sine_function_value);
+//    printf("    %f return %1.3f\n",t,1.0 + v[i_amp] * sine_function_value);
+    return 1.0 + gpu_params->v_d[gpu_params->i_amp] * sine_function_value;
+}
+
+__device__
 double gpu_pop_sum( double yy[] )
 {
     double sum=0.0;
