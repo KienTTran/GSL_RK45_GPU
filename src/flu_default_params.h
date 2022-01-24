@@ -78,7 +78,6 @@ namespace {
 #define POPSIZE_MAIN 1000000.00
 #define POPSIZE_OUT 100000.00
 
-
 //
 //
 // this function contains the ode system

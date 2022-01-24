@@ -12,9 +12,10 @@ if (WIN32)
             src/cuda/gpu_func_flu.cu
             src/cuda/gpu_func_pen.cu
             src/cuda/gpu_func_test.cu
+            src/cuda/gpu_rk45_step_apply.cu
             src/cuda/gpu_rk45.cu
             src/cuda/gpu_sample.cu
-            #src/cuda/gpu_reduce.cu
+            src/cuda/gpu_reduce.cu
             src/cuda/gpu_rk45.h
             src/cpu_rk45.cpp
             src/cpu_rk45.h
@@ -32,9 +33,10 @@ else()
             src/cuda/gpu_func_flu.cu
             src/cuda/gpu_func_pen.cu
             src/cuda/gpu_func_test.cu
+            src/cuda/gpu_rk45_step_apply.cu
             src/cuda/gpu_rk45.cu
             src/cuda/gpu_sample.cu
-            #            src/cuda/gpu_reduce.cu
+            src/cuda/gpu_reduce.cu
             src/cuda/gpu_rk45.h
             src/cpu_rk45.cpp
             src/cpu_rk45.h
