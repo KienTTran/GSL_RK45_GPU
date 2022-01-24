@@ -542,28 +542,25 @@ void GPU_RK45::run(){
 
     auto start_all = std::chrono::high_resolution_clock::now();
     auto start = std::chrono::high_resolution_clock::now();
-//
-//    cudaStream_t stream[2];
-//    for (int i = 0; i < 2; i ++)
-//    {
-//        gpuErrchk(cudaStreamCreate(&stream[i]));
-//    }
-//    for (int i = 0; i < 2; i ++)
-//    {
-//        gpuErrchk(cudaStreamDestroy(stream[i]));
-//    }
 
+    const int num_streams = 20;
+    cudaStream_t streams[num_streams];
     //y
-    double *y_d;
-    gpuErrchk(cudaMalloc ((void **)&y_d, params->dimension * sizeof (double)));
-    gpuErrchk(cudaMemcpy (y_d, params->y, params->dimension * sizeof (double), cudaMemcpyHostToDevice));
-    double *y_output_d;
-    gpuErrchk(cudaMalloc ((void **)&y_output_d, NUMDAYSOUTPUT * params->display_dimension * sizeof (double)));
-    gpuErrchk(cudaMemcpy (y_output_d, params->y_output, NUMDAYSOUTPUT * params->display_dimension * sizeof (double), cudaMemcpyHostToDevice));
+    double *y_d[num_streams];
+    double *y_output_d[num_streams];
+    double *y_output[num_streams];
+    GPU_Parameters* params_d[num_streams];
 
-    GPU_Parameters* params_d;
-    gpuErrchk(cudaMalloc((void **)&params_d, sizeof(GPU_Parameters)));
-    gpuErrchk(cudaMemcpy(params_d, params, sizeof(GPU_Parameters), cudaMemcpyHostToDevice));
+    for (int i = 0; i < num_streams; ++i) {
+        y_output[i] = new double[NUMDAYSOUTPUT * params->display_dimension]();
+        gpuErrchk(cudaMalloc((void **) &y_d[i], params->dimension * sizeof(double)));
+        gpuErrchk(cudaMemcpy(y_d[i], params->y, params->dimension * sizeof(double), cudaMemcpyHostToDevice));
+        gpuErrchk(cudaMalloc((void **) &y_output_d[i], NUMDAYSOUTPUT * params->display_dimension * sizeof(double)));
+        gpuErrchk(cudaMemcpy(y_output_d[i], params->y_output, NUMDAYSOUTPUT * params->display_dimension * sizeof(double),cudaMemcpyHostToDevice));
+        gpuErrchk(cudaMalloc((void **) &params_d[i], sizeof(GPU_Parameters)));
+        gpuErrchk(cudaMemcpy(params_d[i], params, sizeof(GPU_Parameters), cudaMemcpyHostToDevice));
+    }
+    gpuErrchk(cudaDeviceSynchronize());
 
     int num_SMs;
     gpuErrchk(cudaDeviceGetAttribute(&num_SMs, cudaDevAttrMultiProcessorCount, 0));
@@ -582,10 +579,13 @@ void GPU_RK45::run(){
     cudaDeviceSetLimit(cudaLimitPrintfFifoSize, 1024000*100);
 
     start = std::chrono::high_resolution_clock::now();
-
-    rk45_gpu_evolve_apply<<<num_blocks, block_size>>>(params->t0, params->t_target, 1.0, params->h, y_d,
-                                                      y_output_d,
-                                                      params_d);
+    for (int i = 0; i < num_streams; ++i) {
+        cudaStreamCreate(&streams[i]);
+        rk45_gpu_evolve_apply<<<num_blocks, block_size, 0, streams[i]>>>(params->t0, params->t_target, 1.0, params->h,
+                                                                      y_d[i],
+                                                                      y_output_d[i],
+                                                                      params_d[i]);
+    }
     gpuErrchk(cudaDeviceSynchronize());
 
     stop = std::chrono::high_resolution_clock::now();
@@ -594,20 +594,25 @@ void GPU_RK45::run(){
 
     start = std::chrono::high_resolution_clock::now();
 
-    gpuErrchk(cudaMemcpy (params->y_output, y_output_d, NUMDAYSOUTPUT * params->display_dimension * sizeof (double), cudaMemcpyDeviceToHost));
+    for (int i = 0; i < num_streams; ++i) {
+        gpuErrchk(cudaMemcpy(y_output[i], y_output_d[i], NUMDAYSOUTPUT * params->display_dimension * sizeof(double), cudaMemcpyDeviceToHost));
+    }
 
     stop = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
     printf("[GSL GPU] Time for copy data from GPU on CPU: %ld micro seconds which is %f seconds\n",duration.count(),(duration.count()/1e6));
 
     start = std::chrono::high_resolution_clock::now();
-    printf("Display on Host\n");
-    for(int i = 0; i < NUMDAYSOUTPUT * params->display_dimension; i++){
-        printf("%1.1f\t",params->y_output[i]);
-        //reverse position from 1D array
-        if(i > 0 && (i + 1) % params->display_dimension == 0){
-            printf("\n");
+    for(int s = 0; s < num_streams; s++){
+        printf("Display on Host stream %d\n",s);
+        for(int i = 0; i < NUMDAYSOUTPUT * params->display_dimension; i++){
+            printf("%1.5f\t",y_output[s][i]);
+            //reverse position from 1D array
+            if(i > 0 && (i + 1) % params->display_dimension == 0){
+                printf("\n");
+            }
         }
+        printf("\n");
     }
     stop = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
