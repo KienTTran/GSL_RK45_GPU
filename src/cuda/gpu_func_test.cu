@@ -216,14 +216,24 @@ void gpu_func_test(double t, const double y[], double f[], int index, int day, G
             f[ index ] += trr * y[ NUM_SEROTYPES*NUM_R*loc + NUM_R*vir + stg - 1 ];
         }
         double sum_foi = 0.0;
+        //loop n-dim (not working now)
 //        for(int l = 0; l < NUM_LOC; l++){
 //            sum_foi += gpu_params->sigma[vir][0] * gpu_params->beta[0] * stf * gpu_params->eta[loc][l] * y[START_I + NUM_SEROTYPES*l + 0] +
 //                       gpu_params->sigma[vir][1] * gpu_params->beta[1] * stf * gpu_params->eta[loc][l] * y[START_I + NUM_SEROTYPES*l + 1] +
 //                       gpu_params->sigma[vir][2] * gpu_params->beta[2] * stf * gpu_params->eta[loc][l] * y[START_I + NUM_SEROTYPES*l + 2];
 //        }
-        sum_foi =   gpu_params->sigma[vir][0] * gpu_params->beta[0] * stf * gpu_params->eta[0][0] * y[12] +
-                    gpu_params->sigma[vir][1] * gpu_params->beta[1] * stf * gpu_params->eta[0][0] * y[13] +
-                    gpu_params->sigma[vir][2] * gpu_params->beta[2] * stf * gpu_params->eta[0][0] * y[14];
+        //1-dim
+        sum_foi =   gpu_params->sigma[vir][0] * gpu_params->beta[0] * stf * gpu_params->eta[loc][0] * y[START_I + (NUM_SEROTYPES * 0) + 0] +
+                    gpu_params->sigma[vir][1] * gpu_params->beta[1] * stf * gpu_params->eta[loc][0] * y[START_I + (NUM_SEROTYPES * 0) + 1] +
+                    gpu_params->sigma[vir][2] * gpu_params->beta[2] * stf * gpu_params->eta[loc][0] * y[START_I + (NUM_SEROTYPES * 0) + 2];
+        //2-dim
+//        sum_foi =  gpu_params->sigma[vir][0] *gpu_params->beta[0] * stf *gpu_params->eta[loc][0] * y[START_I + (NUM_SEROTYPES * 0) + 0] +
+//                   gpu_params->sigma[vir][1] *gpu_params->beta[1] * stf *gpu_params->eta[loc][0] * y[START_I + (NUM_SEROTYPES * 0) + 1] +
+//                   gpu_params->sigma[vir][2] *gpu_params->beta[2] * stf *gpu_params->eta[loc][0] * y[START_I + (NUM_SEROTYPES * 0) + 2] +
+//                   gpu_params->sigma[vir][0] *gpu_params->beta[0] * stf *gpu_params->eta[loc][1] * y[START_I + (NUM_SEROTYPES * 1) + 0] +
+//                   gpu_params->sigma[vir][1] *gpu_params->beta[1] * stf *gpu_params->eta[loc][1] * y[START_I + (NUM_SEROTYPES * 1) + 1] +
+//                   gpu_params->sigma[vir][2] *gpu_params->beta[2] * stf *gpu_params->eta[loc][1] * y[START_I + (NUM_SEROTYPES * 1) + 2];
+
         f[index] +=  -(sum_foi) * y[index];
     }
     else if(index < START_S){
@@ -234,17 +244,23 @@ void gpu_func_test(double t, const double y[], double f[], int index, int day, G
             f[ index ] = 0.0;
             double foi_on_susc_single_virus = 0.0;
 //            cooperative_groups::thread_block block = cooperative_groups::this_thread_block();
+            //loop n-dim (not working now)
 //            for(int l = 0; l<NUM_LOC; l++){
 //                foi_on_susc_single_virus += gpu_params->eta[loc][l]
 //                                            * stf
 //                                            * gpu_params->beta[vir]
 //                                            * y[START_I + NUM_SEROTYPES * l + vir];
 //            }
-            foi_on_susc_single_virus =  gpu_params->eta[0][0] * stf * gpu_params->beta[vir] * y[index];
+            //1-dim
+            foi_on_susc_single_virus =  gpu_params->eta[loc][0] * stf * gpu_params->beta[vir] * y[START_I + (NUM_SEROTYPES * 0) + vir];
+            //2-dim
+//            foi_on_susc_single_virus +=  gpu_params->eta[loc][0] * stf * gpu_params->beta[vir] * y[START_I + (NUM_SEROTYPES * 0) + vir];
+//            foi_on_susc_single_virus +=  gpu_params->eta[loc][1] * stf * gpu_params->beta[vir] * y[START_I + (NUM_SEROTYPES * 1) + vir];
 
             f[ index ] += y[ START_S + loc ] * foi_on_susc_single_virus;
 
             double inflow_from_recovereds = 0.0;
+            //loop n-dim (not working now)
 //            for(int l = 0; l < NUM_LOC; l++){
 //                for(int v = 0; v < NUM_SEROTYPES; v++){
 //                    inflow_from_recovereds +=   gpu_params->sigma[vir][v] * stf * gpu_params->beta[vir] * gpu_params->eta[loc][l] * y[START_I + NUM_SEROTYPES*l + vir] * y[NUM_SEROTYPES*NUM_R*loc + NUM_R*v + 0] +
@@ -253,18 +269,45 @@ void gpu_func_test(double t, const double y[], double f[], int index, int day, G
 //                                                gpu_params->sigma[vir][v] * stf * gpu_params->beta[vir] * gpu_params->eta[loc][l] * y[START_I + NUM_SEROTYPES*l + vir] * y[NUM_SEROTYPES*NUM_R*loc + NUM_R*v + 3];
 //                }
 //            }
-            inflow_from_recovereds +=   gpu_params->sigma[vir][0] * stf * gpu_params->beta[vir] * gpu_params->eta[0][0] * y[index] * y[0] +
-                                        gpu_params->sigma[vir][0] * stf * gpu_params->beta[vir] * gpu_params->eta[0][0] * y[index] * y[1] +
-                                        gpu_params->sigma[vir][0] * stf * gpu_params->beta[vir] * gpu_params->eta[0][0] * y[index] * y[2] +
-                                        gpu_params->sigma[vir][0] * stf * gpu_params->beta[vir] * gpu_params->eta[0][0] * y[index] * y[3] +
-                                        gpu_params->sigma[vir][1] * stf * gpu_params->beta[vir] * gpu_params->eta[0][0] * y[index] * y[4] +
-                                        gpu_params->sigma[vir][1] * stf * gpu_params->beta[vir] * gpu_params->eta[0][0] * y[index] * y[5] +
-                                        gpu_params->sigma[vir][1] * stf * gpu_params->beta[vir] * gpu_params->eta[0][0] * y[index] * y[6] +
-                                        gpu_params->sigma[vir][1] * stf * gpu_params->beta[vir] * gpu_params->eta[0][0] * y[index] * y[7] +
-                                        gpu_params->sigma[vir][2] * stf * gpu_params->beta[vir] * gpu_params->eta[0][0] * y[index] * y[8] +
-                                        gpu_params->sigma[vir][2] * stf * gpu_params->beta[vir] * gpu_params->eta[0][0] * y[index] * y[9] +
-                                        gpu_params->sigma[vir][2] * stf * gpu_params->beta[vir] * gpu_params->eta[0][0] * y[index] * y[10] +
-                                        gpu_params->sigma[vir][2] * stf * gpu_params->beta[vir] * gpu_params->eta[0][0] * y[index] * y[11];
+            //1-dim
+            inflow_from_recovereds +=   gpu_params->sigma[vir][0] * stf * gpu_params->beta[vir] * gpu_params->eta[loc][0] * y[START_I + (NUM_SEROTYPES * 0) + vir] * y[loc * NUM_SEROTYPES * NUM_R + 0] +
+                                        gpu_params->sigma[vir][0] * stf * gpu_params->beta[vir] * gpu_params->eta[loc][0] * y[START_I + (NUM_SEROTYPES * 0) + vir] * y[loc * NUM_SEROTYPES * NUM_R + 1] +
+                                        gpu_params->sigma[vir][0] * stf * gpu_params->beta[vir] * gpu_params->eta[loc][0] * y[START_I + (NUM_SEROTYPES * 0) + vir] * y[loc * NUM_SEROTYPES * NUM_R + 2] +
+                                        gpu_params->sigma[vir][0] * stf * gpu_params->beta[vir] * gpu_params->eta[loc][0] * y[START_I + (NUM_SEROTYPES * 0) + vir] * y[loc * NUM_SEROTYPES * NUM_R + 3] +
+                                        gpu_params->sigma[vir][1] * stf * gpu_params->beta[vir] * gpu_params->eta[loc][0] * y[START_I + (NUM_SEROTYPES * 0) + vir] * y[loc * NUM_SEROTYPES * NUM_R + 4] +
+                                        gpu_params->sigma[vir][1] * stf * gpu_params->beta[vir] * gpu_params->eta[loc][0] * y[START_I + (NUM_SEROTYPES * 0) + vir] * y[loc * NUM_SEROTYPES * NUM_R + 5] +
+                                        gpu_params->sigma[vir][1] * stf * gpu_params->beta[vir] * gpu_params->eta[loc][0] * y[START_I + (NUM_SEROTYPES * 0) + vir] * y[loc * NUM_SEROTYPES * NUM_R + 6] +
+                                        gpu_params->sigma[vir][1] * stf * gpu_params->beta[vir] * gpu_params->eta[loc][0] * y[START_I + (NUM_SEROTYPES * 0) + vir] * y[loc * NUM_SEROTYPES * NUM_R + 7] +
+                                        gpu_params->sigma[vir][2] * stf * gpu_params->beta[vir] * gpu_params->eta[loc][0] * y[START_I + (NUM_SEROTYPES * 0) + vir] * y[loc * NUM_SEROTYPES * NUM_R + 8] +
+                                        gpu_params->sigma[vir][2] * stf * gpu_params->beta[vir] * gpu_params->eta[loc][0] * y[START_I + (NUM_SEROTYPES * 0) + vir] * y[loc * NUM_SEROTYPES * NUM_R + 9] +
+                                        gpu_params->sigma[vir][2] * stf * gpu_params->beta[vir] * gpu_params->eta[loc][0] * y[START_I + (NUM_SEROTYPES * 0) + vir] * y[loc * NUM_SEROTYPES * NUM_R + 10] +
+                                        gpu_params->sigma[vir][2] * stf * gpu_params->beta[vir] * gpu_params->eta[loc][0] * y[START_I + (NUM_SEROTYPES * 0) + vir] * y[loc * NUM_SEROTYPES * NUM_R + 11];
+            //2-dim
+//            inflow_from_recovereds +=   gpu_params->sigma[vir][0] * stf * gpu_params->beta[vir] * gpu_params->eta[loc][0] * y[START_I + (NUM_SEROTYPES * 0) + vir] * y[loc * NUM_SEROTYPES * NUM_R + 0] +
+//                                        gpu_params->sigma[vir][0] * stf * gpu_params->beta[vir] * gpu_params->eta[loc][0] * y[START_I + (NUM_SEROTYPES * 0) + vir] * y[loc * NUM_SEROTYPES * NUM_R + 1] +
+//                                        gpu_params->sigma[vir][0] * stf * gpu_params->beta[vir] * gpu_params->eta[loc][0] * y[START_I + (NUM_SEROTYPES * 0) + vir] * y[loc * NUM_SEROTYPES * NUM_R + 2] +
+//                                        gpu_params->sigma[vir][0] * stf * gpu_params->beta[vir] * gpu_params->eta[loc][0] * y[START_I + (NUM_SEROTYPES * 0) + vir] * y[loc * NUM_SEROTYPES * NUM_R + 3] +
+//                                        gpu_params->sigma[vir][1] * stf * gpu_params->beta[vir] * gpu_params->eta[loc][0] * y[START_I + (NUM_SEROTYPES * 0) + vir] * y[loc * NUM_SEROTYPES * NUM_R + 4] +
+//                                        gpu_params->sigma[vir][1] * stf * gpu_params->beta[vir] * gpu_params->eta[loc][0] * y[START_I + (NUM_SEROTYPES * 0) + vir] * y[loc * NUM_SEROTYPES * NUM_R + 5] +
+//                                        gpu_params->sigma[vir][1] * stf * gpu_params->beta[vir] * gpu_params->eta[loc][0] * y[START_I + (NUM_SEROTYPES * 0) + vir] * y[loc * NUM_SEROTYPES * NUM_R + 6] +
+//                                        gpu_params->sigma[vir][1] * stf * gpu_params->beta[vir] * gpu_params->eta[loc][0] * y[START_I + (NUM_SEROTYPES * 0) + vir] * y[loc * NUM_SEROTYPES * NUM_R + 7] +
+//                                        gpu_params->sigma[vir][2] * stf * gpu_params->beta[vir] * gpu_params->eta[loc][0] * y[START_I + (NUM_SEROTYPES * 0) + vir] * y[loc * NUM_SEROTYPES * NUM_R + 8] +
+//                                        gpu_params->sigma[vir][2] * stf * gpu_params->beta[vir] * gpu_params->eta[loc][0] * y[START_I + (NUM_SEROTYPES * 0) + vir] * y[loc * NUM_SEROTYPES * NUM_R + 9] +
+//                                        gpu_params->sigma[vir][2] * stf * gpu_params->beta[vir] * gpu_params->eta[loc][0] * y[START_I + (NUM_SEROTYPES * 0) + vir] * y[loc * NUM_SEROTYPES * NUM_R + 10] +
+//                                        gpu_params->sigma[vir][2] * stf * gpu_params->beta[vir] * gpu_params->eta[loc][0] * y[START_I + (NUM_SEROTYPES * 0) + vir] * y[loc * NUM_SEROTYPES * NUM_R + 11];
+//            inflow_from_recovereds +=   gpu_params->sigma[vir][0] * stf * gpu_params->beta[vir] * gpu_params->eta[loc][1] * y[START_I + (NUM_SEROTYPES * 1) + vir] * y[loc * NUM_SEROTYPES * NUM_R + 0] +
+//                                        gpu_params->sigma[vir][0] * stf * gpu_params->beta[vir] * gpu_params->eta[loc][1] * y[START_I + (NUM_SEROTYPES * 1) + vir] * y[loc * NUM_SEROTYPES * NUM_R + 1] +
+//                                        gpu_params->sigma[vir][0] * stf * gpu_params->beta[vir] * gpu_params->eta[loc][1] * y[START_I + (NUM_SEROTYPES * 1) + vir] * y[loc * NUM_SEROTYPES * NUM_R + 2] +
+//                                        gpu_params->sigma[vir][0] * stf * gpu_params->beta[vir] * gpu_params->eta[loc][1] * y[START_I + (NUM_SEROTYPES * 1) + vir] * y[loc * NUM_SEROTYPES * NUM_R + 3] +
+//                                        gpu_params->sigma[vir][1] * stf * gpu_params->beta[vir] * gpu_params->eta[loc][1] * y[START_I + (NUM_SEROTYPES * 1) + vir] * y[loc * NUM_SEROTYPES * NUM_R + 4] +
+//                                        gpu_params->sigma[vir][1] * stf * gpu_params->beta[vir] * gpu_params->eta[loc][1] * y[START_I + (NUM_SEROTYPES * 1) + vir] * y[loc * NUM_SEROTYPES * NUM_R + 5] +
+//                                        gpu_params->sigma[vir][1] * stf * gpu_params->beta[vir] * gpu_params->eta[loc][1] * y[START_I + (NUM_SEROTYPES * 1) + vir] * y[loc * NUM_SEROTYPES * NUM_R + 6] +
+//                                        gpu_params->sigma[vir][1] * stf * gpu_params->beta[vir] * gpu_params->eta[loc][1] * y[START_I + (NUM_SEROTYPES * 1) + vir] * y[loc * NUM_SEROTYPES * NUM_R + 7] +
+//                                        gpu_params->sigma[vir][2] * stf * gpu_params->beta[vir] * gpu_params->eta[loc][1] * y[START_I + (NUM_SEROTYPES * 1) + vir] * y[loc * NUM_SEROTYPES * NUM_R + 8] +
+//                                        gpu_params->sigma[vir][2] * stf * gpu_params->beta[vir] * gpu_params->eta[loc][1] * y[START_I + (NUM_SEROTYPES * 1) + vir] * y[loc * NUM_SEROTYPES * NUM_R + 9] +
+//                                        gpu_params->sigma[vir][2] * stf * gpu_params->beta[vir] * gpu_params->eta[loc][1] * y[START_I + (NUM_SEROTYPES * 1) + vir] * y[loc * NUM_SEROTYPES * NUM_R + 10] +
+//                                        gpu_params->sigma[vir][2] * stf * gpu_params->beta[vir] * gpu_params->eta[loc][1] * y[START_I + (NUM_SEROTYPES * 1) + vir] * y[loc * NUM_SEROTYPES * NUM_R + 11];
+
             f[ index ] += inflow_from_recovereds;
 //            printf("loc = %d vir = %d flat f[%d] = %f\n", loc, vir, index,f[index]);
 //            step_I_done[index] = true;
@@ -315,11 +358,31 @@ void gpu_func_test(double t, const double y[], double f[], int index, int day, G
 ////            printf("loop vir index %d loc %d f[%d] = %f\n",index,loc,index,f[index]);
 //        }
 ////        block.sync();
-
+        //1-dim
         f[index] = -(stf * gpu_params->beta[0] * y[12] * y[index]) -
                    (stf * gpu_params->beta[1] * y[13] * y[index]) -
                    (stf * gpu_params->beta[2] * y[14] * y[index]) +
                    (trr * y[3]) + (trr * y[7]) + (trr * y[11]);
+//        double foi_on_susc_all_viruses = 0.0;
+        //1-dim
+//        foi_on_susc_all_viruses += gpu_params->eta[index - START_S][0] * stf * gpu_params->beta[0]  * y[START_I + (NUM_SEROTYPES * 0) + 0];
+//        foi_on_susc_all_viruses += gpu_params->eta[index - START_S][0] * stf * gpu_params->beta[1]  * y[START_I + (NUM_SEROTYPES * 0) + 1];
+//        foi_on_susc_all_viruses += gpu_params->eta[index - START_S][0] * stf * gpu_params->beta[2]  * y[START_I + (NUM_SEROTYPES * 0) + 2];
+//        f[index] = ( - foi_on_susc_all_viruses ) * y[index];
+//        f[index] += trr * y[NUM_SEROTYPES*NUM_R*(index - START_S) + NUM_R*0 + (NUM_R - 1)];
+//        f[index] += trr * y[NUM_SEROTYPES*NUM_R*(index - START_S) + NUM_R*1 + (NUM_R - 1)];
+//        f[index] += trr * y[NUM_SEROTYPES*NUM_R*(index - START_S) + NUM_R*2 + (NUM_R - 1)];
+        //2-dim
+//        foi_on_susc_all_viruses += gpu_params->eta[index - START_S][0] * stf * gpu_params->beta[0]  * y[START_I + (NUM_SEROTYPES * 0) + 0];
+//        foi_on_susc_all_viruses += gpu_params->eta[index - START_S][0] * stf * gpu_params->beta[1]  * y[START_I + (NUM_SEROTYPES * 0) + 1];
+//        foi_on_susc_all_viruses += gpu_params->eta[index - START_S][0] * stf * gpu_params->beta[2]  * y[START_I + (NUM_SEROTYPES * 0) + 2];
+//        foi_on_susc_all_viruses += gpu_params->eta[index - START_S][1] * stf * gpu_params->beta[0]  * y[START_I + (NUM_SEROTYPES * 1) + 0];
+//        foi_on_susc_all_viruses += gpu_params->eta[index - START_S][1] * stf * gpu_params->beta[1]  * y[START_I + (NUM_SEROTYPES * 1) + 1];
+//        foi_on_susc_all_viruses += gpu_params->eta[index - START_S][1] * stf * gpu_params->beta[2]  * y[START_I + (NUM_SEROTYPES * 1) + 2];
+//        f[index] = ( - foi_on_susc_all_viruses ) * y[index];
+//        f[index] += trr * y[NUM_SEROTYPES*NUM_R*(index - START_S) + NUM_R*0 + (NUM_R - 1)];
+//        f[index] += trr * y[NUM_SEROTYPES*NUM_R*(index - START_S) + NUM_R*1 + (NUM_R - 1)];
+//        f[index] += trr * y[NUM_SEROTYPES*NUM_R*(index - START_S) + NUM_R*2 + (NUM_R - 1)];
 
     }
 

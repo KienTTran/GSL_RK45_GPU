@@ -5,7 +5,7 @@ Created on Fri Jan 21 17:51:52 2022
 @author: kient
 """
 
-LOC = ['0']
+LOC = ['0','1']
 VIR = ['1','2','3']
 STAGE = ['a','b','c','d']
 
@@ -79,7 +79,7 @@ for loc in range(0,NUMLOC):
 for loc in range(0,NUMLOC):
     for vir in range(0,NUMSEROTYPES):
         index = loc * NUMSEROTYPES + vir
-        print("loc %d vir %d" % (loc, vir))
+        print("loc %d vir %d index %d" % (loc, vir, STARTI + index))
         for l in range(0,NUMLOC):
             for v in range(0,NUMSEROTYPES):
                 for s in range(0,NUMR):
@@ -108,7 +108,7 @@ for loc in range(0,NUMLOC):
    
 for loc in range(0,NUMLOC):
     print("loc %d" % (loc))                 
-    for v in range(0,NUMSEROTYPES):
+    for vir in range(0,NUMSEROTYPES):
         print("f[%d] += trr "
               "* y[%d]"
               %
