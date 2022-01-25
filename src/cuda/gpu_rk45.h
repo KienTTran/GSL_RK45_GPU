@@ -42,20 +42,28 @@ __host__ __device__ void gpu_func_flu(double t, const double y[], double dydt[],
 __host__ __device__ void gpu_func_pen(double t, const double y[], double f[], void *params);
 __device__ void gpu_func_test(double t, const double y[], double f[], int index, void *params);
 __device__ void gpu_func_test(double t, const double y[], double f[], int index, int day, GPU_Parameters* gpu_params);
+__device__ void gpu_func_test(double t, const double y[], double f[], int index, int day, int N);
 __device__ double seasonal_transmission_factor(GPU_Parameters* gpu_params, double t);
 
-__global__
-void calculate_y(double y[], double y_tmp[], double y_err[], double* h,  int step,
+__global__ void calculate_y(double y[], double y_tmp[], double y_err[], double* h,  int step,
                      double k1[], double k2[], double k3[],
                      double k4[], double k5[], double k6[],
                      GPU_Parameters* params);
-__global__
-void calculate_r(double y[], double y_err[], double dydt_out[], double* h_0, double* h, int final_step, double r[], GPU_Parameters* params);
+__global__ void calculate_r(double y[], double y_err[], double dydt_out[], double* h_0, double* h, int final_step, double r[], GPU_Parameters* params);
 
-__global__
-void gpu_func_test(double* t, const double y[], double f[], GPU_Parameters* gpu_params);
-__global__
-void reduce_max(double data[], double out[], unsigned int n);
+__global__ void gpu_func_test(double* t, const double y[], double f[], GPU_Parameters* gpu_params);
+
+__device__ void gpu_func_test2(double t, const double y[], double f[], double sum_in[], double sum_out[], int index, int day, GPU_Parameters* gpu_params);
+
+__global__ void reduce_max(double data[], double out[], unsigned int n);
+
+__device__ void reduce_max_device(double data[], double out[], unsigned int n);
+
+__device__ void reduce_sum_device(double data[], double out[], unsigned int n);
+
+__device__ void reduce_sum_device_2(double data[], double out[], unsigned int n);
+
+__device__ void reduce_max_device_2(double data[], double out[], unsigned int n);
 
 void adjust_h(double r_max, double h_0, double* h, int final_step, int* adjustment_out);
 

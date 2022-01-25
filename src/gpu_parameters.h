@@ -15,12 +15,9 @@ class GPU_Parameters {
 public:
     explicit GPU_Parameters();
     ~GPU_Parameters();
-    int block_size;
-    int num_blocks;
     int number_of_ode;
     int dimension;
     int display_number;
-    int display_dimension;
     double t_target;
     double t0;
     double h;
@@ -32,8 +29,12 @@ public:
     void initTest(int argc, char **argv);
     double seasonal_transmission_factor(double t);
     double sum_foi_sbe[NUMLOC * NUMSEROTYPES * NUMR * NUMLOC * NUMSEROTYPES];
+    int sum_foi_y_index[NUMLOC * NUMSEROTYPES * NUMR * NUMLOC * NUMSEROTYPES];
     double inflow_from_recovereds_sbe[NUMLOC*NUMSEROTYPES*NUMLOC*NUMSEROTYPES*NUMR];
+    int inflow_from_recovereds_y1_index[NUMLOC*NUMSEROTYPES*NUMLOC*NUMSEROTYPES*NUMR];
+    int inflow_from_recovereds_y2_index[NUMLOC*NUMSEROTYPES*NUMLOC*NUMSEROTYPES*NUMR];
     double foi_on_susc_all_viruses_eb [NUMLOC*NUMLOC*NUMSEROTYPES];
+    int foi_on_susc_all_viruses_y_index [NUMLOC*NUMLOC*NUMSEROTYPES];
 
     //from Flu
     thrust::host_vector<double> v;           // this holds some of the parameters -- they are indexed by the enums above
@@ -55,6 +56,7 @@ public:
     double* phis_d;
     int phis_d_length;
     double stf_d[NUMDAYSOUTPUT];
+    double stf = 0.0;
 
     enum parameter_index {	i_phi01, i_phi02, i_phi03, i_phi04, i_phi05, i_phi06, i_phi07, i_phi08, i_phi09, i_phi10,        // the peak epidemic times
         i_phi11, i_phi12, i_phi13, i_phi14, i_phi15, i_phi16, i_phi17, i_phi18, i_phi19, i_phi20,

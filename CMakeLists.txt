@@ -3,10 +3,13 @@ project(rk45_cuda LANGUAGES CXX CUDA)
 
 #
 # On WSL compile with -DCMAKE_CUDA_COMPILER:PATH=/usr/local/cuda/bin/nvcc
+# -DCMAKE_CUDA_FLAGS="-default-stream per-thread"
 #
 set(BUILD_CLUSTER false CACHE BOOL "Enable for builds on the cluster")
 
 if (WIN32)
+    find_package(GSL REQUIRED)
+    #CMake projects should use: "-DCMAKE_TOOLCHAIN_FILE=D:/BoniLab/vcpkg/scripts/buildsystems/vcpkg.cmake"
     include_directories("E:\\SDK\\CUDA\\11.5\\Toolkit\\include\\")
     add_executable(rk45_cuda
             src/cuda/gpu_func_flu.cu
@@ -25,7 +28,7 @@ if (WIN32)
             src/gpu_parameters.cpp
             src/gpu_parameters.h
             src/flu_default_params.h
-            #src/gsl_functions.cpp
+            src/gsl_functions.cpp
             src/main.cpp)
 else()
     include_directories("/usr/local/cuda/include/")
@@ -65,4 +68,11 @@ endif()
 
 if (UNIX)
     target_link_libraries(rk45_cuda gsl gslcblas)
+    target_compile_options(rk45_cuda PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
+            --generate-line-info
+            --use_fast_math
+            --relocatable-device-code=true
+            >)
+else()
+    target_link_libraries(rk45_cuda PRIVATE GSL::gsl GSL::gslcblas)
 endif()

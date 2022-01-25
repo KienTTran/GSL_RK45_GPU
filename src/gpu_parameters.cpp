@@ -30,25 +30,17 @@ bool GPU_Parameters::isFloat( std::string myString ) {
     return iss.eof() && !iss.fail();
 }
 
-void GPU_Parameters::initPen(){
-    y = new double[dimension]();
-    for(int j = 0; j < dimension; j++){
-        y[j] = 0.5;
-    }
-}
-
 void GPU_Parameters::initTest(int argc, char **argv){
     y = new double[dimension]();
     for(int j = 0; j < dimension; j++){
         y[j] = 0.5;
     }
 
-    //Todo check this before change output format, added 2 field for time and seasonal factor
-    display_dimension = dimension + 2;
-    y_output = new double[NUMDAYSOUTPUT * display_dimension]();
-    for(int j = 0; j < t_target * display_dimension; j++){
+    y_output = new double[NUMDAYSOUTPUT * dimension]();
+    for(int j = 0; j < NUMDAYSOUTPUT * dimension; j++){
         y_output[j] = 0.0;
     }
+    printf("diplay_dimension = %d x %d = %d\n",NUMDAYSOUTPUT, dimension, NUMDAYSOUTPUT * dimension);
 
     v.insert( v.begin(), num_params, 0.0 );
     assert( v.size()==num_params );
@@ -267,8 +259,6 @@ void GPU_Parameters::initTest(int argc, char **argv){
     v_temp = v;
     v_d = thrust::raw_pointer_cast(v_temp.data());
 
-    printf("phis size = %lu\n",phis.size());
-
     if(phis.empty()){
         phis_d = nullptr;
         phis_d_length = 0;
@@ -277,70 +267,86 @@ void GPU_Parameters::initTest(int argc, char **argv){
         phis_temp = phis;
         phis_d_length = phis.size();
         phis_d = thrust::raw_pointer_cast(phis_temp.data());
+        int day = 0;
         for(double t = 0; t < NUMDAYSOUTPUT; t+= 1.0){
-            stf_d[(int)t] = seasonal_transmission_factor(t);
-//            stf_d[t] = 1.0;
-//            int d_x = t % 3650;
-//            for (int i=0; i<phis.size(); i++) {
-//                if (fabs(d_x - phis[i]) < (v[i_epidur] / 2)) {
-//                    stf_d[t] += sin(2.0 * 3.141592653589793238 * (phis[i]-t+(v[i_epidur]/2)) /
-//                                    (v[i_epidur] * 2));
-//                }
-//            }
+            stf_d[day] = seasonal_transmission_factor(t);
+//            printf("day %f stf = %f\n",t,stf_d[day]);
+            day++;
         }
     }
 
 //    printf("\nsum_foi_sbe:\n");
-//    //sum_foi
-////    m0,m1,.. are dimensions
-////    A(i,j,k,...) -> A0[i + j*m0 + k*m0*m1 + ...]
-//    int index = 0;
-//    for(int loc = 0; loc < NUMLOC; loc++) {
-//        for (int vir = 0; vir < NUMSEROTYPES; vir++) {
-//            for (int stg = 0; stg < NUMR; stg++) {
-//                for(int l = 0; l < NUMLOC; l++) {
-//                    for (int v = 0; v < NUMSEROTYPES; v++) {
-//                        index = loc*NUMSEROTYPES*NUMR*NUMLOC*NUMSEROTYPES + vir*NUMR*NUMLOC*NUMSEROTYPES + stg*NUMLOC*NUMSEROTYPES + l*NUMSEROTYPES + v;
-//                        sum_foi_sbe[index] = sigma[vir][v]
-//                                                * beta[v]
-//                                                * eta[loc][l];
+    //sum_foi
+//    m0,m1,.. are dimensions
+//    A(i,j,k,...) -> A0[i + j*m0 + k*m0*m1 + ...]
+    int index = 0;
+    int count = 0;
+    for(int loc = 0; loc < NUMLOC; loc++) {
+        for (int vir = 0; vir < NUMSEROTYPES; vir++) {
+            for (int stg = 0; stg < NUMR; stg++) {
+                for(int l = 0; l < NUMLOC; l++) {
+                    for (int v = 0; v < NUMSEROTYPES; v++) {
+                        index = loc*NUMSEROTYPES*NUMR*NUMLOC*NUMSEROTYPES + vir*NUMR*NUMLOC*NUMSEROTYPES + stg*NUMLOC*NUMSEROTYPES + l*NUMSEROTYPES + v;
+                        sum_foi_sbe[index] = sigma[vir][v]
+                                                * beta[v]
+                                                * eta[loc][l];
+                        sum_foi_y_index[index] = STARTI + NUMSEROTYPES*l + v;
 //                        printf("loc = %d vir = %d stg = %d l = %d v = %d index = %d sum_foi[%d] = %f\n",loc,vir,stg,l,v,index,index,sum_foi_sbe[index]);
-//                    }
-//                }
-//            }
-//        }
-//    }
+//                        printf("sum_foi_sbe[%d] = sigma[%d][%d] * beta[%d] * eta[%d][%d] * y[%d]\n",index,vir,v,v,loc,l,sum_foi_y_index[index]);
+                        count++;
+                    }
+                }
+            }
+        }
+    }
+//    printf("sum_foi count = %d\n",count);
+
 //    printf("\ninflow_from_recovereds_sbe:\n");
-//    //inflow_from_recovereds_sbe
-//    index = 0;
-//    for(int loc = 0; loc < NUMLOC; loc++) {
-//        for (int vir = 0; vir < NUMSEROTYPES; vir++) {
-//            for(int l=0; l<NUMLOC; l++) {        // sum over locations
-//                for (int v = 0; v < NUMSEROTYPES; v++) { // sum over recent immunity
-//                    for (int s = 0; s < NUMR; s++) {    // sum over R stage
-//                        index = loc*NUMSEROTYPES*NUMLOC*NUMSEROTYPES*NUMR + vir*NUMLOC*NUMSEROTYPES*NUMR + l*NUMSEROTYPES*NUMR + v*NUMR + s;
-//                        inflow_from_recovereds_sbe[index] = sigma[vir][v]
-//                                                            * beta[vir]
-//                                                            * eta[loc][l] ;
-//                        printf("loc = %d vir = %d l = %d v = %d s = %d index = %d inflow_from_recovereds[%d] = %f\n",loc,vir,l,v,s,index,index,inflow_from_recovereds_sbe[index]);
-//                    }
-//                }
-//            }
-//
-//        }
-//    }
+    index = 0;
+    count = 0;
+    for(int loc = 0; loc < NUMLOC; loc++) {
+        for (int vir = 0; vir < NUMSEROTYPES; vir++) {
+            for(int l=0; l<NUMLOC; l++) {        // sum over locations
+                for (int v = 0; v < NUMSEROTYPES; v++) { // sum over recent immunity
+                    for (int s = 0; s < NUMR; s++) {    // sum over R stage
+                        index = loc*NUMSEROTYPES*NUMLOC*NUMSEROTYPES*NUMR + vir*NUMLOC*NUMSEROTYPES*NUMR + l*NUMSEROTYPES*NUMR + v*NUMR + s;
+                        inflow_from_recovereds_sbe[index] = sigma[vir][v]
+                                                            * beta[vir]
+                                                            * eta[loc][l] ;
+                        inflow_from_recovereds_y1_index[index] = STARTI + NUMSEROTYPES * l + vir;
+                        inflow_from_recovereds_y2_index[index] = NUMSEROTYPES * NUMR * loc + NUMR * v + s;
+//                        printf("loc = %d vir = %d l = %d v = %d s = %d index = %d inflow_from_recovereds[%d] = %f y1_index = %d y2_index = %d\n",loc,vir,l,v,s,index,index,
+//                               inflow_from_recovereds_sbe[index],inflow_from_recovereds_y1_index[index],inflow_from_recovereds_y2_index[index]);
+//                        printf("index = %d inflow_from_recovereds = sigma[%d][%d] * beta[%d] * eta[%d][%d] * y[%d] * y[%d]\n",index,vir,v,vir,loc,l,
+//                               inflow_from_recovereds_sbe[index],inflow_from_recovereds_y1_index[index],inflow_from_recovereds_y2_index[index]);
+                        count++;
+                    }
+                }
+            }
+        }
+    }
+//    printf("inflow_from_recovereds_sbe count = %d\n",count);
+
 //    printf("\nfoi_on_susc_all_viruses_eb:\n");
-//    index = 0;
-//    for(int loc = 0; loc < NUMLOC; loc++) {
-//        for(int l=0; l<NUMLOC; l++){
-//            for(int v=0; v<NUMSEROTYPES; v++){
-//                index = loc*NUMLOC*NUMSEROTYPES + l*NUMSEROTYPES + v;
-//                foi_on_susc_all_viruses_eb[index] =    eta[loc][l]
-//                                                    * beta[v];
+    index = 0;
+    count = 0;
+    for(int loc = 0; loc < NUMLOC; loc++) {
+        for(int l=0; l<NUMLOC; l++){
+            for(int v=0; v<NUMSEROTYPES; v++){
+                index = loc*NUMLOC*NUMSEROTYPES + l*NUMSEROTYPES + v;
+                foi_on_susc_all_viruses_eb[index] = eta[loc][l]
+                                                    * beta[v];
+                foi_on_susc_all_viruses_y_index[index] = STARTI + NUMSEROTYPES * l + v;
 //                printf("loc = %d vir = %d index = %d foi_on_susc_all_viruses[%d] = %f\n",loc,v,index,index,foi_on_susc_all_viruses_eb[index]);
-//            }
-//        }
-//    }
+//                printf("foi_on_susc_all_viruses_eb[%d] = eta[%d][%d] * beta[%d] * y[%d]\n",index,loc,l,v,foi_on_susc_all_viruses_y_index[index]);
+                count++;
+            }
+        }
+    }
+//    printf("foi_on_susc_all_viruses_eb count = %d\n",count);
+
+    printf("Total loop in one I thread = %d\n", NUMLOC*NUMSEROTYPES*NUMR);
+    printf("Total loop in one R S thread = %d\n", NUMLOC*NUMSEROTYPES);
 
     // Copy host_vector H to device_vector D
 //    printf("copy cpu data to gpu\n");
