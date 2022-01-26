@@ -73,8 +73,6 @@ void calculate_r(double y[], double y_err[], double dydt_out[], double* h_0, dou
     static double eps_rel = 0.0;
     static double a_y = 1.0;
     static double a_dydt = 0.0;
-    static unsigned int ord = 5;
-    const double S = 0.9;
     double h_old;
     if(final_step){
         h_old = (*h_0);

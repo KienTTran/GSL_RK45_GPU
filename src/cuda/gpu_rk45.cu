@@ -371,23 +371,15 @@ void rk45_gpu_step_apply(double t, double h,
     return;
 }
 
-//__global__
-//void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, double y[],
-//                           double y_0[], double y_err[], double y_tmp[], double dydt_in[], double dydt_out[],
-//                           double k1[], double k2[], double k3[], double k4[], double k5[], double k6[],
-//                           double D0[], double r[], double r_max[],
-//                           double y_output[],
-//                           GPU_Parameters* params)
 __global__
 void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, double y[],
                            double y_0[], double y_err[], double y_tmp[], double dydt_in[], double dydt_out[],
                            double k1[], double k2[], double k3[], double k4[], double k5[], double k6[],
                            double D0[], double r[], double r_max[],
                            double y_output[],
-                           const int offset,
-                           GPU_Parameters* params)
-                           {
+                           GPU_Parameters* params){
 
+    //shared mem version, use for less streams
 //    __shared__ double y_0[DIM];
 //    __shared__ double y_tmp[DIM];
 //    __shared__ double y_err[DIM];
@@ -403,12 +395,12 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
 //    __shared__ double D0[DIM];
 //    __shared__ double r[DIM];
 
-    int index = offset + threadIdx.x + blockIdx.x * blockDim.x;
+    int index = threadIdx.x + blockIdx.x * blockDim.x;
 //    int index_gpu = threadIdx.x + blockIdx.x * blockDim.x;
 //    int stride = blockDim.x * gridDim.x;
 
 //    for(int index = index_gpu; index < params->dimension; index += stride)
-//    if(index < params->dimension)
+    if(index < params->dimension)
     {
         y_0[index] = 0.0;
         y_tmp[index] = 0.0;
@@ -461,28 +453,22 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
 //                printf("    t = %f t_1 = %f  h = %f\n", device_t, device_t1, device_h);
 //            }
 
-//            if(output_index < NUMDAYSOUTPUT*params->dimension)
-//            {
-//                y_output[output_index] = output_index;
-//            }
-//            __syncthreads();
-
-//            const int output_index = day * params->display_dimension + index;
-//            if(output_index % params->display_dimension == 0){
-//                //First column
-//                y_output[output_index] = day;
-//            }
-//            if(output_index % params->display_dimension == 1){
-//                //Second column
-//                y_output[output_index] = params->stf;
-//            }
-//            if(output_index % params->display_dimension == 2){
-//                //Third column
-//                y_output[output_index] = pop_sum(y);
-//            }
-//            //Forth column onward
-//            y_output[output_index + 3] = y[index];
-//            __syncthreads();
+            const int output_index = day * params->display_dimension + index;
+            if(output_index % params->display_dimension == 0){
+                //First column
+                y_output[output_index] = day;
+            }
+            if(output_index % params->display_dimension == 1){
+                //Second column
+                y_output[output_index] = params->stf;
+            }
+            if(output_index % params->display_dimension == 2){
+                //Third column
+                y_output[output_index] = pop_sum(y);
+            }
+            //Forth column onward
+            y_output[output_index + 3] = y[index];
+            __syncthreads();
 
             while(device_t < device_t1)
             {
@@ -619,305 +605,149 @@ void GPU_RK45::run(){
     auto start_transfer_h2d = std::chrono::high_resolution_clock::now();
     auto stop_transfer_h2d = std::chrono::high_resolution_clock::now();
 
-    const int num_streams = 4;
-//    //y
-//    double* y_pinned[num_streams];
-//    double *y_d[num_streams];
-//    double *y_output_d[num_streams];
-//    double *y_output_host_display_pinned[num_streams];//Pinned memory
-//    //y_0
-//    double *y_0_d[num_streams];
-//    //y_tmp
-//    double *y_tmp_d[num_streams];
-//    //y_err
-//    double *y_err_d[num_streams];
-//    //dydt_in_d
-//    double *dydt_in_d[num_streams];
-//    //dydt_out_d
-//    double *dydt_out_d[num_streams];
-//    //k1_d
-//    double *k1_d[num_streams];
-//    //k2_d
-//    double *k2_d[num_streams];
-//    //k3_d
-//    double *k3_d[num_streams];
-//    //k4_d
-//    double *k4_d[num_streams];
-//    //k5_d
-//    double *k5_d[num_streams];
-//    //k6_d
-//    double *k6_d[num_streams];
-//    //r_d
-//    double *r_d[num_streams];
-//    //D0_d
-//    double *D0_d[num_streams];
-//    //r_max_d
-//    double *r_max_d[num_streams];//
-//    GPU_Parameters* params_d[num_streams];
-
-//    for (int i = 0; i < num_streams; i++) {
-//        //Allocate pinned memory for y pinned
-//        checkCuda(cudaMallocHost((void**)&y_pinned[i], params->dimension * sizeof(double)));
-//        //Copy data from y to y_pinned
-//        memcpy(y_pinned[i], params->y, params->dimension * sizeof(double));
-//
-//        //Allocate memory for y on device y_d
-//        checkCuda(cudaMalloc((void **) &y_d[i], params->dimension * sizeof(double)));
-//        //Copy data from y host to y device (y to y_d) - normal version
-////        checkCuda(cudaMemcpy(y_d[i], params->y, params->dimension * sizeof(double), cudaMemcpyHostToDevice));
-//        //Copy data from y host to y device (y_pinned to y_d) - pinned version
-//        checkCuda(cudaMemcpy(y_d[i], y_pinned[i], params->dimension * sizeof(double), cudaMemcpyHostToDevice));
-//
-//        //Allocate pinned memory for display output
-//        checkCuda(cudaMallocHost((void**)&y_output_host_display_pinned[i], NUMDAYSOUTPUT * params->display_dimension * sizeof(double)));
-//        //Allocate memory for y output on device (this one is used to store display data on device)
-//        checkCuda(cudaMalloc((void **) &y_output_d[i], NUMDAYSOUTPUT * params->display_dimension * sizeof(double)));
-//        //Copy data from y output from host to device
-//        checkCuda(cudaMemcpy(y_output_d[i], params->y_output, NUMDAYSOUTPUT * params->display_dimension * sizeof(double),cudaMemcpyHostToDevice));
-//
-//        checkCuda(cudaMalloc ((void **)&y_0_d[i], params->dimension * sizeof (double)));
-//        checkCuda(cudaMemcpy (y_0_d[i], params->y, params->dimension * sizeof (double), cudaMemcpyHostToDevice));
-//        checkCuda(cudaMalloc ((void **)&y_tmp_d[i], params->dimension * sizeof (double)));
-//        checkCuda(cudaMemcpy (y_tmp_d[i], params->y, params->dimension * sizeof (double), cudaMemcpyHostToDevice));
-//        checkCuda(cudaMalloc ((void **)&y_err_d[i], params->dimension * sizeof (double)));
-//        checkCuda(cudaMemcpy (y_err_d[i], params->y, params->dimension * sizeof (double), cudaMemcpyHostToDevice));
-//        checkCuda(cudaMalloc ((void **)&dydt_in_d[i], params->dimension * sizeof (double)));
-//        checkCuda(cudaMemcpy (dydt_in_d[i], params->y, params->dimension * sizeof (double), cudaMemcpyHostToDevice));
-//        checkCuda(cudaMalloc ((void **)&dydt_out_d[i], params->dimension * sizeof (double)));
-//        checkCuda(cudaMemcpy (dydt_out_d[i], params->y, params->dimension * sizeof (double), cudaMemcpyHostToDevice));
-//        checkCuda(cudaMalloc ((void **)&k1_d[i], params->dimension * sizeof (double)));
-//        checkCuda(cudaMemcpy (k1_d[i], params->y, params->dimension * sizeof (double), cudaMemcpyHostToDevice));
-//        checkCuda(cudaMalloc ((void **)&k2_d[i], params->dimension * sizeof (double)));
-//        checkCuda(cudaMemcpy (k2_d[i], params->y, params->dimension * sizeof (double), cudaMemcpyHostToDevice));
-//        checkCuda(cudaMalloc ((void **)&k3_d[i], params->dimension * sizeof (double)));
-//        checkCuda(cudaMemcpy (k3_d[i], params->y, params->dimension * sizeof (double), cudaMemcpyHostToDevice));
-//        checkCuda(cudaMalloc ((void **)&k4_d[i], params->dimension * sizeof (double)));
-//        checkCuda(cudaMemcpy (k4_d[i], params->y, params->dimension * sizeof (double), cudaMemcpyHostToDevice));
-//        checkCuda(cudaMalloc ((void **)&k5_d[i], params->dimension * sizeof (double)));
-//        checkCuda(cudaMemcpy (k5_d[i], params->y, params->dimension * sizeof (double), cudaMemcpyHostToDevice));
-//        checkCuda(cudaMalloc ((void **)&k6_d[i], params->dimension * sizeof (double)));
-//        checkCuda(cudaMemcpy (k6_d[i], params->y, params->dimension * sizeof (double), cudaMemcpyHostToDevice));
-//        checkCuda(cudaMalloc ((void **)&r_d[i], params->dimension * sizeof (double)));
-//        checkCuda(cudaMemcpy (r_d[i], params->y, params->dimension * sizeof (double), cudaMemcpyHostToDevice));
-//        checkCuda(cudaMalloc ((void **)&D0_d[i], params->dimension * sizeof (double)));
-//        checkCuda(cudaMemcpy (D0_d[i], params->y, params->dimension * sizeof (double), cudaMemcpyHostToDevice));
-//        checkCuda(cudaMalloc ((void **)&r_max_d[i], params->dimension * sizeof (double)));
-//        checkCuda(cudaMemcpy (r_max_d[i], params->y, params->dimension * sizeof (double), cudaMemcpyHostToDevice));
-//
-//        checkCuda(cudaMalloc((void **) &params_d[i], sizeof(GPU_Parameters)));
-//        checkCuda(cudaMemcpy(params_d[i], params, sizeof(GPU_Parameters), cudaMemcpyHostToDevice));
-//    }
-//    checkCuda(cudaDeviceSynchronize());
-//    int num_SMs;
-//    checkCuda(cudaDeviceGetAttribute(&num_SMs, cudaDevAttrMultiProcessorCount, 0));
-////    int numBlocks = 32*num_SMs; //multiple of 32
-//    int block_size = 256; //max is 1024
-////    int num_blocks = (params->dimension + block_size - 1) / block_size;
-//    int num_blocks = (params->dimension + block_size - 1) / block_size;
-////    printf("[GSL GPU] SMs = %d block_size = %d num_blocks = %d\n",num_SMs,block_size,num_blocks);
-//    dim3 dimBlock(block_size, block_size); // so your threads are BLOCK_SIZE*BLOCK_SIZE, 256 in this case
-//    dim3 dimGrid(num_blocks, num_blocks); // 1*1 blocks in a grid
-
-    //y
-    double* y_pinned;
-    double *y_d;
-    double *y_output_d;
-    double *y_output_host_display_pinned;//Pinned memory
-    //y_0
-    double *y_0_d;
-    //y_tmp
-    double *y_tmp_d;
-    //y_err
-    double *y_err_d;
-    //dydt_in_d
-    double *dydt_in_d;
-    //dydt_out_d
-    double *dydt_out_d;
-    //k1_d
-    double *k1_d;
-    //k2_d
-    double *k2_d;
-    //k3_d
-    double *k3_d;
-    //k4_d
-    double *k4_d;
-    //k5_d
-    double *k5_d;
-    //k6_d
-    double *k6_d;
-    //r_d
-    double *r_d;
-    //D0_d
-    double *D0_d;
-    //r_max_d
-    double *r_max_d;
-
-    GPU_Parameters* params_d;
-
     cudaFuncSetCacheConfig(rk45_gpu_evolve_apply, cudaFuncCachePreferShared);
     cudaDeviceSetLimit(cudaLimitPrintfFifoSize, 1024000*100);
 
-    const int block_size = 16;
-    const int n = params->dimension * block_size * num_streams;
-    const int stream_size = n / num_streams;
-
-    //double size
-    const int stream_bytes_double = stream_size * sizeof(double);
-    const int bytes_double = n * sizeof(double);
-
-    //params size, here divided by dimension because we just need one params per stream
-    const int stream_bytes_params = stream_size/params->dimension * sizeof(GPU_Parameters);
-    const int bytes_params = n/params->dimension * sizeof(GPU_Parameters);
+    const int num_streams = 4;
+    const int block_size = 256;
+    int num_SMs;
+    checkCuda(cudaDeviceGetAttribute(&num_SMs, cudaDevAttrMultiProcessorCount, 0));
+    int num_blocks = (params->dimension + block_size - 1) / block_size;
+//    printf("[GSL GPU] SMs = %d block_size = %d num_blocks = %d\n",num_SMs,block_size,num_blocks);
 
     cudaStream_t streams[num_streams];
-
     for (int i = 0; i < num_streams; ++i) {
         checkCuda(cudaStreamCreate(&streams[i]));
     }
 
-    //Allocate pinned memory for y pinned
-    checkCuda(cudaMallocHost((void**)&y_pinned, bytes_double));
-    //Copy data from y to y_pinned
-    memcpy(y_pinned, params->y, bytes_double);
-    //Allocate memory for y on device y_d
-    checkCuda(cudaMalloc((void **) &y_d, bytes_double));
-    //Allocate pinned memory for display output
-//    checkCuda(cudaMallocHost((void**)&y_output_host_display_pinned, NUMDAYSOUTPUT * params->display_dimension * sizeof(double)));
-    //Allocate memory for y output on device (this one is used to store display data on device)
-//    checkCuda(cudaMalloc((void **)&y_output_d, NUMDAYSOUTPUT * params->display_dimension * sizeof(double)));
-    checkCuda(cudaMalloc((void **)&y_0_d, bytes_double));
-    checkCuda(cudaMalloc((void **)&y_tmp_d, bytes_double));
-    checkCuda(cudaMalloc((void **)&y_err_d, bytes_double));
-    checkCuda(cudaMalloc((void **)&dydt_in_d, bytes_double));
-    checkCuda(cudaMalloc((void **)&dydt_out_d, bytes_double));
-    checkCuda(cudaMalloc((void **)&k1_d, bytes_double));
-    checkCuda(cudaMalloc((void **)&k2_d, bytes_double));
-    checkCuda(cudaMalloc((void **)&k3_d, bytes_double));
-    checkCuda(cudaMalloc((void **)&k4_d, bytes_double));
-    checkCuda(cudaMalloc((void **)&k5_d, bytes_double));
-    checkCuda(cudaMalloc((void **)&k6_d, bytes_double));
-    checkCuda(cudaMalloc((void **)&r_d, bytes_double));
-    checkCuda(cudaMalloc((void **)&D0_d, bytes_double));
-    checkCuda(cudaMalloc((void **)&r_max_d, bytes_double));
-    checkCuda(cudaMalloc((void **)&params_d, bytes_params));
-//    checkCuda(cudaDeviceSynchronize());
-//    for (int i = 0; i < num_streams; i++) {
-//        checkCuda(cudaStreamCreate(&streams[i]));
-//        int offset = i * stream_size;
-//        //Copy data from y host to y device (y_pinned to y_d) - pinned version
-//        checkCuda(cudaMemcpyAsync(&y_d[offset], &y_pinned[offset], stream_size, cudaMemcpyHostToDevice, streams[i]));
-//        //Copy data from y output from host to device
-////        checkCuda(cudaMemcpyAsync(&y_output_d[offset], &params->y_output[offset], NUMDAYSOUTPUT * params->display_dimension * sizeof(double),cudaMemcpyHostToDevice, streams[i]));
-//        checkCuda(cudaMemcpyAsync(&y_0_d[offset], &params->y[offset], stream_size, cudaMemcpyHostToDevice, streams[i]));
-//        checkCuda(cudaMemcpyAsync(&y_tmp_d[offset], &params->y[offset], stream_size, cudaMemcpyHostToDevice, streams[i]));
-//        checkCuda(cudaMemcpyAsync(&y_err_d[offset], &params->y[offset], stream_size, cudaMemcpyHostToDevice, streams[i]));
-//        checkCuda(cudaMemcpyAsync(&dydt_in_d[offset], &params->y[offset], stream_size, cudaMemcpyHostToDevice, streams[i]));
-//        checkCuda(cudaMemcpyAsync(&dydt_out_d[offset], &params->y[offset], stream_size, cudaMemcpyHostToDevice, streams[i]));
-//        checkCuda(cudaMemcpyAsync(&k1_d[offset], &params->y[offset], stream_size, cudaMemcpyHostToDevice, streams[i]));
-//        checkCuda(cudaMemcpyAsync(&k2_d[offset], &params->y[offset], stream_size, cudaMemcpyHostToDevice, streams[i]));
-//        checkCuda(cudaMemcpyAsync(&k3_d[offset], &params->y[offset], stream_size, cudaMemcpyHostToDevice, streams[i]));
-//        checkCuda(cudaMemcpyAsync(&k4_d[offset], &params->y[offset], stream_size, cudaMemcpyHostToDevice, streams[i]));
-//        checkCuda(cudaMemcpyAsync(&k5_d[offset], &params->y[offset], stream_size, cudaMemcpyHostToDevice, streams[i]));
-//        checkCuda(cudaMemcpyAsync(&k6_d[offset], &params->y[offset], stream_size, cudaMemcpyHostToDevice, streams[i]));
-//        checkCuda(cudaMemcpyAsync(&r_d[offset], &params->y[offset], stream_size, cudaMemcpyHostToDevice, streams[i]));
-//        checkCuda(cudaMemcpyAsync(&D0_d[offset], &params->y[offset], stream_size, cudaMemcpyHostToDevice, streams[i]));
-//        checkCuda(cudaMemcpyAsync(&r_max_d[offset], &params->y[offset], stream_size, cudaMemcpyHostToDevice, streams[i]));
-//        checkCuda(cudaMemcpyAsync(&params_d[offset], &params[offset], stream_size, cudaMemcpyHostToDevice, streams[i]));
-//    }
+    //y
+    double* y_pinned[num_streams];
+    double *y_d[num_streams];
+    double *y_output_d[num_streams];
+    double *y_output_host_display_pinned[num_streams];//Pinned memory
+    //y_0
+    double *y_0_d[num_streams];
+    //y_tmp
+    double *y_tmp_d[num_streams];
+    //y_err
+    double *y_err_d[num_streams];
+    //dydt_in_d
+    double *dydt_in_d[num_streams];
+    //dydt_out_d
+    double *dydt_out_d[num_streams];
+    //k1_d
+    double *k1_d[num_streams];
+    //k2_d
+    double *k2_d[num_streams];
+    //k3_d
+    double *k3_d[num_streams];
+    //k4_d
+    double *k4_d[num_streams];
+    //k5_d
+    double *k5_d[num_streams];
+    //k6_d
+    double *k6_d[num_streams];
+    //r_d
+    double *r_d[num_streams];
+    //D0_d
+    double *D0_d[num_streams];
+    //r_max_d
+    double *r_max_d[num_streams];
+    //params_d
+    GPU_Parameters* params_d[num_streams];
+
+    for (int i = 0; i < num_streams; i++) {
+        //Allocate pinned memory for y pinned
+        checkCuda(cudaMallocHost((void**)&y_pinned[i], params->dimension * sizeof(double)));
+        //Copy data from y to y_pinned
+        memcpy(y_pinned[i], params->y, params->dimension * sizeof(double));
+
+        //Allocate memory for y on device y_d
+        checkCuda(cudaMalloc((void **) &y_d[i], params->dimension * sizeof(double)));
+        //Copy data from y host to y device (y_pinned to y_d) - pinned version
+        checkCuda(cudaMemcpy(y_d[i], y_pinned[i], params->dimension * sizeof(double), cudaMemcpyHostToDevice));
+
+        //Allocate pinned memory for display output
+        checkCuda(cudaMallocHost((void**)&y_output_host_display_pinned[i], NUMDAYSOUTPUT * params->display_dimension * sizeof(double)));
+        //Allocate memory for y output on device (this one is used to store display data on device)
+        checkCuda(cudaMalloc((void **) &y_output_d[i], NUMDAYSOUTPUT * params->display_dimension * sizeof(double)));
+        //Copy data from y output from host to device
+        checkCuda(cudaMemcpy(y_output_d[i], params->y_output, NUMDAYSOUTPUT * params->display_dimension * sizeof(double),cudaMemcpyHostToDevice));
+
+        checkCuda(cudaMalloc ((void **)&y_0_d[i], params->dimension * sizeof (double)));
+        checkCuda(cudaMemcpy (y_0_d[i], params->y, params->dimension * sizeof (double), cudaMemcpyHostToDevice));
+        checkCuda(cudaMalloc ((void **)&y_tmp_d[i], params->dimension * sizeof (double)));
+        checkCuda(cudaMemcpy (y_tmp_d[i], params->y, params->dimension * sizeof (double), cudaMemcpyHostToDevice));
+        checkCuda(cudaMalloc ((void **)&y_err_d[i], params->dimension * sizeof (double)));
+        checkCuda(cudaMemcpy (y_err_d[i], params->y, params->dimension * sizeof (double), cudaMemcpyHostToDevice));
+        checkCuda(cudaMalloc ((void **)&dydt_in_d[i], params->dimension * sizeof (double)));
+        checkCuda(cudaMemcpy (dydt_in_d[i], params->y, params->dimension * sizeof (double), cudaMemcpyHostToDevice));
+        checkCuda(cudaMalloc ((void **)&dydt_out_d[i], params->dimension * sizeof (double)));
+        checkCuda(cudaMemcpy (dydt_out_d[i], params->y, params->dimension * sizeof (double), cudaMemcpyHostToDevice));
+        checkCuda(cudaMalloc ((void **)&k1_d[i], params->dimension * sizeof (double)));
+        checkCuda(cudaMemcpy (k1_d[i], params->y, params->dimension * sizeof (double), cudaMemcpyHostToDevice));
+        checkCuda(cudaMalloc ((void **)&k2_d[i], params->dimension * sizeof (double)));
+        checkCuda(cudaMemcpy (k2_d[i], params->y, params->dimension * sizeof (double), cudaMemcpyHostToDevice));
+        checkCuda(cudaMalloc ((void **)&k3_d[i], params->dimension * sizeof (double)));
+        checkCuda(cudaMemcpy (k3_d[i], params->y, params->dimension * sizeof (double), cudaMemcpyHostToDevice));
+        checkCuda(cudaMalloc ((void **)&k4_d[i], params->dimension * sizeof (double)));
+        checkCuda(cudaMemcpy (k4_d[i], params->y, params->dimension * sizeof (double), cudaMemcpyHostToDevice));
+        checkCuda(cudaMalloc ((void **)&k5_d[i], params->dimension * sizeof (double)));
+        checkCuda(cudaMemcpy (k5_d[i], params->y, params->dimension * sizeof (double), cudaMemcpyHostToDevice));
+        checkCuda(cudaMalloc ((void **)&k6_d[i], params->dimension * sizeof (double)));
+        checkCuda(cudaMemcpy (k6_d[i], params->y, params->dimension * sizeof (double), cudaMemcpyHostToDevice));
+        checkCuda(cudaMalloc ((void **)&r_d[i], params->dimension * sizeof (double)));
+        checkCuda(cudaMemcpy (r_d[i], params->y, params->dimension * sizeof (double), cudaMemcpyHostToDevice));
+        checkCuda(cudaMalloc ((void **)&D0_d[i], params->dimension * sizeof (double)));
+        checkCuda(cudaMemcpy (D0_d[i], params->y, params->dimension * sizeof (double), cudaMemcpyHostToDevice));
+        checkCuda(cudaMalloc ((void **)&r_max_d[i], params->dimension * sizeof (double)));
+        checkCuda(cudaMemcpy (r_max_d[i], params->y, params->dimension * sizeof (double), cudaMemcpyHostToDevice));
+
+        checkCuda(cudaMalloc((void **) &params_d[i], sizeof(GPU_Parameters)));
+        checkCuda(cudaMemcpy(params_d[i], params, sizeof(GPU_Parameters), cudaMemcpyHostToDevice));
+    }
+    checkCuda(cudaDeviceSynchronize());
 
     stop_transfer_h2d = std::chrono::high_resolution_clock::now();
     auto duration_transfer_h2d = std::chrono::duration_cast<std::chrono::microseconds>(stop_transfer_h2d- start_transfer_h2d);
 
     start_compute = std::chrono::high_resolution_clock::now();
 
-//    for (int i = 0; i < num_streams; i++) {
-//        cudaStreamCreate(&streams[i]);
-//        rk45_gpu_evolve_apply<<<num_blocks, block_size, 0, streams[i]>>>(params->t0, params->t_target, 1.0, params->h, y_d[i],
-//                                                                            y_0_d[i], y_tmp_d[i], y_err_d[i], dydt_in_d[i], dydt_out_d[i],
-//                                                                              k1_d[i], k2_d[i], k3_d[i], k4_d[i], k5_d[i], k6_d[i],
-//                                                                              D0_d[i], r_d[i], r_max_d[i],
-//                                                                              y_output_d[i],
-//                                                                              params_d[i]);
-//    }
-
     for (int i = 0; i < num_streams; i++) {
-        int offset = i * stream_size;
-        //Copy data from y host to y device (y_pinned to y_d) - pinned version
-        checkCuda(cudaMemcpyAsync(&y_d[offset], &y_pinned[offset], stream_bytes_double, cudaMemcpyHostToDevice, streams[i]));
-        //Copy data from y output from host to device
-//        checkCuda(cudaMemcpyAsync(&y_output_d[offset], &params->y_output[offset], NUMDAYSOUTPUT * params->display_dimension * sizeof(double),cudaMemcpyHostToDevice, streams[i]));
-        checkCuda(cudaMemcpyAsync(&y_0_d[offset], &params->y[offset], stream_bytes_double, cudaMemcpyHostToDevice, streams[i]));
-        checkCuda(cudaMemcpyAsync(&y_tmp_d[offset], &params->y[offset], stream_bytes_double, cudaMemcpyHostToDevice, streams[i]));
-        checkCuda(cudaMemcpyAsync(&y_err_d[offset], &params->y[offset], stream_bytes_double, cudaMemcpyHostToDevice, streams[i]));
-        checkCuda(cudaMemcpyAsync(&dydt_in_d[offset], &params->y[offset], stream_bytes_double, cudaMemcpyHostToDevice, streams[i]));
-        checkCuda(cudaMemcpyAsync(&dydt_out_d[offset], &params->y[offset], stream_bytes_double, cudaMemcpyHostToDevice, streams[i]));
-        checkCuda(cudaMemcpyAsync(&k1_d[offset], &params->y[offset], stream_bytes_double, cudaMemcpyHostToDevice, streams[i]));
-        checkCuda(cudaMemcpyAsync(&k2_d[offset], &params->y[offset], stream_bytes_double, cudaMemcpyHostToDevice, streams[i]));
-        checkCuda(cudaMemcpyAsync(&k3_d[offset], &params->y[offset], stream_bytes_double, cudaMemcpyHostToDevice, streams[i]));
-        checkCuda(cudaMemcpyAsync(&k4_d[offset], &params->y[offset], stream_bytes_double, cudaMemcpyHostToDevice, streams[i]));
-        checkCuda(cudaMemcpyAsync(&k5_d[offset], &params->y[offset], stream_bytes_double, cudaMemcpyHostToDevice, streams[i]));
-        checkCuda(cudaMemcpyAsync(&k6_d[offset], &params->y[offset], stream_bytes_double, cudaMemcpyHostToDevice, streams[i]));
-        checkCuda(cudaMemcpyAsync(&r_d[offset], &params->y[offset], stream_bytes_double, cudaMemcpyHostToDevice, streams[i]));
-        checkCuda(cudaMemcpyAsync(&D0_d[offset], &params->y[offset], stream_bytes_double, cudaMemcpyHostToDevice, streams[i]));
-        checkCuda(cudaMemcpyAsync(&r_max_d[offset], &params->y[offset], stream_bytes_double, cudaMemcpyHostToDevice, streams[i]));
-        checkCuda(cudaMemcpyAsync(&params_d[offset], &params[offset], stream_bytes_params, cudaMemcpyHostToDevice, streams[i]));
-
-        printf("offset = %d\n",offset);
-        rk45_gpu_evolve_apply<<<stream_size/block_size, block_size, 0, streams[i]>>>(params->t0, params->t_target, 1.0, params->h, y_d,
-                                                                            y_0_d, y_tmp_d, y_err_d, dydt_in_d, dydt_out_d,
-                                                                            k1_d, k2_d, k3_d, k4_d, k5_d, k6_d,
-                                                                            D0_d, r_d, r_max_d,
-                                                                            y_output_d,
-                                                                            offset,
-                                                                            params_d);
-//        kernel2<<<stream_size/block_size, block_size, 0, streams[i]>>>(y_d, offset);
+        rk45_gpu_evolve_apply<<<num_blocks, block_size, 0, streams[i]>>>(params->t0, params->t_target, 1.0, params->h, y_d[i],
+                                                                            y_0_d[i], y_tmp_d[i], y_err_d[i], dydt_in_d[i], dydt_out_d[i],
+                                                                              k1_d[i], k2_d[i], k3_d[i], k4_d[i], k5_d[i], k6_d[i],
+                                                                              D0_d[i], r_d[i], r_max_d[i],
+                                                                              y_output_d[i],
+                                                                              params_d[i]);
     }
     checkCuda(cudaDeviceSynchronize());
-
-//    for (int i = 0; i < num_streams; ++i) {
-//        int offset = i * stream_size;
-//        checkCuda( cudaMemcpyAsync(&d_a[offset], &a[offset],
-//                                   stream_size, cudaMemcpyHostToDevice,
-//                                   streams[i]) );
-//        kernel<<<stream_size/block_size, block_size, 0, streams[i]>>>(d_a, offset);
-//        checkCuda( cudaMemcpyAsync(&a[offset], &d_a[offset],
-//                                   stream_size, cudaMemcpyDeviceToHost,
-//                                   streams[i]) );
-//    }
-//    checkCuda(cudaDeviceSynchronize());
-
-//    for(int i = 0; i < bytes; i++){
-//        printf("index %d a[%d] = %f\n",i,i,a[i]);
-//    }
 
     stop_compute = std::chrono::high_resolution_clock::now();
     auto duration_compute = std::chrono::duration_cast<std::chrono::microseconds>(stop_compute - start_compute);
 
     start_transfer_d2h = std::chrono::high_resolution_clock::now();
 
-//    for (int i = 0; i < num_streams; i++) {
-////        checkCuda(cudaMemcpy(y_output_host_display_pinned[i], y_output_d[i], NUMDAYSOUTPUT * params->display_dimension * sizeof(double), cudaMemcpyDeviceToHost));
-//
-//        int offset = i * (params->display_dimension * num_streams);
-//        checkCuda(cudaMemcpyAsync(&y_output_host_display_pinned[offset], &y_output_d[offset], NUMDAYSOUTPUT * params->display_dimension * sizeof(double), cudaMemcpyDeviceToHost, streams[i]));
-//    }
-//    checkCuda(cudaDeviceSynchronize());
+    for (int i = 0; i < num_streams; i++) {
+        checkCuda(cudaMemcpy(y_output_host_display_pinned[i], y_output_d[i], NUMDAYSOUTPUT * params->display_dimension * sizeof(double), cudaMemcpyDeviceToHost));
+    }
+    checkCuda(cudaDeviceSynchronize());
 
     stop_transfer_d2h = std::chrono::high_resolution_clock::now();
     auto duration_transfer_d2h = std::chrono::duration_cast<std::chrono::microseconds>(stop_transfer_d2h - start_transfer_d2h);
 
     start_display = std::chrono::high_resolution_clock::now();
-//    for(int s = 0; s < num_streams; s++){
-//        printf("Display from stream %d\n",s);
-//        for(int i = 0; i < NUMDAYSOUTPUT * params->display_dimension; i++){
-//            printf("%1.5f\t",y_output_host_display_pinned[s][i]);
-//            //reverse position from 1D array
-//            if(i > 0 && (i + 1) % params->display_dimension == 0){
-//                printf("\n");
-//            }
-//        }
-//        printf("\n");
-//    }
+    for(int s = 0; s < num_streams; s++){
+        printf("Display from stream %d\n",s);
+        for(int i = 0; i < NUMDAYSOUTPUT * params->display_dimension; i++){
+            printf("%1.5f\t",y_output_host_display_pinned[s][i]);
+            //reverse position from 1D array
+            if(i > 0 && (i + 1) % params->display_dimension == 0){
+                printf("\n");
+            }
+        }
+        printf("\n");
+    }
     stop_display = std::chrono::high_resolution_clock::now();
     auto duration_display = std::chrono::duration_cast<std::chrono::microseconds>(stop_display - start_display);
 
