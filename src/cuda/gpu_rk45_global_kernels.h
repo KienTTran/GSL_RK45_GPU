@@ -38,18 +38,17 @@ static double a_dydt = 0.0;
 static unsigned int ord = 5;
 const double S = 0.9;
 
-__device__ void gpu_func_test(double t, const double y[], double f[], int index, int day, GPU_Parameters* gpu_params);
 __device__ double seasonal_transmission_factor(GPU_Parameters* gpu_params, double t);
-__device__ double pop_sum( double yy[] );
 
-class GPU_RK45{
-public:
-    explicit GPU_RK45();
-    ~GPU_RK45();
-    void setParameters(GPU_Parameters* params);
-    void run();
-private:
-    GPU_Parameters* params;
-};
+__global__ void gpu_func_test(double* t, const double y[], double f[], GPU_Parameters* gpu_params);
 
+__global__ void calculate_y(double y[], double y_tmp[], double y_err[], double* h,  int step,
+                            double k1[], double k2[], double k3[],
+                            double k4[], double k5[], double k6[],
+                            GPU_Parameters* params);
+__global__ void calculate_r(double y[], double y_err[], double dydt_out[], double* h_0, double* h, int final_step, double r[], GPU_Parameters* params);
+
+__global__ void reduce_max(double data[], double out[], unsigned int n);
+
+void adjust_h(double r_max, double h_0, double* h, int final_step, int* adjustment_out);
 #endif

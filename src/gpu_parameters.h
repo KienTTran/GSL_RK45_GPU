@@ -17,6 +17,7 @@ public:
     ~GPU_Parameters();
     int number_of_ode;
     int dimension;
+    int display_dimension;
     int display_number;
     double t_target;
     double t0;

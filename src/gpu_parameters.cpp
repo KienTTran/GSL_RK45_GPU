@@ -36,11 +36,12 @@ void GPU_Parameters::initTest(int argc, char **argv){
         y[j] = 0.5;
     }
 
-    y_output = new double[NUMDAYSOUTPUT * dimension]();
-    for(int j = 0; j < NUMDAYSOUTPUT * dimension; j++){
-        y_output[j] = 0.0;
+    display_dimension = dimension + 3;
+    y_output = new double[NUMDAYSOUTPUT * display_dimension]();
+    for(int j = 0; j < NUMDAYSOUTPUT * display_dimension; j++){
+        y_output[j] = -(j*1.0);
     }
-    printf("diplay_dimension = %d x %d = %d\n",NUMDAYSOUTPUT, dimension, NUMDAYSOUTPUT * dimension);
+    printf("diplay_dimension = %d x %d = %d\n",NUMDAYSOUTPUT, display_dimension, NUMDAYSOUTPUT * display_dimension);
 
     v.insert( v.begin(), num_params, 0.0 );
     assert( v.size()==num_params );

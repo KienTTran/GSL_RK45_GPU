@@ -70,7 +70,7 @@ namespace {
 // this is the number of days of simulation that will be sent to standard output (and used for model fitting)
 #define NUMDAYSOUTPUT 3650*2// use this to define "cycle" lengths
 
-//#define NUMDAYSOUTPUT 1// use this to define "cycle" lengths
+//#define NUMDAYSOUTPUT 10// Test
 
 
 // Two population sizes: main population and all outer populations have the same size
