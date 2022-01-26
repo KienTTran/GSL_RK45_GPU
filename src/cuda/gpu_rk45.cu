@@ -66,9 +66,9 @@ double seasonal_transmission_factor(GPU_Parameters* gpu_params, double t)
     {
         if( std::fabs( t - gpu_params->phis_d[i] ) < (gpu_params->v_d[gpu_params->i_epidur] / 2))
         {
-            // sine_function_value = sin( 2.0 * 3.141592653589793238 * (phis[i]-t+91.25) / 365.0 );
+            // sine_function_value = sin( 2.0 * 3.141592653589793238 * (phis[i]-t+91.25) / 365.0);
             sine_function_value = std::sin( 2.0 * 3.141592653589793238 * (gpu_params->phis_d[i] - t +(gpu_params->v_d[gpu_params->i_epidur] / 2)) / (gpu_params->v_d[gpu_params->i_epidur] * 2));
-//            printf("      in loop %1.3f %d  %1.3f %1.3f\n", t, i, gpu_params->phis_d[i], sine_function_value );
+//            printf("      in loop %1.3f %d  %1.3f %1.3f\n", t, i, gpu_params->phis_d[i], sine_function_value);
         }
     }
 //    printf("    %f sine_function_value %1.3f\n",t,sine_function_value);
@@ -106,9 +106,9 @@ double seasonal_transmission_factor(GPU_Parameters* gpu_params, int day)
     {
         if( std::fabs( day - gpu_params->phis_d[i] ) < (gpu_params->v_d[gpu_params->i_epidur] / 2))
         {
-            // sine_function_value = sin( 2.0 * 3.141592653589793238 * (phis[i]-t+91.25) / 365.0 );
+            // sine_function_value = sin( 2.0 * 3.141592653589793238 * (phis[i]-t+91.25) / 365.0);
             sine_function_value = std::sin( 2.0 * 3.141592653589793238 * (gpu_params->phis_d[i] - day +(gpu_params->v_d[gpu_params->i_epidur] / 2)) / (gpu_params->v_d[gpu_params->i_epidur] * 2));
-//            printf("      in loop %1.3f %d  %1.3f %1.3f\n", t, i, gpu_params->phis_d[i], sine_function_value );
+//            printf("      in loop %1.3f %d  %1.3f %1.3f\n", t, i, gpu_params->phis_d[i], sine_function_value);
         }
     }
 //    printf("    %f sine_function_value %1.3f\n",t,sine_function_value);
@@ -605,10 +605,27 @@ void GPU_RK45::run(){
     auto start_transfer_h2d = std::chrono::high_resolution_clock::now();
     auto stop_transfer_h2d = std::chrono::high_resolution_clock::now();
 
-    cudaFuncSetCacheConfig(rk45_gpu_evolve_apply, cudaFuncCachePreferShared);
+    cudaEvent_t start_event, stop_event, dummy_event;
+    cudaEvent_t start_event_all, stop_event_all;
+    checkCuda(cudaEventCreate(&start_event));
+    checkCuda(cudaEventCreate(&stop_event));
+    checkCuda(cudaEventCreate(&start_event_all));
+    checkCuda(cudaEventCreate(&stop_event_all));
+    checkCuda(cudaEventCreate(&dummy_event));
+
+//    checkCuda(cudaEventRecord(start_event_all,0));
+//    checkCuda(cudaEventRecord(start_event,0));
+
+    float all_ms; // elapsed time in milliseconds
+    float transfer_h2d_ms;
+    float compute_ms;
+    float transfer_d2h_ms;
+    float display_ms;
+
+    cudaFuncSetCacheConfig((void*)rk45_gpu_evolve_apply, cudaFuncCachePreferShared);
     cudaDeviceSetLimit(cudaLimitPrintfFifoSize, 1024000*100);
 
-    const int num_streams = 4;
+    const int num_streams = 10;
     const int block_size = 256;
     int num_SMs;
     checkCuda(cudaDeviceGetAttribute(&num_SMs, cudaDevAttrMultiProcessorCount, 0));
@@ -709,9 +726,13 @@ void GPU_RK45::run(){
     checkCuda(cudaDeviceSynchronize());
 
     stop_transfer_h2d = std::chrono::high_resolution_clock::now();
-    auto duration_transfer_h2d = std::chrono::duration_cast<std::chrono::microseconds>(stop_transfer_h2d- start_transfer_h2d);
+    auto duration_transfer_h2d = std::chrono::duration_cast<std::chrono::microseconds>(stop_transfer_h2d - start_transfer_h2d);
+//    checkCuda(cudaEventRecord(stop_event, 0));
+//    checkCuda(cudaEventSynchronize(stop_event));
+//    checkCuda(cudaEventElapsedTime(&transfer_h2d_ms, start_event, stop_event));
 
     start_compute = std::chrono::high_resolution_clock::now();
+//    checkCuda(cudaEventRecord(start_event,0));
 
     for (int i = 0; i < num_streams; i++) {
         rk45_gpu_evolve_apply<<<num_blocks, block_size, 0, streams[i]>>>(params->t0, params->t_target, 1.0, params->h, y_d[i],
@@ -720,13 +741,18 @@ void GPU_RK45::run(){
                                                                               D0_d[i], r_d[i], r_max_d[i],
                                                                               y_output_d[i],
                                                                               params_d[i]);
+        checkCuda(cudaStreamSynchronize(streams[i]));
     }
     checkCuda(cudaDeviceSynchronize());
 
     stop_compute = std::chrono::high_resolution_clock::now();
     auto duration_compute = std::chrono::duration_cast<std::chrono::microseconds>(stop_compute - start_compute);
+//    checkCuda(cudaEventRecord(stop_event, 0));
+//    checkCuda(cudaEventSynchronize(stop_event));
+//    checkCuda(cudaEventElapsedTime(&compute_ms, start_event, stop_event));
 
     start_transfer_d2h = std::chrono::high_resolution_clock::now();
+//    checkCuda(cudaEventRecord(start_event,0));
 
     for (int i = 0; i < num_streams; i++) {
         checkCuda(cudaMemcpy(y_output_host_display_pinned[i], y_output_d[i], NUMDAYSOUTPUT * params->display_dimension * sizeof(double), cudaMemcpyDeviceToHost));
@@ -735,8 +761,13 @@ void GPU_RK45::run(){
 
     stop_transfer_d2h = std::chrono::high_resolution_clock::now();
     auto duration_transfer_d2h = std::chrono::duration_cast<std::chrono::microseconds>(stop_transfer_d2h - start_transfer_d2h);
+//    checkCuda(cudaEventRecord(stop_event, 0));
+//    checkCuda(cudaEventSynchronize(stop_event));
+//    checkCuda(cudaEventElapsedTime(&transfer_d2h_ms, start_event, stop_event));
 
     start_display = std::chrono::high_resolution_clock::now();
+//    checkCuda(cudaEventRecord(start_event,0));
+
     for(int s = 0; s < num_streams; s++){
         printf("Display from stream %d\n",s);
         for(int i = 0; i < NUMDAYSOUTPUT * params->display_dimension; i++){
@@ -750,15 +781,56 @@ void GPU_RK45::run(){
     }
     stop_display = std::chrono::high_resolution_clock::now();
     auto duration_display = std::chrono::duration_cast<std::chrono::microseconds>(stop_display - start_display);
+//    checkCuda(cudaEventRecord(stop_event, 0));
+//    checkCuda(cudaEventSynchronize(stop_event));
+//    checkCuda(cudaEventElapsedTime(&display_ms, start_event, stop_event));
 
     stop_all = std::chrono::high_resolution_clock::now();
     auto duration_all = std::chrono::duration_cast<std::chrono::microseconds>(stop_all - start_all);
+//    checkCuda(cudaEventRecord(stop_event_all, 0));
+//    checkCuda(cudaEventSynchronize(stop_event_all));
+//    checkCuda(cudaEventElapsedTime(&all_ms, start_event_all, stop_event_all));
 
-    printf("[GSL GPU] Time for transfer data from CPU to GPU: %ld micro seconds which is %f seconds\n",duration_transfer_h2d.count(),(duration_transfer_h2d.count()/1e6));
-    printf("[GSL GPU] Time for compute %d ODE(s) with %d parameters, step %f in %f days on GPU: %ld micro seconds which is %f seconds\n",num_streams,params->dimension,params->h,params->t_target,duration_compute.count(),(duration_compute.count()/1e6));
-    printf("[GSL GPU] Time for transfer data from GPU on CPU: %ld micro seconds which is %f seconds\n",duration_transfer_d2h.count(),(duration_transfer_d2h.count()/1e6));
-    printf("[GSL GPU] Time for display %d ODE(s): %ld micro seconds which is %f seconds\n",num_streams,duration_display.count(),(duration_display.count()/1e6));
-    printf("[GSL GPU] Time for complete %d ODE(s) with %d parameters: %ld micro seconds which is %f seconds\n",num_streams,params->dimension,duration_all.count(),(duration_all.count()/1e6));
+    printf("[GSL GPU] CPU Time for transfer data from CPU to GPU: %ld micro seconds which is %f seconds\n",duration_transfer_h2d.count(),(duration_transfer_h2d.count()/1e6));
+    printf("[GSL GPU] CPU Time for compute %d ODE(s) with %d parameters, step %f in %f days on GPU: %ld micro seconds which is %f seconds\n",num_streams,params->dimension,params->h,params->t_target,duration_compute.count(),(duration_compute.count()/1e6));
+    printf("[GSL GPU] CPU Time for transfer data from GPU on CPU: %ld micro seconds which is %f seconds\n",duration_transfer_d2h.count(),(duration_transfer_d2h.count()/1e6));
+    printf("[GSL GPU] CPU Time for display %d ODE(s): %ld micro seconds which is %f seconds\n",num_streams,duration_display.count(),(duration_display.count()/1e6));
+    printf("[GSL GPU] CPU Time for complete %d ODE(s) with %d parameters: %ld micro seconds which is %f seconds\n",num_streams,params->dimension,duration_all.count(),(duration_all.count()/1e6));
+    printf("\n");
+//    printf("[GSL GPU] GPU Time for transfer data from CPU to GPU: %f milliseconds which is %f seconds\n",transfer_h2d_ms,(transfer_h2d_ms/1e3));
+//    printf("[GSL GPU] GPU Time for compute %d ODE(s) with %d parameters, step %f in %f days on GPU: %f milliseconds which is %f seconds\n",num_streams,params->dimension,params->h,params->t_target,compute_ms,(compute_ms/1e3));
+//    printf("[GSL GPU] GPU Time for transfer data from GPU on CPU: %f milliseconds which is %f seconds\n",transfer_d2h_ms,(transfer_d2h_ms/1e3));
+//    printf("[GSL GPU] GPU Time for display %d ODE(s): %f milliseconds which is %f seconds\n",num_streams,display_ms,(display_ms/1e3));
+//    printf("[GSL GPU] GPU Time for complete %d ODE(s) with %d parameters: %f milliseconds which is %f seconds\n",num_streams,params->dimension,all_ms,(all_ms/1e3));
 
+    //free mem
+    checkCuda(cudaEventDestroy(start_event));
+    checkCuda(cudaEventDestroy(stop_event));
+    checkCuda(cudaEventDestroy(start_event_all));
+    checkCuda(cudaEventDestroy(stop_event_all));
+    checkCuda(cudaEventDestroy(dummy_event));
+    for (int i = 0; i < num_streams; ++i) {
+        checkCuda(cudaStreamDestroy(streams[i]));
+    }
+    free(params);
+    cudaFree(y_d);
+    cudaFree(y_0_d);
+    cudaFree(y_tmp_d);
+    cudaFree(y_err_d);
+    cudaFree(y_output_d);
+    cudaFree(dydt_in_d);
+    cudaFree(dydt_out_d);
+    cudaFree(k1_d);
+    cudaFree(k2_d);
+    cudaFree(k3_d);
+    cudaFree(k4_d);
+    cudaFree(k5_d);
+    cudaFree(k6_d);
+    cudaFree(r_d);
+    cudaFree(D0_d);
+    cudaFree(r_max_d);
+    cudaFree(params_d);
+    cudaFreeHost(y_pinned);
+    cudaFreeHost(y_output_host_display_pinned);
     return;
 }
