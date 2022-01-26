@@ -3,7 +3,7 @@
 //
 
 #include <cmath>
-#include "GPU_Parameters.h"
+#include "gpu_parameters.h"
 #include "flu_default_params.h"
 
 GPU_Parameters::GPU_Parameters(){
