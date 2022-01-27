@@ -52,16 +52,16 @@ namespace {
 
 // the start index of the infected classes; the I-classes start after all of the R-classes
 // have been listed
-#define STARTI NUMLOC*NUMSEROTYPES*NUMR // 9
+#define STARTI (NUMLOC*NUMSEROTYPES*NUMR) // 9
 
 // the start index of the cumulative infected classes, i.e. the J-classes
-#define STARTJ STARTI + NUMLOC*NUMSEROTYPES // 12
+#define STARTJ (STARTI + (NUMLOC*NUMSEROTYPES)) // 12
 
 // the start index of the suceptible (S) classes; there will be one of these for every location
-#define STARTS STARTJ + NUMLOC*NUMSEROTYPES // 15
+#define STARTS (STARTJ + (NUMLOC*NUMSEROTYPES)) // 15
 
 // this is the dimensionality of the ODE system
-#define DIM STARTS+NUMLOC // 16
+#define DIM (STARTS+NUMLOC) // 16
 
 //#define DIM 2
 

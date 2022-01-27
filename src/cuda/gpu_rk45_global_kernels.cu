@@ -1,27 +1,27 @@
 #include "gpu_rk45_global_kernels.h"
 
 __global__
-void calculate_y(double y[], double y_tmp[], double y_err[], double* h,  int step,
-                      double k1[], double k2[], double k3[],
-                      double k4[], double k5[], double k6[],
+void calculate_y(float y[], float y_tmp[], float y_err[], float* h,  int step,
+                      float k1[], float k2[], float k3[],
+                      float k4[], float k5[], float k6[],
                       GPU_Parameters* params){
 
     int index_gpu = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x * gridDim.x;
 
-    const double ah[] = { 1.0/4.0, 3.0/8.0, 12.0/13.0, 1.0, 1.0/2.0 };
-    const double b3[] = { 3.0/32.0, 9.0/32.0 };
-    const double b4[] = { 1932.0/2197.0, -7200.0/2197.0, 7296.0/2197.0};
-    const double b5[] = { 8341.0/4104.0, -32832.0/4104.0, 29440.0/4104.0, -845.0/4104.0};
-    const double b6[] = { -6080.0/20520.0, 41040.0/20520.0, -28352.0/20520.0, 9295.0/20520.0, -5643.0/20520.0};
+    const float ah[] = { 1.0/4.0, 3.0/8.0, 12.0/13.0, 1.0, 1.0/2.0 };
+    const float b3[] = { 3.0/32.0, 9.0/32.0 };
+    const float b4[] = { 1932.0/2197.0, -7200.0/2197.0, 7296.0/2197.0};
+    const float b5[] = { 8341.0/4104.0, -32832.0/4104.0, 29440.0/4104.0, -845.0/4104.0};
+    const float b6[] = { -6080.0/20520.0, 41040.0/20520.0, -28352.0/20520.0, 9295.0/20520.0, -5643.0/20520.0};
 
-    const double c1 = 902880.0/7618050.0;
-    const double c3 = 3953664.0/7618050.0;
-    const double c4 = 3855735.0/7618050.0;
-    const double c5 = -1371249.0/7618050.0;
-    const double c6 = 277020.0/7618050.0;
+    const float c1 = 902880.0/7618050.0;
+    const float c3 = 3953664.0/7618050.0;
+    const float c4 = 3855735.0/7618050.0;
+    const float c5 = -1371249.0/7618050.0;
+    const float c6 = 277020.0/7618050.0;
 
-    const double ec[] = { 0.0,
+    const float ec[] = { 0.0,
                           1.0 / 360.0,
                           0.0,
                           -128.0 / 4275.0,
@@ -48,7 +48,7 @@ void calculate_y(double y[], double y_tmp[], double y_err[], double* h,  int ste
             y_tmp[index] = y[index] + (*h) * (b6[0] * k1[index] + b6[1] * k2[index] + b6[2] * k3[index] + b6[3] * k4[index] + b6[4] * k5[index]);
         }
         else if(step == 6){
-            const double d_i = c1 * k1[index] + c3 * k3[index] + c4 * k4[index] + c5 * k5[index] + c6 * k6[index];
+            const float d_i = c1 * k1[index] + c3 * k3[index] + c4 * k4[index] + c5 * k5[index] + c6 * k6[index];
             y[index] += (*h) * d_i;
 //            printf("      [calculate_y] step %d after k%d: y[%d] = %f\n",step,step,index,y_tmp[index]);
             return;
@@ -64,16 +64,16 @@ void calculate_y(double y[], double y_tmp[], double y_err[], double* h,  int ste
 }
 
 __global__
-void calculate_r(double y[], double y_err[], double dydt_out[], double* h_0, double* h, int final_step, double r[], GPU_Parameters* params)
+void calculate_r(float y[], float y_err[], float dydt_out[], float* h_0, float* h, int final_step, float r[], GPU_Parameters* params)
 {
     int index_gpu = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x * gridDim.x;
 
-    static double eps_abs = 1e-6;
-    static double eps_rel = 0.0;
-    static double a_y = 1.0;
-    static double a_dydt = 0.0;
-    double h_old;
+    static float eps_abs = 1e-6;
+    static float eps_rel = 0.0;
+    static float a_y = 1.0;
+    static float a_dydt = 0.0;
+    float h_old;
     if(final_step){
         h_old = (*h_0);
     }
@@ -82,7 +82,7 @@ void calculate_r(double y[], double y_err[], double dydt_out[], double* h_0, dou
     }
 
     for(int index = index_gpu; index < params->dimension; index += stride){
-        const double D0 = eps_rel * (a_y * fabs(y[index]) + a_dydt * fabs(h_old * dydt_out[index])) + eps_abs;
+        const float D0 = eps_rel * (a_y * fabs(y[index]) + a_dydt * fabs(h_old * dydt_out[index])) + eps_abs;
         r[index]  = fabs(y_err[index]) / fabs(D0);
 //        printf("      [calculate_r] IN y[%d] = %f\n",index,y[index]);
 //        printf("      [calculate_r] IN y_err[%d] = %f\n",index,y_err[index]);
@@ -99,8 +99,8 @@ void calculate_r(double y[], double y_err[], double dydt_out[], double* h_0, dou
     return;
 }
 
-void adjust_h(double r_max, double h_0, double* h, int final_step, int* adjustment_out){
-    double h_old;
+void adjust_h(float r_max, float h_0, float* h, int final_step, int* adjustment_out){
+    float h_old;
     if(final_step){
         h_old = (h_0);
     }
@@ -113,7 +113,7 @@ void adjust_h(double r_max, double h_0, double* h, int final_step, int* adjustme
     if (r_max > 1.1) {
         /* decrease step, no more than factor of 5, but a fraction S more
            than scaling suggests (for better accuracy) */
-        double r = S / pow(r_max, 1.0 / ord);
+        float r = S / pow(r_max, 1.0 / ord);
 
         if (r < 0.2)
             r = 0.2;
@@ -124,7 +124,7 @@ void adjust_h(double r_max, double h_0, double* h, int final_step, int* adjustme
         *adjustment_out = -1;
     } else if (r_max < 0.5) {
         /* increase step, no more than factor of 5 */
-        double r = S / pow(r_max, 1.0 / (ord + 1.0));
+        float r = S / pow(r_max, 1.0 / (ord + 1.0));
 
         if (r > 5.0)
             r = 5.0;
@@ -144,7 +144,7 @@ void adjust_h(double r_max, double h_0, double* h, int final_step, int* adjustme
 }
 
 __global__
-void gpu_func_test(double t, const double y[], double f[], int index, GPU_Parameters* gpu_params){
+void gpu_func_test(float t, const float y[], float f[], int index, GPU_Parameters* gpu_params){
 
 //    if(index == 0){
 //        printf("Here's the info on params: \n");
@@ -163,12 +163,12 @@ void gpu_func_test(double t, const double y[], double f[], int index, GPU_Parame
 //    }
 
     // the transition rate among R-classes
-    double trr = ((double)NUMR) / gpu_params->v_d[gpu_params->i_immune_duration];
-//    double stf = gpu_params->phis_d_length == 0 ? 1.0 : gpu_params->stf_d[day];
-//    double stf = seasonal_transmission_factor(gpu_params,day);
-    double stf = seasonal_transmission_factor(gpu_params,t);
-//    double stf = gpu_params->stf;
-//    double stf = 1.0;
+    float trr = ((float)NUMR) / gpu_params->v_d[gpu_params->i_immune_duration];
+//    float stf = gpu_params->phis_d_length == 0 ? 1.0 : gpu_params->stf_d[day];
+//    float stf = seasonal_transmission_factor(gpu_params,day);
+    float stf = seasonal_transmission_factor(gpu_params,t);
+//    float stf = gpu_params->stf;
+//    float stf = 1.0;
 
 //    if(index < STARTS)
 //    {
@@ -203,7 +203,7 @@ void gpu_func_test(double t, const double y[], double f[], int index, GPU_Parame
         else{
             f[ index ] += trr * y[ NUM_SEROTYPES*NUM_R*loc + NUM_R*vir + stg - 1 ];
         }
-        double sum_foi = 0.0;
+        float sum_foi = 0.0;
         const int start_index = index * NUM_LOC*NUM_SEROTYPES;
         const int end_index = start_index + (NUM_LOC*NUM_SEROTYPES);
 
@@ -220,7 +220,7 @@ void gpu_func_test(double t, const double y[], double f[], int index, GPU_Parame
         int vir = (index - START_I) % NUM_SEROTYPES;
         f[ START_I + NUM_SEROTYPES*loc + vir ] = 0.0;
         f[ START_J + NUM_SEROTYPES*loc + vir ] = 0.0;
-        double foi_on_susc_single_virus = 0.0;
+        float foi_on_susc_single_virus = 0.0;
 
         for(int l = 0; l<NUM_LOC; l++){
             foi_on_susc_single_virus += gpu_params->eta[loc][l]
@@ -235,7 +235,7 @@ void gpu_func_test(double t, const double y[], double f[], int index, GPU_Parame
         const int start_index = (index % (NUM_LOC*NUM_SEROTYPES*NUM_R)) * (NUM_LOC*NUM_SEROTYPES*NUM_R);
         const int end_index = start_index + (NUM_LOC*NUM_SEROTYPES*NUM_R);
 
-        double inflow_from_recovereds = 0.0;
+        float inflow_from_recovereds = 0.0;
         for(int k = start_index; k < end_index; k++){
             inflow_from_recovereds +=   gpu_params->inflow_from_recovereds_sbe[k]
                                         * stf
@@ -251,7 +251,7 @@ void gpu_func_test(double t, const double y[], double f[], int index, GPU_Parame
     if(index >= START_S && index < gpu_params->dimension)
     {
         unsigned int loc = index - START_S;
-        double foi_on_susc_all_viruses = 0.0;
+        float foi_on_susc_all_viruses = 0.0;
 
         const int start_index = loc * NUM_LOC*NUM_SEROTYPES;
         const int end_index = start_index + (NUM_LOC*NUM_SEROTYPES);

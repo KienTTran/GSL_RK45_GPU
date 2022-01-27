@@ -1,19 +1,19 @@
 #include "gpu_rk45.h"
 
-#define reduce_dim DIM * sizeof(double)
+#define reduce_dim DIM * sizeof(float)
 #define blockSize 1
 
 namespace cg = cooperative_groups;
 
-__device__ double getMax(double x, double y) {
+__device__ float getMax(float x, float y) {
     return (x > y) ? x : y;
 }
 
-__device__ double getSum(double x, double y) {
+__device__ float getSum(float x, float y) {
     return x + y;
 }
 
-__device__ void warpReduce(volatile double *sdata, unsigned int tid) {
+__device__ void warpReduce(volatile float *sdata, unsigned int tid) {
     if (blockSize >= 64) sdata[tid] = sdata[tid] >= sdata[tid + 32] ? sdata[tid] : sdata[tid + 32];
     if (blockSize >= 32) sdata[tid] = sdata[tid] >= sdata[tid + 16] ? sdata[tid] : sdata[tid + 16];
     if (blockSize >= 16) sdata[tid] = sdata[tid] >= sdata[tid + 8] ? sdata[tid] : sdata[tid + 8];
@@ -22,8 +22,8 @@ __device__ void warpReduce(volatile double *sdata, unsigned int tid) {
     if (blockSize >= 2) sdata[tid] = sdata[tid] >= sdata[tid + 1] ? sdata[tid] : sdata[tid + 1];
 }
 
-__global__ void reduce_max(double data[], double out[], unsigned int n) {
-    __shared__ double sdata[reduce_dim];
+__global__ void reduce_max(float data[], float out[], unsigned int n) {
+    __shared__ float sdata[reduce_dim];
     unsigned int tid = threadIdx.x;
     unsigned int i = blockIdx.x*(blockSize*2) + tid;
     unsigned int gridSize = blockSize*2*gridDim.x;
@@ -48,8 +48,8 @@ __global__ void reduce_max(double data[], double out[], unsigned int n) {
     return;
 }
 
-__device__ void reduce_max_device(double data[], double out[], unsigned int n) {
-    __shared__ double sdata[reduce_dim];
+__device__ void reduce_max_device(float data[], float out[], unsigned int n) {
+    __shared__ float sdata[reduce_dim];
     unsigned int tid = threadIdx.x;
     unsigned int i = blockIdx.x*(blockSize*2) + tid;
     unsigned int gridSize = blockSize*2*gridDim.x;
@@ -74,8 +74,8 @@ __device__ void reduce_max_device(double data[], double out[], unsigned int n) {
     return;
 }
 
-__device__ void reduce_sum_device(double data[], double out[], unsigned int n) {
-    __shared__ double sdata[128];
+__device__ void reduce_sum_device(float data[], float out[], unsigned int n) {
+    __shared__ float sdata[128];
     unsigned int tid = threadIdx.x;
     unsigned int i = blockIdx.x*(blockSize*2) + tid;
     unsigned int gridSize = blockSize*2*gridDim.x;
@@ -100,9 +100,9 @@ __device__ void reduce_sum_device(double data[], double out[], unsigned int n) {
     return;
 }
 
-__device__ void reduce_sum_device_2(double data[], double out[], unsigned int n)
+__device__ void reduce_sum_device_2(float data[], float out[], unsigned int n)
 {
-    __shared__ double s_data[128];
+    __shared__ float s_data[128];
     int tid = threadIdx.x;
     int index = tid + blockIdx.x*blockDim.x;
     s_data[tid] = 0.0;
@@ -124,9 +124,9 @@ __device__ void reduce_sum_device_2(double data[], double out[], unsigned int n)
     }
 }
 
-__device__ void reduce_max_device_2(double data[], double out[], unsigned int n)
+__device__ void reduce_max_device_2(float data[], float out[], unsigned int n)
 {
-    __shared__ double s_data[128];
+    __shared__ float s_data[128];
     int tid = threadIdx.x;
     int index = tid + blockIdx.x*blockDim.x;
     s_data[tid] = 0.0;

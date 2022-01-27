@@ -58,12 +58,14 @@ set_target_properties(
         PROPERTIES
         CUDA_SEPARABLE_COMPILATION ON)
 
+#SET(CMAKE_CXX_FLAGS  "-O3")
+
 if (BUILD_CLUSTER)
     set_target_properties(rk45_cuda PROPERTIES CUDA_ARCHITECTURES 37)
 else()
     set_target_properties(rk45_cuda PROPERTIES CUDA_ARCHITECTURES 52)
     string(APPEND CMAKE_CUDA_FLAGS " -gencode arch=compute_52,code=sm_52" )
-    set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -lineinfo" )
+    set(CUDA_NVCC_FLAGS "-lineinfo -O3 -default-stream per-thread --use_fast_math" )
 endif()
 
 if (UNIX)
