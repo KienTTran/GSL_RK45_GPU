@@ -13,37 +13,35 @@
 
 namespace {
     // global variables - CLO means it is a command-line option
-    double G_CLO_BETA1 = 1.20;
-    double G_CLO_BETA2 = 1.40;
-    double G_CLO_BETA3 = 1.60;
+    float G_CLO_BETA1 = 1.20;
+    float G_CLO_BETA2 = 1.40;
+    float G_CLO_BETA3 = 1.60;
 
-    double G_CLO_SIGMA12 = 0.70;
-    double G_CLO_SIGMA13 = 0.30;
-    double G_CLO_SIGMA23 = 0.70;
+    float G_CLO_SIGMA12 = 0.70;
+    float G_CLO_SIGMA13 = 0.30;
+    float G_CLO_SIGMA23 = 0.70;
 
-    double G_CLO_AMPL = 0.10;
+    float G_CLO_AMPL = 0.10;
 
-    double G_CLO_NU_DENOM = 5;
-    double G_CLO_RHO_DENOM = 900;
+    float G_CLO_NU_DENOM = 5;
+    float G_CLO_RHO_DENOM = 900;
 
-    double G_CLO_EPIDUR = 365;
+    float G_CLO_EPIDUR = 365;
 
     bool G_CLO_CHECKPOP_MODE = false;
 
-//double G_CLO_OUTPUT_ALL_TRAJ = false;
+//float G_CLO_OUTPUT_ALL_TRAJ = false;
 
-    double G_CLO_ADJUST_BURNIN = -100.0; // add this number of days to the t0 variable (currently set at -3000.0)
-    double G_CLO_ISS = 10.0; // this is the initial step size in the iterator
+    float G_CLO_ADJUST_BURNIN = -100.0; // add this number of days to the t0 variable (currently set at -3000.0)
+    float G_CLO_ISS = 10.0; // this is the initial step size in the iterator
 
     std::string G_CLO_STR_PARAMSFILE;
     int G_CLO_INT_PARAMSFILE_INDEX = 0;
 
-
-
     bool G_PHIS_INITIALIZED_ON_COMMAND_LINE = false;
 }
 // number of locations
-#define NUMLOC 5
+#define NUMLOC 1
 
 // number OF types/subtypes of influenza (this will always be three - H1, H3, and B)
 // for generality (and to avoid constantly having to specify type/subtype) we call this serotypes
@@ -70,7 +68,9 @@ namespace {
 // this is the number of days of simulation that will be sent to standard output (and used for model fitting)
 #define NUMDAYSOUTPUT 3650*2// use this to define "cycle" lengths
 
-//#define NUMDAYSOUTPUT 10// Test
+//#define NUMDAYSOUTPUT 100// use this to define "cycle" lengths
+
+#define NUMSTREAMS 1// GPU Streams
 
 
 // Two population sizes: main population and all outer populations have the same size
@@ -81,20 +81,20 @@ namespace {
 //
 // this function contains the ode system
 //
-int func(double t, const double y[], double f[], void *params);
+int func(float t, const float y[], float f[], void *params);
 
 // void* jac;	// do this for C-compilation
 //
 // for C++ compilation we are replacing the void* declaration above with
 // the inline dummy declaration below
-inline int jac(double a1, const double* a2, double* a3, double* a4, void* a5)
+inline int jac(float a1, const float* a2, float* a3, float* a4, void* a5)
 {
     return 0;
 };
 
-inline double popsum( double yy[] )
+inline float popsum( float yy[] )
 {
-    double sum=0.0;
+    float sum=0.0;
     for(int i=0; i<DIM; i++) sum += yy[i];
 
     for(int i=STARTJ; i<STARTJ+NUMLOC*NUMSEROTYPES; i++) sum -= yy[i];
@@ -102,7 +102,7 @@ inline double popsum( double yy[] )
     return sum;
 }
 
-inline void write_to_file( const char* szFilename, std::vector< std::vector<double> >& vvDATA )
+inline void write_to_file( const char* szFilename, std::vector< std::vector<float> >& vvDATA )
 {
     FILE* fp = fopen( szFilename, "w" );
     int nr = vvDATA.size();	// number of rows

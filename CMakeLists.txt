@@ -3,7 +3,7 @@ project(rk45_cuda LANGUAGES CXX CUDA)
 
 #
 # On WSL compile with -DCMAKE_CUDA_COMPILER:PATH=/usr/local/cuda/bin/nvcc
-# -DCMAKE_CUDA_FLAGS="-default-stream per-thread"
+# Add -DCMAKE_CUDA_FLAGS="-default-stream per-thread" to use streams
 #
 set(BUILD_CLUSTER false CACHE BOOL "Enable for builds on the cluster")
 
