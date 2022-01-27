@@ -41,7 +41,7 @@ namespace {
     bool G_PHIS_INITIALIZED_ON_COMMAND_LINE = false;
 }
 // number of locations
-#define NUMLOC 5
+#define NUMLOC 8
 
 // number OF types/subtypes of influenza (this will always be three - H1, H3, and B)
 // for generality (and to avoid constantly having to specify type/subtype) we call this serotypes
