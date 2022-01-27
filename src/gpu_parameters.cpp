@@ -24,20 +24,20 @@ GPU_Parameters::~GPU_Parameters(){
 
 bool GPU_Parameters::isFloat( std::string myString ) {
     std::istringstream iss(myString);
-    float f;
+    double f;
     iss >> std::noskipws >> f; // noskipws considers leading whitespace invalid
     // Check the entire string was consumed and if either failbit or badbit is set
     return iss.eof() && !iss.fail();
 }
 
 void GPU_Parameters::initTest(int argc, char **argv){
-    y = new float[dimension]();
+    y = new double[dimension]();
     for(int j = 0; j < dimension; j++){
         y[j] = 0.5;
     }
 
     display_dimension = dimension + 3;
-    y_output = new float[NUMDAYSOUTPUT * display_dimension]();
+    y_output = new double[NUMDAYSOUTPUT * display_dimension]();
     for(int j = 0; j < NUMDAYSOUTPUT * display_dimension; j++){
         y_output[j] = -(j*1.0);
     }
@@ -102,7 +102,7 @@ void GPU_Parameters::initTest(int argc, char **argv){
                 if( isFloat(s) )        // if the current string is a floating point number, write it into the phis array
                 {
                     // if the command line argument is <0, just set it back to zero
-                    float d = atof( argv[i] );
+                    double d = atof( argv[i] );
                     if( d < 0.0 ){
                         d = 0.0;
                         //TODO print warning here and probably should exit
@@ -167,7 +167,7 @@ void GPU_Parameters::initTest(int argc, char **argv){
     // if the phi-parameters are not initialized on the command line
     if( !G_PHIS_INITIALIZED_ON_COMMAND_LINE )
     {
-        for(int i=0;  i<10; i++) v[i] = ((float)i)*365.0 + 240.0; // sets the peak epidemic time in late August for the first 10 years
+        for(int i=0;  i<10; i++) v[i] = ((double)i)*365.0 + 240.0; // sets the peak epidemic time in late August for the first 10 years
         for(int i=10; i<20; i++) v[i] = -99.0;
     }
 
@@ -220,13 +220,13 @@ void GPU_Parameters::initTest(int argc, char **argv){
         y[ STARTS + loc ] = 0.5 * N[loc];
 
         // put small number (but slightly different amounts each time) of individuals into the infected classes
-        // float r = rand() % 50 + 10;
-        //float x = r / 1000.0; // float x = 0.010;
-        float x = 0.010;
-        float sumx = 0.0;
+        // double r = rand() % 50 + 10;
+        //double x = r / 1000.0; // double x = 0.010;
+        double x = 0.010;
+        double sumx = 0.0;
         for(int vir=0; vir<NUMSEROTYPES; vir++)
         {
-            float r = rand() % 50 + 1;
+            double r = rand() % 50 + 1;
             x = r / 1000.0;
 
             if (vir == 0) { x = 35 / 1000.0; }
@@ -246,7 +246,7 @@ void GPU_Parameters::initTest(int argc, char **argv){
         // distribute the remainder of individuals into the different recovered stages equally
         for(int vir=0; vir<NUMSEROTYPES; vir++)
         {
-            float z = (0.5 - sumx)/((float)NUMR*NUMSEROTYPES);  // this is the remaining fraction of individuals to be distributed
+            double z = (0.5 - sumx)/((double)NUMR*NUMSEROTYPES);  // this is the remaining fraction of individuals to be distributed
             for(int stg=0; stg<NUMR; stg++)
             {
                 y[ NUMSEROTYPES*NUMR*loc + NUMR*vir + stg ] = z * N[loc];
@@ -269,7 +269,7 @@ void GPU_Parameters::initTest(int argc, char **argv){
         phis_d_length = phis.size();
         phis_d = thrust::raw_pointer_cast(phis_temp.data());
         int day = 0;
-        for(float t = 0; t < NUMDAYSOUTPUT; t+= 1.0){
+        for(double t = 0; t < NUMDAYSOUTPUT; t+= 1.0){
             stf_d[day] = seasonal_transmission_factor(t);
 //            printf("day %f stf = %f\n",t,stf_d[day]);
             day++;
@@ -353,7 +353,7 @@ void GPU_Parameters::initTest(int argc, char **argv){
 //    printf("copy cpu data to gpu\n");
 }
 
-float GPU_Parameters::seasonal_transmission_factor(float t)
+double GPU_Parameters::seasonal_transmission_factor(double t)
 {
     /*
 
@@ -370,13 +370,13 @@ float GPU_Parameters::seasonal_transmission_factor(float t)
         return 1.0;
     }
 
-    int x = (int)t; // This is now to turn a float into an integer
-    float remainder = t - (float)x;
+    int x = (int)t; // This is now to turn a double into an integer
+    double remainder = t - (double)x;
     int xx = x % 3650; // int xx = x % NUMDAYSOUTPUT;
-    float yy = (float)xx + remainder;
+    double yy = (double)xx + remainder;
     // put yy into the sine function, let it return the beta value
     t = yy;
-    float sine_function_value = 0.0;
+    double sine_function_value = 0.0;
 
     for(int i=0; i<phis.size(); i++)
     {

@@ -2,7 +2,7 @@
 #include "gpu_rk45.h"
 
 __device__
-void gpu_func_test(float t, const float y[], float f[], int index, int day, GPU_Parameters* gpu_params){
+void gpu_func_test(double t, const double y[], double f[], int index, int day, GPU_Parameters* gpu_params){
 
 //    if(index == 0){
 //        printf("Here's the info on params: \n");
@@ -21,12 +21,12 @@ void gpu_func_test(float t, const float y[], float f[], int index, int day, GPU_
 //    }
 
     // the transition rate among R-classes
-    float trr = fdividef(NUMR, gpu_params->v_d[gpu_params->i_immune_duration]);
-//    float stf = gpu_params->phis_d_length == 0 ? 1.0 : gpu_params->stf_d[day];
-//    float stf = seasonal_transmission_factor(gpu_params,day);
-    float stf = seasonal_transmission_factor(gpu_params,t);
-//    float stf = gpu_params->stf;
-//    float stf = 1.0;
+    double trr = ((double)NUMR) / gpu_params->v_d[gpu_params->i_immune_duration];
+//    double stf = gpu_params->phis_d_length == 0 ? 1.0 : gpu_params->stf_d[day];
+//    double stf = seasonal_transmission_factor(gpu_params,day);
+    double stf = seasonal_transmission_factor(gpu_params,t);
+//    double stf = gpu_params->stf;
+//    double stf = 1.0;
 
 //    if(index < STARTS)
 //    {
@@ -61,7 +61,7 @@ void gpu_func_test(float t, const float y[], float f[], int index, int day, GPU_
         else{
             f[ index ] += trr * y[ NUM_SEROTYPES*NUM_R*loc + NUM_R*vir + stg - 1 ];
         }
-        float sum_foi = 0.0;
+        double sum_foi = 0.0;
         const int start_index = index * NUM_LOC*NUM_SEROTYPES;
         const int end_index = start_index + (NUM_LOC*NUM_SEROTYPES);
 
@@ -78,7 +78,7 @@ void gpu_func_test(float t, const float y[], float f[], int index, int day, GPU_
         int vir = (index - START_I) % NUM_SEROTYPES;
         f[ START_I + NUM_SEROTYPES*loc + vir ] = 0.0;
         f[ START_J + NUM_SEROTYPES*loc + vir ] = 0.0;
-        float foi_on_susc_single_virus = 0.0;
+        double foi_on_susc_single_virus = 0.0;
 
         for(int l = 0; l<NUM_LOC; l++){
             foi_on_susc_single_virus += gpu_params->eta[loc][l]
@@ -93,7 +93,7 @@ void gpu_func_test(float t, const float y[], float f[], int index, int day, GPU_
         const int start_index = (index % (NUM_LOC*NUM_SEROTYPES*NUM_R)) * (NUM_LOC*NUM_SEROTYPES*NUM_R);
         const int end_index = start_index + (NUM_LOC*NUM_SEROTYPES*NUM_R);
 
-        float inflow_from_recovereds = 0.0;
+        double inflow_from_recovereds = 0.0;
         for(int k = start_index; k < end_index; k++){
             inflow_from_recovereds +=   gpu_params->inflow_from_recovereds_sbe[k]
                                         * stf
@@ -109,7 +109,7 @@ void gpu_func_test(float t, const float y[], float f[], int index, int day, GPU_
     if(index >= START_S && index < gpu_params->dimension)
     {
         unsigned int loc = index - START_S;
-        float foi_on_susc_all_viruses = 0.0;
+        double foi_on_susc_all_viruses = 0.0;
 
         const int start_index = loc * NUM_LOC*NUM_SEROTYPES;
         const int end_index = start_index + (NUM_LOC*NUM_SEROTYPES);
