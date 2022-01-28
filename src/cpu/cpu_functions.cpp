@@ -342,7 +342,7 @@ bool rk45_cpu_simulate(const int cpu_threads, const int display_numbers){
 
     auto stop = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-    printf("[GSL CPU] Time for allocate mem on CPU: %lld micro seconds which is %.10f seconds\n",duration.count(),(duration.count()/1e6));
+    printf("[GSL CPU] Time for allocate mem on CPU: %ld micro seconds which is %.10f seconds\n",duration.count(),(duration.count()/1e6));
 
     start = std::chrono::high_resolution_clock::now();
     for(int i = 0; i < cpu_threads; i++){
@@ -352,7 +352,7 @@ bool rk45_cpu_simulate(const int cpu_threads, const int display_numbers){
     }
     stop = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-    printf("[GSL CPU] Time for compute %d ODE with %d parameters on CPU: %lld micro seconds which is %.10f seconds\n",cpu_threads,DIM,duration.count(),(duration.count()/1e6));
+    printf("[GSL CPU] Time for compute %d ODE with %d parameters on CPU: %ld micro seconds which is %.10f seconds\n",cpu_threads,DIM,duration.count(),(duration.count()/1e6));
     start = std::chrono::high_resolution_clock::now();
     std::random_device rd; // obtain a random number from hardware
     std::mt19937 gen(rd()); // seed the generator
@@ -373,7 +373,7 @@ bool rk45_cpu_simulate(const int cpu_threads, const int display_numbers){
     }
     stop = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-    printf("[GSL CPU] Time for display random results on CPU: %lld micro seconds which is %.10f seconds\n",duration.count(),(duration.count()/1e6));
+    printf("[GSL CPU] Time for display random results on CPU: %ld micro seconds which is %.10f seconds\n",duration.count(),(duration.count()/1e6));
     printf("\n");
 
     free(t);

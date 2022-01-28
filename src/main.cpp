@@ -1,34 +1,25 @@
-#include "gpu_functions.h"
-#include "cpu_functions.h"
+#include "gpu/gpu_rk45.h"
+#include "cpu/cpu_functions.h"
 #include <iostream>
 #include <thread>
 #include <chrono>
-int main()
+
+int main(int argc, char* argv[])
 {
 
-    int threads = 0;
-    int display = 0;
-    std::cout << "Enter number of ODE equations to run: " << std::endl;
-    std::cin >> threads;
-    std::cout << "Enter number of results to display randomly: " << std::endl;
-    std::cin >> display;
-#ifdef ON_CLUSTER
-    std::cout << "Running GSL on CPU" << std::endl;
-    rk45_gsl_simulate(threads,display);
-#endif
-    std::cout << "Running GSL re-implement on CPU" << std::endl;
-    rk45_cpu_simulate(threads,display);
-    std::cout << std::endl;
-    std::cout << "Performing test 1 on GPU" << std::endl;
-    test_cuda_1();
-    std::cout << std::endl;
-    std::cout << "Performing test 2 on GPU" << std::endl;
-    test_cuda_2();
-    std::cout << std::endl;
-    std::cout << "Running GSL on GPU" << std::endl;
-    rk45_gpu_simulate(threads,display);
+    GPU_RK45* gpu_rk45 = new GPU_RK45();
+    GPU_Parameters* gpu_params_test = new GPU_Parameters();
+    gpu_params_test->number_of_ode = 1;
+    gpu_params_test->dimension = DIM;
+    gpu_params_test->display_number = 1;
+    gpu_params_test->t_target = NUMDAYSOUTPUT;
+    gpu_params_test->t0 = 0.0;
+    gpu_params_test->h = 1e-6;
+    gpu_params_test->initTest(argc,argv);
+    gpu_rk45->setParameters(gpu_params_test);
+    gpu_rk45->run();
 
-
+    delete gpu_rk45;
     return 0;
 
 }
