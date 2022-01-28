@@ -21,12 +21,11 @@ void gpu_func_test(double t, const double y[], double f[], int index, int day, G
 //    }
 
     // the transition rate among R-classes
-    double trr = ((double)NUMR) / gpu_params->v_d[gpu_params->i_immune_duration];
-//    double stf = gpu_params->phis_d_length == 0 ? 1.0 : gpu_params->stf_d[day];
-//    double stf = seasonal_transmission_factor(gpu_params,day);
+//    double trr = ((double)NUMR) / gpu_params->v_d[gpu_params->i_immune_duration];
+//    double stf = gpu_params->phis_d_length == 0 ? 1.0 : gpu_stf_d[day];
     double stf = seasonal_transmission_factor(gpu_params,t);
 //    double stf = gpu_params->stf;
-//    double stf = 1.0;
+//    gpu_params->stf = stf;
 
 //    if(index < STARTS)
 //    {
@@ -47,18 +46,18 @@ void gpu_func_test(double t, const double y[], double f[], int index, int day, G
         int loc = index / (NUMSEROTYPES * NUMR);
         int vir = (index / NUMR) % NUMSEROTYPES;
         int stg = index % NUMR;
-        f[ index ] = - trr * y[ index ];
+        f[ index ] = - (gpu_params->trr * y[ index ]);
         if(index % NUMR == 0){
-            f[ index ] += gpu_params->v_d[gpu_params->i_nu] * y[ STARTI + NUMSEROTYPES*loc + vir ];
+            f[ index ] += gpu_params->v_d_i_nu * y[ STARTI + NUMSEROTYPES*loc + vir ];
         }
         else{
-            f[ index ] += trr * y[ NUMSEROTYPES*NUMR*loc + NUMR*vir + stg - 1 ];
+            f[ index ] += gpu_params->trr * y[ NUMSEROTYPES*NUMR*loc + NUMR*vir + stg - 1 ];
         }
         double sum_foi = 0.0;
-        const int STARTindex = index * NUMLOC*NUMSEROTYPES;
-        const int end_index = STARTindex + (NUMLOC*NUMSEROTYPES);
+        const int start_index = index * NUMLOC*NUMSEROTYPES;
+        const int end_index = start_index + (NUMLOC*NUMSEROTYPES);
 
-        for(int k = STARTindex; k < end_index; k++){
+        for(int k = start_index; k < end_index; k++){
             sum_foi +=   gpu_params->sum_foi_sbe[k]
                         * stf
                         * y[gpu_params->sum_foi_y_index[k]];
@@ -83,11 +82,11 @@ void gpu_func_test(double t, const double y[], double f[], int index, int day, G
         f[ STARTI + NUMSEROTYPES*loc + vir ] += y[ STARTS + loc ] * foi_on_susc_single_virus;
         f[ STARTJ + NUMSEROTYPES*loc + vir ] += y[ STARTS + loc ] * foi_on_susc_single_virus;
 
-        const int STARTindex = (index % (NUMLOC*NUMSEROTYPES*NUMR)) * (NUMLOC*NUMSEROTYPES*NUMR);
-        const int end_index = STARTindex + (NUMLOC*NUMSEROTYPES*NUMR);
+        const int start_index = (index % (NUMLOC*NUMSEROTYPES*NUMR)) * (NUMLOC*NUMSEROTYPES*NUMR);
+        const int end_index = start_index + (NUMLOC*NUMSEROTYPES*NUMR);
 
         double inflow_from_recovereds = 0.0;
-        for(int k = STARTindex; k < end_index; k++){
+        for(int k = start_index; k < end_index; k++){
             inflow_from_recovereds +=   gpu_params->inflow_from_recovereds_sbe[k]
                                         * stf
                                         * y[gpu_params->inflow_from_recovereds_y1_index[k]]
@@ -97,17 +96,17 @@ void gpu_func_test(double t, const double y[], double f[], int index, int day, G
         f[ STARTJ + NUMSEROTYPES*loc + vir ] += inflow_from_recovereds;
 
         // add the recovery rate - NOTE only for I-classes
-        f[ STARTI + NUMSEROTYPES*loc + vir ] += - gpu_params->v_d[gpu_params->i_nu] * y[ STARTI + NUMSEROTYPES*loc + vir ];
+        f[ STARTI + NUMSEROTYPES*loc + vir ] += - gpu_params->v_d_i_nu * y[ STARTI + NUMSEROTYPES*loc + vir ];
     }
     if(index >= STARTS && index < gpu_params->dimension)
     {
         unsigned int loc = index - STARTS;
         double foi_on_susc_all_viruses = 0.0;
 
-        const int STARTindex = loc * NUMLOC*NUMSEROTYPES;
-        const int end_index = STARTindex + (NUMLOC*NUMSEROTYPES);
+        const int start_index = loc * NUMLOC*NUMSEROTYPES;
+        const int end_index = start_index + (NUMLOC*NUMSEROTYPES);
 
-        for(int k = STARTindex; k < end_index; k++){
+        for(int k = start_index; k < end_index; k++){
             foi_on_susc_all_viruses +=   gpu_params->foi_on_susc_all_viruses_eb[k]
                                          * stf
                                          * y[gpu_params->foi_on_susc_all_viruses_y_index[k]];
@@ -117,7 +116,7 @@ void gpu_func_test(double t, const double y[], double f[], int index, int day, G
         for(int vir = 0; vir<NUMSEROTYPES; vir++)
         {
             // add to dS/dt the inflow of recovereds from the final R-stage
-            f[ index ] += trr * y[ NUMSEROTYPES*NUMR*(loc) + NUMR*vir + (NUMR - 1) ]; // "NUMR-1" gets you the final R-stage only
+            f[ index ] += gpu_params->trr * y[ NUMSEROTYPES*NUMR*(loc) + NUMR*vir + (NUMR - 1) ]; // "NUMR-1" gets you the final R-stage only
         }
     }
 

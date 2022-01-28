@@ -62,58 +62,18 @@ double seasonal_transmission_factor(GPU_Parameters* gpu_params, double t)
     t = yy;
     double sine_function_value = 0.0;
 
-    for(int i=0; i<gpu_params->phis_d_length; i++)
+    for(int i=0; i < gpu_params->phis_d_length; i++)
     {
-        if( fabs( t - gpu_params->phis_d[i] ) < (gpu_params->v_d[gpu_params->i_epidur] / 2))
+        if( fabs( t - gpu_params->phis_d[i] ) < (gpu_params->v_d_i_epidur_d2))
         {
             // sine_function_value = sin( 2.0 * 3.141592653589793238 * (phis[i]-t+91.25) / 365.0);
-            sine_function_value = sin( 2.0 * 3.141592653589793238 * (gpu_params->phis_d[i] - t + (gpu_params->v_d[gpu_params->i_epidur] / 2)) / (gpu_params->v_d[gpu_params->i_epidur] * 2));
+            sine_function_value = sin( gpu_params->pi_x2 * (gpu_params->phis_d[i] - t + (gpu_params->v_d_i_epidur_d2)) / (gpu_params->v_d_i_epidur_x2));
 //            printf("      in loop %1.3f %d  %1.3f %1.3f\n", t, i, gpu_params->phis_d[i], sine_function_value);
         }
     }
 //    printf("    %f sine_function_value %1.3f\n",t,sine_function_value);
 //    printf("    %f return %1.3f\n",t,1.0 + v[i_amp] * sine_function_value);
-    return 1.0 + gpu_params->v_d[gpu_params->i_amp] * sine_function_value;
-}
-
-__device__
-double seasonal_transmission_factor(GPU_Parameters* gpu_params, int day)
-{
-    /*
-
-
-        We're gonna make this thing go for 40 years. 30 years of burn in and 10 years of real modeling.
-        We're creating a "10-year model cycle" and need the code below to find a time point's "place" in the "cycle"
-        modulus (denoted with % in C++) only works with integers, so need the acrobatics below
-
-     */
-
-    // This is some code that's needed to create the 10-year "cycles" in transmission.
-
-    if(gpu_params->phis_d_length == 0){
-        return 1.0;
-    }
-
-    int x = day; // This is now to turn a double into an integer
-    double remainder = day - (double)x;
-    int xx = x % 3650; // int xx = x % NUMDAYSOUTPUT;
-    double yy = (double)xx + remainder;
-    // put yy into the sine function, let it return the beta value
-    day = yy;
-    double sine_function_value = 0.0;
-
-    for(int i=0; i<gpu_params->phis_d_length; i++)
-    {
-        if( fabs( day - gpu_params->phis_d[i] ) < (gpu_params->v_d[gpu_params->i_epidur] / 2))
-        {
-            // sine_function_value = sin( 2.0 * 3.141592653589793238 * (phis[i]-t+91.25) / 365.0);
-            sine_function_value = sin( 2.0 * 3.141592653589793238 * (gpu_params->phis_d[i] - day +(gpu_params->v_d[gpu_params->i_epidur] / 2)) / (gpu_params->v_d[gpu_params->i_epidur] * 2));
-//            printf("      in loop %1.3f %d  %1.3f %1.3f\n", t, i, gpu_params->phis_d[i], sine_function_value);
-        }
-    }
-//    printf("    %f sine_function_value %1.3f\n",t,sine_function_value);
-//    printf("    %f return %1.3f\n",t,1.0 + v[i_amp] * sine_function_value);
-    return 1.0 + gpu_params->v_d[gpu_params->i_amp] * sine_function_value;
+    return 1.0 + gpu_params->v_d_i_amp * sine_function_value;
 }
 
 __device__
@@ -151,13 +111,14 @@ void rk45_gpu_adjust_h(double y[], double y_err[], double dydt_out[],
      * The y method is the standard method with a_y=1, a_dydt=0.
      * The yp method is the standard method with a_y=0, a_dydt=1.
      */
-    static double eps_abs = 1e-6;
-    static double eps_rel = 0.0;
-    static double a_y = 1.0;
-    static double a_dydt = 0.0;
-    static unsigned int ord = 5;
-    const double S = 0.9;
+    const double eps_abs = 1e-6;
+    const double eps_rel = 0.0;
+    const double a_y = 1.0;
+    const double a_dydt = 0.0;
+    const unsigned int ord = 5;
+    const const double S = 0.9;
     double h_old;
+
     if(final_step){
         h_old = h_0;
     }
@@ -441,7 +402,9 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
             device_t = t;
             device_t1 = device_t + 1.0;
             device_h = h;
-            params->stf = seasonal_transmission_factor(params,t);
+//            if(t == 0){
+//                params->stf = seasonal_transmission_factor(params,t);
+//            }
             int day = t;
 
 //            if(index == 0){
@@ -460,7 +423,7 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
             }
             if(output_index % params->display_dimension == 1){
                 //Second column
-                y_output[output_index] = params->stf;
+                y_output[output_index] = seasonal_transmission_factor(params,t);
             }
             if(output_index % params->display_dimension == 2){
                 //Third column
@@ -813,15 +776,15 @@ void GPU_RK45::run(){
     else{
         random_index = distr(gen);
     }
-    printf("Display result from stream %d (randomly)\n",random_index);
-    for(int i = 0; i < NUMDAYSOUTPUT * params->display_dimension; i++){
-        printf("%1.5f\t",y_output_host_display_pinned[random_index][i]);
-        //reverse position from 1D array
-        if(i > 0 && (i + 1) % params->display_dimension == 0){
-            printf("\n");
-        }
-    }
-    printf("Finish display result from stream %d (randomly)\n",random_index);
+//    printf("Display result from stream %d (randomly)\n",random_index);
+//    for(int i = 0; i < NUMDAYSOUTPUT * params->display_dimension; i++){
+//        printf("%1.5f\t",y_output_host_display_pinned[random_index][i]);
+//        //reverse position from 1D array
+//        if(i > 0 && (i + 1) % params->display_dimension == 0){
+//            printf("\n");
+//        }
+//    }
+//    printf("Finish display result from stream %d (randomly)\n",random_index);
 //    printf("[GSL GPU] CPU Time for transfer data from CPU to GPU: %ld micro seconds which is %f seconds\n",duration_transfer_h2d.count(),(duration_transfer_h2d.count()/1e6));
 //    printf("[GSL GPU] CPU Time for compute %d ODE(s) with %d parameters, step %f in %f days on GPU: %ld micro seconds which is %f seconds\n",NUMSTREAMS,params->dimension,params->h,params->t_target,duration_compute.count(),(duration_compute.count()/1e6));
 //    printf("[GSL GPU] CPU Time for transfer data from GPU on CPU: %ld micro seconds which is %f seconds\n",duration_transfer_d2h.count(),(duration_transfer_d2h.count()/1e6));

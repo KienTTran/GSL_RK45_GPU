@@ -12,13 +12,8 @@ if (WIN32)
     #CMake projects should use: "-DCMAKE_TOOLCHAIN_FILE=D:/BoniLab/vcpkg/scripts/buildsystems/vcpkg.cmake"
     include_directories("E:\\SDK\\CUDA\\11.5\\Toolkit\\include\\")
     add_executable(rk45_cuda
-            src/cuda/gpu_func_flu.cu
-            src/cuda/gpu_func_pen.cu
             src/cuda/gpu_func_test.cu
-            src/cuda/gpu_rk45_global_kernels.cu
             src/cuda/gpu_rk45.cu
-            src/cuda/gpu_sample.cu
-            src/cuda/gpu_reduce.cu
             src/cuda/gpu_rk45.h
             src/cpu_rk45.cpp
             src/cpu_rk45.h
@@ -33,13 +28,8 @@ if (WIN32)
 else()
     include_directories("/usr/local/cuda/include/")
     add_executable(rk45_cuda
-            src/cuda/gpu_func_flu.cu
-            src/cuda/gpu_func_pen.cu
             src/cuda/gpu_func_test.cu
-            src/cuda/gpu_rk45_global_kernels.cu
             src/cuda/gpu_rk45.cu
-            src/cuda/gpu_sample.cu
-            src/cuda/gpu_reduce.cu
             src/cuda/gpu_rk45.h
             src/cpu_rk45.cpp
             src/cpu_rk45.h
@@ -70,10 +60,26 @@ endif()
 
 if (UNIX)
     target_link_libraries(rk45_cuda gsl gslcblas)
+    target_link_libraries(rk45_cuda gsl gslcblas)
+#    target_compile_options(rk45_cuda PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
+##            --generate-line-info
+#            --use_fast_math
+#            -ftz=false
+#            --relocatable-device-code=true
+#            --default-stream per-thread
+#            -O3
+#            -G
+#            -src-in-ptx
+##            -res-usage
+#            -maxrregcount=255
+#            --ptxas-options=-v
+#            >)
     target_compile_options(rk45_cuda PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
-            --generate-line-info
+#            --generate-line-info
             --use_fast_math
             --relocatable-device-code=true
+            --default-stream per-thread
+            -maxrregcount=255
             >)
 else()
     target_link_libraries(rk45_cuda PRIVATE GSL::gsl GSL::gslcblas)

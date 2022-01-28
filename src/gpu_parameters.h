@@ -38,9 +38,10 @@ public:
     int foi_on_susc_all_viruses_y_index [NUMLOC*NUMLOC*NUMSEROTYPES];
 
     //from Flu
-    thrust::host_vector<double> v;           // this holds some of the parameters -- they are indexed by the enums above
-    thrust::device_vector<double> v_temp;
-    double* v_d;
+    std::vector<double> v;           // this holds some of the parameters -- they are indexed by the enums above
+//    thrust::host_vector<double> v;           // this holds some of the parameters -- they are indexed by the enums above
+//    thrust::device_vector<double> v_temp;
+//    double* v_d;
 
     double beta[NUMSEROTYPES];                  // the transmission parameter for each serotype
 
@@ -56,14 +57,18 @@ public:
     thrust::device_vector<double> phis_temp;
     double* phis_d;
     int phis_d_length;
-    double stf_d[NUMDAYSOUTPUT];
     double stf = 0.0;
+    double trr = 0.0;
+    double v_d_i_nu = 0.0;
+    double v_d_i_amp = 0.0;
+    double v_d_i_epidur_x2 = 0.0;
+    double v_d_i_epidur_d2 = 0.0;
+    double pi_x2 = 0.0;
 
     enum parameter_index {	i_phi01, i_phi02, i_phi03, i_phi04, i_phi05, i_phi06, i_phi07, i_phi08, i_phi09, i_phi10,        // the peak epidemic times
         i_phi11, i_phi12, i_phi13, i_phi14, i_phi15, i_phi16, i_phi17, i_phi18, i_phi19, i_phi20,
         i_amp, i_nu, i_epidur, i_immune_duration, num_params };
 
-    typedef enum parameter_index prm_index;
 
 private:
 };

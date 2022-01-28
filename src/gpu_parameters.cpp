@@ -256,9 +256,17 @@ void GPU_Parameters::initTest(int argc, char **argv){
 
 //    printf("v size = %d\n",v.size());
 //    printf("phis size = %d\n",phis.size());
+
+    trr = ((double)NUMR) / v[i_immune_duration];
+    v_d_i_nu = v[i_nu];
+    v_d_i_amp = v[i_amp];
+    v_d_i_epidur_d2 = v[i_epidur] / 2.0;
+    v_d_i_epidur_x2 = v[i_epidur] * 2.0;
+    pi_x2 = 2.0 * M_PI;
+
     //copy cpu vector to gpu vector
-    v_temp = v;
-    v_d = thrust::raw_pointer_cast(v_temp.data());
+//    v_temp = v;
+//    v_d = thrust::raw_pointer_cast(v_temp.data());
 
     if(phis.empty()){
         phis_d = nullptr;
@@ -268,12 +276,6 @@ void GPU_Parameters::initTest(int argc, char **argv){
         phis_temp = phis;
         phis_d_length = phis.size();
         phis_d = thrust::raw_pointer_cast(phis_temp.data());
-        int day = 0;
-        for(double t = 0; t < NUMDAYSOUTPUT; t+= 1.0){
-            stf_d[day] = seasonal_transmission_factor(t);
-//            printf("day %f stf = %f\n",t,stf_d[day]);
-            day++;
-        }
     }
 
 //    printf("\nsum_foi_sbe:\n");
