@@ -6,9 +6,11 @@ set(BUILD_CLUSTER false CACHE BOOL "Enable for builds on the cluster")
 if(UNIX)
     include_directories("/usr/local/cuda/include/")
 else()
-    find_package(GSL REQUIRED)
     #CMake projects should use: "-DCMAKE_TOOLCHAIN_FILE=D:/BoniLab/vcpkg/scripts/buildsystems/vcpkg.cmake"
+    set(CMAKE_TOOLCHAIN_FILE "D:/BoniLab/vcpkg/scripts/buildsystems/vcpkg.cmake")
     include_directories("E:\\SDK\\CUDA\\11.5\\Toolkit\\include\\")
+    add_compile_definitions(_USE_MATH_DEFINES)
+    find_package(GSL REQUIRED)
 endif()
 
 add_executable(rk45_cuda

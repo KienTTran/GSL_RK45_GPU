@@ -441,6 +441,10 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
     return;
 }
 
+void GPU_RK45::solveODE(int num_blocks, int block_size, double* y_d[], double t0, double t_target, double step, double h, GPU_Parameters* params_d){
+  rk45_gpu_evolve_apply<<<num_blocks, block_size>>>(t0, t_target, step, params->h, y_d, params_d);
+}
+
 void GPU_RK45::run(){
 
     auto start = std::chrono::high_resolution_clock::now();
@@ -473,7 +477,7 @@ void GPU_RK45::run(){
     int block_size = 256; //max is 1024
     int num_blocks = (NUMODE + block_size - 1) / block_size;
     printf("[GSL GPU] block_size = %d num_blocks = %d\n",block_size,num_blocks);
-    rk45_gpu_evolve_apply<<<num_blocks, block_size>>>(params->t0, params->t_target, 1.0, params->h, y_d,params_d);
+    solveODE(num_blocks, block_size, y_d, params->t0, params->t_target, 1.0, params->h, params_d);
 
 //    cudaProfilerStop();
     checkCuda(cudaDeviceSynchronize());
