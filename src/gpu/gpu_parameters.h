@@ -10,11 +10,15 @@
 #include <thrust/device_malloc.h>
 #include <thrust/device_free.h>
 #include "../flu_default_params.h"
+#include <DataFrame/DataFrame.h>  // Main DataFrame header
+#include <DataFrame/DataFrameStatsVisitors.h>
 
 class GPU_Parameters {
 public:
     explicit GPU_Parameters();
     ~GPU_Parameters();
+    int num_blocks;
+    int block_size;
     int number_of_ode;
     int dimension;
     int display_dimension;
@@ -22,8 +26,11 @@ public:
     double t_target;
     double t0;
     double h;
+    double step;
     double* y;
     double* y_output;
+    hmdf::StdDataFrame<unsigned long> gpu_dataframe;
+    hmdf::StdDataFrame<unsigned long> csv_dataframe;
     bool isFloat( std::string myString);
     void initFlu(int argc, char **argv);
     void initPen();

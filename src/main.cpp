@@ -14,9 +14,10 @@ int main(int argc, char* argv[])
     gpu_params_test->display_number = 1;
     gpu_params_test->t_target = NUMDAYSOUTPUT;
     gpu_params_test->t0 = 0.0;
+    gpu_params_test->step = 1.0;
     gpu_params_test->h = 1e-6;
     gpu_params_test->initTest(argc,argv);
-    gpu_rk45->setParameters(gpu_params_test);
+    gpu_rk45->set_parameters(gpu_params_test);
     gpu_rk45->run();
 
     delete gpu_rk45;

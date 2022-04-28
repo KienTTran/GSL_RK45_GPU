@@ -12,6 +12,10 @@ GPU_Parameters::GPU_Parameters(){
     t_target = 0.0;
     t0 = 0.0;
     h = 1e-6;
+    num_blocks = 256;
+    block_size = 1;
+    gpu_dataframe = hmdf::StdDataFrame<unsigned long>();
+    csv_dataframe = hmdf::StdDataFrame<unsigned long>();
 }
 
 GPU_Parameters::~GPU_Parameters(){
@@ -20,6 +24,8 @@ GPU_Parameters::~GPU_Parameters(){
     t_target = 0.0;
     t0 = 0.0;
     h = 1e-6;
+    num_blocks = 256;
+    block_size = 1;
 }
 
 bool GPU_Parameters::isFloat( std::string myString ) {
