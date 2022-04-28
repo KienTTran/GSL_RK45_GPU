@@ -4,6 +4,8 @@
 #include <thread>
 #include <chrono>
 
+using MyDataFrame = hmdf::StdDataFrame<unsigned long>;
+
 int main(int argc, char* argv[])
 {
 
@@ -17,8 +19,22 @@ int main(int argc, char* argv[])
     gpu_params_test->step = 1.0;
     gpu_params_test->h = 1e-6;
     gpu_params_test->initTest(argc,argv);
-    gpu_rk45->set_parameters(gpu_params_test);
-    gpu_rk45->run();
+    MyDataFrame df;
+    try  {
+      gpu_params_test->csv_dataframe.load_data(MyDataFrame::gen_sequence_index(0,520,1));
+      gpu_params_test->csv_dataframe.read("vndat.csv", hmdf::io_format::csv2,true);
+    }
+    catch (const hmdf::DataFrameError &ex)  {
+      std::cout << ex.what() << std::endl;
+    }
+    std::cout << gpu_params_test->csv_dataframe.get_column<double>("ILI_p_H1")[0] << std::endl;
+    std::cout << gpu_params_test->csv_dataframe.get_column<double>("ILI_p_B")[0] << std::endl;
+    std::cout << gpu_params_test->csv_dataframe.get_column<double>("ILI_p_H3")[0] << std::endl;
+    std::cout << gpu_params_test->csv_dataframe.get_column<double>("ILI_p_H1")[1] << std::endl;
+    std::cout << gpu_params_test->csv_dataframe.get_column<double>("ILI_p_B")[1] << std::endl;
+    std::cout << gpu_params_test->csv_dataframe.get_column<double>("ILI_p_H3")[1] << std::endl;
+//    gpu_rk45->set_parameters(gpu_params_test);
+//    gpu_rk45->run();
 
     delete gpu_rk45;
     return 0;
