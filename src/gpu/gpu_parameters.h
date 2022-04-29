@@ -27,8 +27,8 @@ public:
     double t0;
     double h;
     double step;
-    double* y;
-    double* y_output;
+    double** y;
+    double** y_output;
     hmdf::StdDataFrame<unsigned long> gpu_dataframe;
     hmdf::StdDataFrame<unsigned long> csv_dataframe;
     bool isFloat( std::string myString);

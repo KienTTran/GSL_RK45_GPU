@@ -37,17 +37,31 @@ bool GPU_Parameters::isFloat( std::string myString ) {
 }
 
 void GPU_Parameters::initTest(int argc, char **argv){
-    y = new double[dimension]();
-    for(int j = 0; j < dimension; j++){
-        y[j] = 0.5;
+    y = new double*[NUMODE]();
+    for (int i = 0; i < NUMODE; i++) {
+      y[i] = new double[dimension];
+    }
+    for (int i = 0; i < NUMODE; i++) {
+      for (int j = 0; j < dimension; j++) {
+        y[i][j] = 0.5;
+      }
     }
 
     display_dimension = dimension + 3;
-    y_output = new double[NUMDAYSOUTPUT * display_dimension]();
-    for(int j = 0; j < NUMDAYSOUTPUT * display_dimension; j++){
-        y_output[j] = -(j*1.0);
+    y_output = new double*[NUMODE]();
+    for (int i = 0; i < NUMODE; i++) {
+      y_output[i] = new double[NUMDAYSOUTPUT * display_dimension];
     }
-    printf("diplay_dimension = %d x %d = %d\n",NUMDAYSOUTPUT, display_dimension, NUMDAYSOUTPUT * display_dimension);
+    for (int i = 0; i < NUMODE; i++) {
+      for (int j = 0; j < NUMDAYSOUTPUT * display_dimension; j++) {
+        y_output[i][j] = -(j * 1.0);
+      }
+    }
+    printf("ODE numbers = %d\n",NUMODE);
+    printf("1 ODE parameters = %d\n", dimension);
+    printf("1 ODE lines = %d\n", NUMDAYSOUTPUT);
+    printf("Display dimension = %d\n",display_dimension);
+    printf("Total display dimension = %d x %d x %d = %d\n",NUMODE, NUMDAYSOUTPUT, display_dimension, NUMODE * NUMDAYSOUTPUT * display_dimension);
 
     v.insert( v.begin(), num_params, 0.0 );
     assert( v.size()==num_params );
@@ -220,10 +234,11 @@ void GPU_Parameters::initTest(int argc, char **argv){
     // declare the vector y that holds the values of all the state variables (at the current time)
     // below you are declaring a vector of size DIM
 
-    for(int loc=0; loc<NUMLOC; loc++)
-    {
+    for(int i = 0; i < NUMODE; i++){
+      for(int loc=0; loc<NUMLOC; loc++)
+      {
         // put half of the individuals in the susceptible class
-        y[ STARTS + loc ] = 0.5 * N[loc];
+        y[i][ STARTS + loc ] = 0.5 * N[loc];
 
         // put small number (but slightly different amounts each time) of individuals into the infected classes
         // double r = rand() % 50 + 10;
@@ -232,33 +247,35 @@ void GPU_Parameters::initTest(int argc, char **argv){
         double sumx = 0.0;
         for(int vir=0; vir<NUMSEROTYPES; vir++)
         {
-            double r = rand() % 50 + 1;
-            x = r / 1000.0;
+          double r = rand() % 50 + 1;
+          x = r / 1000.0;
 
-            if (vir == 0) { x = 35 / 1000.0; }
-            if (vir == 1) { x = 25 / 1000.0; }
-            if (vir == 2) { x = 21 / 1000.0; }
+          if (vir == 0) { x = 35 / 1000.0; }
+          if (vir == 1) { x = 25 / 1000.0; }
+          if (vir == 2) { x = 21 / 1000.0; }
 
-            // fprintf(stderr, "r = %1.4f, x = %1.6f", r, x);
+          // fprintf(stderr, "r = %1.4f, x = %1.6f", r, x);
 
-            sumx += x;
-            y[ STARTI + NUMSEROTYPES*loc + vir ] = x * N[loc];
-            y[ STARTJ + NUMSEROTYPES*loc + vir ] = 0.0;     // initialize all of the J-variables to zero
+          sumx += x;
+          y[i][ STARTI + NUMSEROTYPES*loc + vir ] = x * N[loc];
+          y[i][ STARTJ + NUMSEROTYPES*loc + vir ] = 0.0;     // initialize all of the J-variables to zero
 
-            x += 0.001;
+          x += 0.001;
         }
         x=0.010; // reset x
 
         // distribute the remainder of individuals into the different recovered stages equally
         for(int vir=0; vir<NUMSEROTYPES; vir++)
         {
-            double z = (0.5 - sumx)/((double)NUMR*NUMSEROTYPES);  // this is the remaining fraction of individuals to be distributed
-            for(int stg=0; stg<NUMR; stg++)
-            {
-                y[ NUMSEROTYPES*NUMR*loc + NUMR*vir + stg ] = z * N[loc];
-            }
+          double z = (0.5 - sumx)/((double)NUMR*NUMSEROTYPES);  // this is the remaining fraction of individuals to be distributed
+          for(int stg=0; stg<NUMR; stg++)
+          {
+            y[i][ NUMSEROTYPES*NUMR*loc + NUMR*vir + stg ] = z * N[loc];
+          }
         }
+      }
     }
+
 
 //    printf("v size = %d\n",v.size());
 //    printf("phis size = %d\n",phis.size());

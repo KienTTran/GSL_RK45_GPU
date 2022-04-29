@@ -27,14 +27,8 @@ int main(int argc, char* argv[])
     catch (const hmdf::DataFrameError &ex)  {
       std::cout << ex.what() << std::endl;
     }
-    std::cout << gpu_params_test->csv_dataframe.get_column<double>("ILI_p_H1")[0] << std::endl;
-    std::cout << gpu_params_test->csv_dataframe.get_column<double>("ILI_p_B")[0] << std::endl;
-    std::cout << gpu_params_test->csv_dataframe.get_column<double>("ILI_p_H3")[0] << std::endl;
-    std::cout << gpu_params_test->csv_dataframe.get_column<double>("ILI_p_H1")[1] << std::endl;
-    std::cout << gpu_params_test->csv_dataframe.get_column<double>("ILI_p_B")[1] << std::endl;
-    std::cout << gpu_params_test->csv_dataframe.get_column<double>("ILI_p_H3")[1] << std::endl;
-//    gpu_rk45->set_parameters(gpu_params_test);
-//    gpu_rk45->run();
+    gpu_rk45->set_parameters(gpu_params_test);
+    gpu_rk45->run();
 
     delete gpu_rk45;
     return 0;

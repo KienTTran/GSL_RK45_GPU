@@ -312,7 +312,7 @@ void rk45_gpu_step_apply(double t, double h, double y[], double y_err[], double 
 }
 
 __device__
-void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, double* y[], int index, GPU_Parameters* params){
+void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, double* y[], double* y_output[], int index, GPU_Parameters* params){
     double device_y[DIM];
     double device_y_0[DIM];
     double device_y_err[DIM];
@@ -326,8 +326,45 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
       double device_dt;
       int device_adjustment_out = 999;
       device_t = t;
-      device_t1 = device_t + 1.0;
+      device_t1 = device_t + t_delta;
       device_h = h;
+
+      int day = t;
+//      printf("day %d\t", day);
+//      for (int i = 0; i < params->dimension; i ++) {
+//        printf("y[%d][%d] = %.1f\t", index, i, y[index][i]);
+//        if(i == (params->dimension - 1)){
+//          printf("\n");
+//        }
+//      }
+      for (int i = 0; i < params->display_dimension; i ++) {
+        const int y_output_index = day * params->display_dimension + i;
+        if(y_output_index % params->display_dimension == 0){
+          //First column
+          y_output[index][y_output_index] = day*1.0;
+//          printf("First day = %d index = %d i = %d y_output_index = %d y_output[%d][%d] = %.5f\n",
+//                 day, index, i, y_output_index, index, y_output_index, y_output[index][y_output_index]);
+        }
+        else if(y_output_index % params->display_dimension == 1){
+          //Second column
+          y_output[index][y_output_index] = seasonal_transmission_factor(params,t);
+//          printf("Second day = %d index = %d i = %d y_output_index = %d y_output[%d][%d] = %.5f\n",
+//                 day, index, i, y_output_index, index, y_output_index, y_output[index][y_output_index]);
+        }
+        else if(y_output_index % params->display_dimension == 2){
+          //Third column
+          y_output[index][y_output_index] = pop_sum(y[index]);
+//          printf("Third day = %d index = %d i = %d y_output_index = %d y_output[%d][%d] = %.5f\n",
+//                 day, index, i, y_output_index, index, y_output_index, y_output[index][y_output_index]);
+        }
+        else{
+          //Forth column onward
+          const int y_index = (y_output_index - 3) % params->display_dimension;
+          y_output[index][y_output_index] = y[index][y_index];
+//          printf("day = %d index = %d i = %d y_output_index = %d y[%d][%d] = y[%d][%d] = %.5f\n",
+//                 day, index, i, y_output_index, index, y_output_index, index, y_index, y[index][y_index]);
+        }
+      }
 
       while(device_t < device_t1)
       {
@@ -429,30 +466,32 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
 }
 
 __device__
-void solve_ode(double* y_d[], int index, GPU_Parameters* params){
-    rk45_gpu_evolve_apply(params->t0, params->t_target, params->step, params->h, y_d, index, params);
+void solve_ode(double* y_d[], double* y_output_d[], int index, GPU_Parameters* params){
+    rk45_gpu_evolve_apply(params->t0, params->t_target, params->step, params->h, y_d, y_output_d, index, params);
     return;
 }
 
 __device__
-void mcmc(double* y_d[], int index, GPU_Parameters* params){
-    printf("y_d[0][0] = %f\n",y_d[0][0]);
+void mcmc(double* y_output_d[], int index, GPU_Parameters* params){
+    for(int i = 0; i < NUMDAYSOUTPUT * params->display_dimension; i++){
+      printf("%.1f\t", y_output_d[index][i]);
+      if(i > 0 && (i + 1) % params->display_dimension == 0){
+        printf("\n");
+      }
+    }
     return;
 }
 
 __global__
-void solve_ode_mcmc(double* y_d[], GPU_Parameters* params){
+void solve_ode_mcmc(double* y_d[], double* y_output_d[], GPU_Parameters* params){
     int index_gpu = threadIdx.x + blockIdx.x * blockDim.x;
     int stride = blockDim.x * gridDim.x;
 
     for(int index = index_gpu; index < NUMODE; index += stride)
     {
       for(int iter = 0; iter < 1; iter++){
-        printf("before y_d[0][0] = %f\n",y_d[0][0]);
-        solve_ode(y_d, index, params);
-        printf("after y_d[0][0] = %f\n",y_d[0][0]);
-        mcmc(y_d, index, params);
-        printf("after mcmc y_d[0][0] = %f\n",y_d[0][0]);
+        solve_ode(y_d, y_output_d, index, params);
+//        mcmc(y_output_d, index, params);
       }
     }
     return;
@@ -472,11 +511,21 @@ void GPU_RK45::run(){
     double **tmp_ptr = (double**)malloc (NUMODE * sizeof (double));
     for (int i = 0; i < NUMODE; i++) {
         checkCuda(cudaMalloc ((void **)&tmp_ptr[i], params->dimension * sizeof (double)));
-        checkCuda(cudaMemcpy(tmp_ptr[i], params->y, params->dimension * sizeof(double), cudaMemcpyHostToDevice));
+        checkCuda(cudaMemcpy(tmp_ptr[i], params->y[i], params->dimension * sizeof(double), cudaMemcpyHostToDevice));
     }
     //y_d
     checkCuda(cudaMalloc ((void **)&y_d, NUMODE * sizeof (double)));
     checkCuda(cudaMemcpy (y_d, tmp_ptr, NUMODE * sizeof (double), cudaMemcpyHostToDevice));
+
+    double **y_output_d = 0;
+    //temp pointers
+    for (int i = 0; i < NUMODE; i++) {
+      checkCuda(cudaMalloc ((void **)&tmp_ptr[i], NUMDAYSOUTPUT * params->display_dimension * sizeof (double)));
+      checkCuda(cudaMemcpy(tmp_ptr[i], params->y_output[i], NUMDAYSOUTPUT * params->display_dimension * sizeof(double), cudaMemcpyHostToDevice));
+    }
+    //y_output_d
+    checkCuda(cudaMalloc ((void **)&y_output_d, NUMODE * sizeof (double)));
+    checkCuda(cudaMemcpy (y_output_d, tmp_ptr, NUMODE * sizeof (double), cudaMemcpyHostToDevice));
 
     //params_d
     GPU_Parameters* params_d;
@@ -489,7 +538,7 @@ void GPU_RK45::run(){
 
     start = std::chrono::high_resolution_clock::now();
 //    cudaProfilerStart();
-    solve_ode_mcmc<<<params->num_blocks, params->block_size>>>(y_d, params_d);
+    solve_ode_mcmc<<<params->num_blocks, params->block_size>>>(y_d, y_output_d, params_d);
 
 //    cudaProfilerStop();
     checkCuda(cudaDeviceSynchronize());
@@ -499,14 +548,15 @@ void GPU_RK45::run(){
 
     start = std::chrono::high_resolution_clock::now();
     tmp_ptr = (double**)malloc (NUMODE * sizeof (double));
-    double** host_y_output = (double**)malloc (NUMODE * sizeof (double));
+    double** y_output_h = (double**)malloc (NUMODE * sizeof (double));
     for (int i = 0; i < NUMODE; i++) {
-        host_y_output[i] = (double *)malloc (DIM * sizeof (double));
+      y_output_h[i] = (double *)malloc (NUMDAYSOUTPUT * params->display_dimension * sizeof (double));
     }
-    checkCuda(cudaMemcpy (tmp_ptr, y_d, NUMODE * sizeof (double), cudaMemcpyDeviceToHost));
+    checkCuda(cudaMemcpy (tmp_ptr, y_output_d, NUMODE * sizeof (double), cudaMemcpyDeviceToHost));
     for (int i = 0; i < NUMODE; i++) {
-        checkCuda(cudaMemcpy (host_y_output[i], tmp_ptr[i], DIM * sizeof (double), cudaMemcpyDeviceToHost));
+        checkCuda(cudaMemcpy (y_output_h[i], tmp_ptr[i], NUMDAYSOUTPUT * params->display_dimension * sizeof (double), cudaMemcpyDeviceToHost));
     }
+    checkCuda(cudaDeviceSynchronize());
     stop = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
     printf("[GSL GPU] Time for data transfer GPU to CPU: %ld micro seconds which is %.10f seconds\n",duration.count(),(duration.count()/1e6));
@@ -524,12 +574,13 @@ void GPU_RK45::run(){
         else{
             random_index = distr(gen);
         }
-        for(int index = 0; index < DIM; index++){
-            //GPU memory
-            printf("[GSL GPU] Thread %d y[%d][%d] = %1.5f\n",random_index,random_index,index,host_y_output[random_index][index]);
-            //unified memoery output
-//            printf("[main] Thread %d y[%d][%d] = %.10f\n",random_index,random_index,index,y_d[random_index][index]);
-        }
+//        printf("Display y_output_h[%d]\n",random_index);
+//        for(int index = 0; index < NUMDAYSOUTPUT * params->display_dimension; index++){
+//          printf("%.1f\t", y_output_h[random_index][index]);
+//          if(index > 0 && (index + 1) % params->display_dimension == 0){
+//            printf("\n");
+//          }
+//        }
     }
     stop = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
