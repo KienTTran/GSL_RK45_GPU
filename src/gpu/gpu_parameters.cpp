@@ -14,8 +14,6 @@ GPU_Parameters::GPU_Parameters(){
     h = 1e-6;
     num_blocks = 256;
     block_size = 1;
-    gpu_dataframe = hmdf::StdDataFrame<unsigned long>();
-    csv_dataframe = hmdf::StdDataFrame<unsigned long>();
 }
 
 GPU_Parameters::~GPU_Parameters(){
@@ -47,7 +45,7 @@ void GPU_Parameters::initTest(int argc, char **argv){
       }
     }
 
-    display_dimension = dimension + 3;
+    display_dimension = dimension + 3 + 3;//3 for 0,1,2 columns, 3 for INC,INC2,INC3
     y_output = new double*[NUMODE]();
     for (int i = 0; i < NUMODE; i++) {
       y_output[i] = new double[NUMDAYSOUTPUT * display_dimension];

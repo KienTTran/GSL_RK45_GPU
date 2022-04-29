@@ -67,7 +67,7 @@ namespace {
 
 // this is the number of days of simulation that will be sent to standard output (and used for model fitting)
 //#define NUMDAYSOUTPUT 3650*2// use this to define "cycle" lengths
-#define NUMDAYSOUTPUT 100// use this to define "cycle" lengths
+#define NUMDAYSOUTPUT 10// use this to define "cycle" lengths
 
 //#define NUMDAYSOUTPUT 2// use this to define "cycle" lengths
 

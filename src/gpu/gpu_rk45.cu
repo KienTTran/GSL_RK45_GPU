@@ -357,6 +357,21 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
 //          printf("Third day = %d index = %d i = %d y_output_index = %d y_output[%d][%d] = %.5f\n",
 //                 day, index, i, y_output_index, index, y_output_index, y_output[index][y_output_index]);
         }
+        else if(day > 0 && (y_output_index % (params->display_dimension)) - (params->display_dimension - 1) == -2){
+          //INC1 - last column -2
+          printf("y_output_index = %d - inc1\n",y_output_index);
+          y_output[index][y_output_index] = y_output[index][y_output_index - 4];
+        }
+        else if(day > 0 && (y_output_index % (params->display_dimension)) - (params->display_dimension - 1) == -1){
+          //INC2 - last column -1
+          printf("y_output_index = %d - inc2\n",y_output_index);
+          y_output[index][y_output_index] = y_output[index][y_output_index - 4];
+        }
+        else if(day > 0 && (y_output_index % (params->display_dimension)) - (params->display_dimension - 1) == 0){
+          //INC3 - last column
+          printf("y_output_index = %d - inc3\n",y_output_index);
+          y_output[index][y_output_index] = y_output[index][y_output_index - 4];
+        }
         else{
           //Forth column onward
           const int y_index = (y_output_index - 3) % params->display_dimension;
@@ -487,10 +502,13 @@ void solve_ode_mcmc(double* y_d[], double* y_output_d[], GPU_Parameters* params)
     int index_gpu = threadIdx.x + blockIdx.x * blockDim.x;
     int stride = blockDim.x * gridDim.x;
 
+
     for(int index = index_gpu; index < NUMODE; index += stride)
     {
       for(int iter = 0; iter < 1; iter++){
         solve_ode(y_d, y_output_d, index, params);
+
+
 //        mcmc(y_output_d, index, params);
       }
     }
@@ -574,13 +592,13 @@ void GPU_RK45::run(){
         else{
             random_index = distr(gen);
         }
-//        printf("Display y_output_h[%d]\n",random_index);
-//        for(int index = 0; index < NUMDAYSOUTPUT * params->display_dimension; index++){
-//          printf("%.1f\t", y_output_h[random_index][index]);
-//          if(index > 0 && (index + 1) % params->display_dimension == 0){
-//            printf("\n");
-//          }
-//        }
+        printf("Display y_output_h[%d]\n",random_index);
+        for(int index = 0; index < NUMDAYSOUTPUT * params->display_dimension; index++){
+          printf("%.1f\t", y_output_h[random_index][index]);
+          if(index > 0 && (index + 1) % params->display_dimension == 0){
+            printf("\n");
+          }
+        }
     }
     stop = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
