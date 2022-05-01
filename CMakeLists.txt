@@ -32,8 +32,8 @@ add_executable(rk45_cuda
         src/gpu/gpu_func_test.cu
         src/gpu/gpu_rk45.cu
         src/gpu/gpu_rk45.h
-        src/mcmc/mcmc.cpp
-        src/mcmc/mcmc.h
+        src/csv/csv_data.cpp
+        src/csv/csv_data.h
         src/cpu/cpu_functions.cpp
         src/cpu/gsl_functions.cpp
         src/cpu/cpu_functions.h)

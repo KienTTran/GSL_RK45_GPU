@@ -98,7 +98,7 @@
 //        // add the recovery rate - NOTE only for I-classes
 //        f[ STARTI + NUMSEROTYPES*loc + vir ] += - gpu_params->v_d_i_nu * y[ STARTI + NUMSEROTYPES*loc + vir ];
 //    }
-//    if(index >= STARTS && index < gpu_params->dimension)
+//    if(index >= STARTS && index < gpu_params->ode_dimension)
 //    {
 //        unsigned int loc = index - STARTS;
 //        double foi_on_susc_all_viruses = 0.0;

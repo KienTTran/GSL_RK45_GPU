@@ -312,11 +312,12 @@ void rk45_gpu_step_apply(double t, double h, double y[], double y_err[], double 
 }
 
 __device__
-void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, double* y[], double* y_output[], int index, GPU_Parameters* params){
+void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, double* y[], double* y_output[], double* y_output_agg[], int index, GPU_Parameters* params){
     double device_y[DIM];
     double device_y_0[DIM];
     double device_y_err[DIM];
     double device_dydt_out[DIM];
+
     while(t < t_target)
     {
       double device_t;
@@ -331,9 +332,9 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
 
       int day = t;
 //      printf("day %d\t", day);
-//      for (int i = 0; i < params->dimension; i ++) {
+//      for (int i = 0; i < params->ode_dimension; i ++) {
 //        printf("y[%d][%d] = %.1f\t", index, i, y[index][i]);
-//        if(i == (params->dimension - 1)){
+//        if(i == (params->ode_dimension - 1)){
 //          printf("\n");
 //        }
 //      }
@@ -351,33 +352,45 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
 //          printf("Second day = %d index = %d i = %d y_output_index = %d y_output[%d][%d] = %.5f\n",
 //                 day, index, i, y_output_index, index, y_output_index, y_output[index][y_output_index]);
         }
-        else if(y_output_index % params->display_dimension == 2){
-          //Third column
-          y_output[index][y_output_index] = pop_sum(y[index]);
-//          printf("Third day = %d index = %d i = %d y_output_index = %d y_output[%d][%d] = %.5f\n",
-//                 day, index, i, y_output_index, index, y_output_index, y_output[index][y_output_index]);
-        }
-        else if(day > 0 && (y_output_index % (params->display_dimension)) - (params->display_dimension - 1) == -2){
-          //INC1 - last column -2
-          printf("y_output_index = %d - inc1\n",y_output_index);
-          y_output[index][y_output_index] = y_output[index][y_output_index - 4];
-        }
-        else if(day > 0 && (y_output_index % (params->display_dimension)) - (params->display_dimension - 1) == -1){
-          //INC2 - last column -1
-          printf("y_output_index = %d - inc2\n",y_output_index);
-          y_output[index][y_output_index] = y_output[index][y_output_index - 4];
-        }
-        else if(day > 0 && (y_output_index % (params->display_dimension)) - (params->display_dimension - 1) == 0){
-          //INC3 - last column
-          printf("y_output_index = %d - inc3\n",y_output_index);
-          y_output[index][y_output_index] = y_output[index][y_output_index - 4];
+        else if(y_output_index % params->display_dimension >= 2 && y_output_index % params->display_dimension < params->display_dimension - 1){
+          //Third column to column next to last column
+          const int y_index = (y_output_index - 2) % params->display_dimension;
+          y_output[index][y_output_index] = y[index][y_index];
+          //          printf("day = %d index = %d i = %d y_output_index = %d y[%d][%d] = y[%d][%d] = %.5f\n",
+          //                 day, index, i, y_output_index, index, y_output_index, index, y_index, y[index][y_index]);
         }
         else{
-          //Forth column onward
-          const int y_index = (y_output_index - 3) % params->display_dimension;
-          y_output[index][y_output_index] = y[index][y_index];
-//          printf("day = %d index = %d i = %d y_output_index = %d y[%d][%d] = y[%d][%d] = %.5f\n",
-//                 day, index, i, y_output_index, index, y_output_index, index, y_index, y[index][y_index]);
+          //Last column
+          y_output[index][y_output_index] = pop_sum(y[index]);
+          //          printf("Third day = %d index = %d i = %d y_output_index = %d y_output[%d][%d] = %.5f\n",
+          //                 day, index, i, y_output_index, index, y_output_index, y_output[index][y_output_index]);
+        }
+      }
+      /* AGG Output 1-6 */
+      for(int i = 0; i < params->agg_dimension; i++) {
+        const int y_output_agg_index = day * params->agg_dimension + i;
+        if(i < 3){
+          if(y_output_agg_index % params->agg_dimension == 0){
+            y_output_agg[index][y_output_agg_index] = y[index][params->ode_dimension - 4];
+          }
+          if(y_output_agg_index % params->agg_dimension == 1){
+            y_output_agg[index][y_output_agg_index] = y[index][params->ode_dimension - 3];
+          }
+          if(y_output_agg_index % params->agg_dimension == 2){
+            y_output_agg[index][y_output_agg_index] = y[index][params->ode_dimension - 2];
+          }
+        }
+        else if(i < 6){
+          const int y_output_agg_yesterday_index = (day - 1) * params->agg_dimension + i - 3;
+          if(y_output_agg_index % params->agg_dimension == 3){
+            y_output_agg[index][y_output_agg_index] = y[index][params->ode_dimension - 4] - y_output_agg[index][y_output_agg_yesterday_index];
+          }
+          if(y_output_agg_index % params->agg_dimension == 4){
+            y_output_agg[index][y_output_agg_index] = y[index][params->ode_dimension - 3] - y_output_agg[index][y_output_agg_yesterday_index];
+          }
+          if(y_output_agg_index % params->agg_dimension == 5){
+            y_output_agg[index][y_output_agg_index] = y[index][params->ode_dimension - 2] - y_output_agg[index][y_output_agg_yesterday_index];
+          }
         }
       }
 
@@ -392,7 +405,7 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
         //                    printf("    t = %.10f t_0 = %.10f  h = %.10f h_0 = %.10f dt = %.10f\n",device_t,device_t_0,device_h,device_h_0,device_dt);
         //                }
 
-        for (int i = 0; i < params->dimension; i ++){
+        for (int i = 0; i < params->ode_dimension; i ++){
           device_y[i] = y[index][i];
           device_y_0[i] = device_y[i];
         }
@@ -481,35 +494,169 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
 }
 
 __device__
-void solve_ode(double* y_d[], double* y_output_d[], int index, GPU_Parameters* params){
-    rk45_gpu_evolve_apply(params->t0, params->t_target, params->step, params->h, y_d, y_output_d, index, params);
+void solve_ode(double* y_ode_input_d[], double* y_ode_output_d[], double* y_ode_agg_d[], int index, GPU_Parameters* params){
+    rk45_gpu_evolve_apply(params->t0, params->t_target, params->step, params->h, y_ode_input_d, y_ode_output_d, y_ode_agg_d, index, params);
     return;
 }
 
 __device__
-void mcmc(double* y_output_d[], int index, GPU_Parameters* params){
-    for(int i = 0; i < NUMDAYSOUTPUT * params->display_dimension; i++){
-      printf("%.1f\t", y_output_d[index][i]);
-      if(i > 0 && (i + 1) % params->display_dimension == 0){
-        printf("\n");
-      }
-    }
-    return;
+double dnorm(const double x, double mean, double sd, bool use_log){
+  if(x == -9999){
+    return 0;
+  }
+  if(use_log){
+    return log((1 / (sqrtf(2 * M_PI)*sd)) * exp( -( (pow(( x - mean), 2)) / (2 * pow(sd, 2)) )));
+  }
+  else{
+    return (1 / (sqrtf(2 * M_PI)*sd)) * exp( -( (pow(( x - mean), 2)) / (2 * pow(sd, 2)) ));
+  }
 }
 
+__device__
+void dnorm2(int length, double x[], double y[], double mean, double sd, bool use_log){
+  for(int i = 0; i < length; i++){
+    y[i] = dnorm(x[i], mean, sd, use_log);
+//    printf("dnorm2 x[%d] = %.5f mean = %.5f y = %.5f\n", i, x[i], mean, y[i]);
+  }
+}
+
+__device__
+double dnorm2_sum(int length, double x[], double mean[], double sd, bool use_log){
+  double sum = 0.0;
+  for(int i = 0; i < length; i++){
+    double temp = dnorm(x[i], mean[i], sd, use_log);
+    sum += temp;
+//    printf("dnorm2_sum x[%d] = %.5f mean = %.5f y = %.5f sum = %.5f\n", i, x[i], mean[i], temp, sum);
+  }
+}
+
+__device__
+void dnorm3(int length, double x[], double y[], double mean[], double sd, bool use_log){
+  double y_temp[DATADIM_ROWS];
+  for(int i = 0; i < length; i++){
+    dnorm2(length, x, y_temp, mean[i], sd, use_log);
+    y[i] = y_temp[i];
+    //    printf("dnorm2 x[%d] = %.5f mean = %.5f y = %.5f\n", i, x[i], mean, y[i]);
+  }
+}
+
+__device__
+double dnorm3_sum(int length, double x[], double mean[], double sd, bool use_log){
+  double sum = 0.0;
+  double y_temp[DATADIM_ROWS];
+  for(int i = 0; i < length; i++){
+    dnorm2(length, x, y_temp, mean[i], sd, use_log);
+    sum += y_temp[i];
+//    printf("dnorm3_sum i = %d x = %.5f mean = %.5f y = %.5f sum = %.5f\n",i, x[i], mean[i], y_temp[i], sum);
+  }
+  return sum;
+}
+
+__device__
+void mcmc(double* y_data_input_d[], double* y_ode_agg_d[], int index, GPU_Parameters* params){
+    double data_h1[DATADIM_ROWS];
+    double data_b[DATADIM_ROWS];
+    double data_h3[DATADIM_ROWS];
+    double agg_mean_1[DATADIM_ROWS];
+    double agg_mean_2[DATADIM_ROWS];
+    double agg_mean_3[DATADIM_ROWS];
+    double agg_inc_by_week[DATADIM_COLS][DATADIM_ROWS];
+//    printf("DATA\n");
+    for(int i = 0; i < params->data_params.rows; i++){
+      const int data_index_0 = i*params->data_params.cols;
+      const int data_index_1 = i*params->data_params.cols + 1;
+      const int data_index_2 = i*params->data_params.cols + 2;
+      data_h1[i] = y_data_input_d[index][data_index_0];
+      data_b[i] = y_data_input_d[index][data_index_1];
+      data_h3[i] = y_data_input_d[index][data_index_2];
+//      printf("i = %d H1 = %.5f B = %.5f H3 = %.5f\n",i,y_data_input_d[index][data_index_0],y_data_input_d[index][data_index_1],y_data_input_d[index][data_index_2]);
+    }
+//    printf("AGG\n");
+//    for(int i = 0; i < NUMDAYSOUTPUT; i++){
+//      const int agg_index_0 = i*params->agg_dimension + 3;
+//      const int agg_index_1 = i*params->agg_dimension + 4;
+//      const int agg_index_2 = i*params->agg_dimension + 5;
+//      printf("day = %d agg_1 = %.1f agg_2 = %.1f agg_3 = %.1f\n",i,y_ode_agg_d[index][agg_index_0],y_ode_agg_d[index][agg_index_1],y_ode_agg_d[index][agg_index_2]);
+//    }
+    /* Calculate agg inc by week */
+    for (int i = 0; i < DATADIM_COLS; i++) {
+      for (int j = 0; j < DATADIM_ROWS; j++) {
+        agg_inc_by_week[i][j] = 0.0;
+      }
+    }
+    for(int day = 0; day < NUMDAYSOUTPUT; day++){
+      int week = __double2int_ru(day/7);
+      const int agg_index_0 = day*params->agg_dimension + 3;
+      const int agg_index_1 = day*params->agg_dimension + 4;
+      const int agg_index_2 = day*params->agg_dimension + 5;
+//      printf("day = %d week = %d agg_1 = %.5f agg_2 = %.5f agg_3 = %.5f\n", day, week, y_ode_agg_d[index][agg_index_0], y_ode_agg_d[index][agg_index_1], y_ode_agg_d[index][agg_index_2]);
+      agg_inc_by_week[0][week] += y_ode_agg_d[index][agg_index_0];
+      agg_inc_by_week[1][week] += y_ode_agg_d[index][agg_index_1];
+      agg_inc_by_week[2][week] += y_ode_agg_d[index][agg_index_2];
+//      printf("day = %d week = %d agg_1 = %.5f (%.5f) agg_2 = %.5f (%.5f) agg_3 = %.5f (%.5f)\n",
+//             day, week,
+//             y_ode_agg_d[index][agg_index_0], agg_inc_by_week[0][week],
+//             y_ode_agg_d[index][agg_index_1], agg_inc_by_week[1][week],
+//             y_ode_agg_d[index][agg_index_2], agg_inc_by_week[2][week]);
+//      if((day) > 0 && (day + 1) % 7 == 0) printf("\n");
+    }
+//    for(int i = 0; i < DATADIM_ROWS; i++){
+//      printf("i = %d agg_inc_by_week_1 = %.5f agg_inc_by_week_2 = %.5f agg_inc_by_week_3 = %.5f\n", i, agg_inc_by_week[0][i], agg_inc_by_week[1][i], agg_inc_by_week[2][i]);
+//    }
+//    /* Find agg inc max */
+    double agg_inc_max[3] = {0,0,0};
+    for(int i = 0; i < DATADIM_COLS; i++){
+      for (int j = 0; j < DATADIM_ROWS; j++) {
+        if(agg_inc_by_week[i][j] >= agg_inc_max[i]) agg_inc_max[i] = agg_inc_by_week[i][j];
+      }
+    }
+//    printf("agg_inc_max_1 = %.1f agg_inc_max_2 = %.1f agg_inc_max_3 = %.1f\n",agg_inc_max[0],agg_inc_max[1],agg_inc_max[2]);
+//
+    for (int i = 0; i < DATADIM_ROWS; i++) {
+      agg_mean_1[i] = agg_inc_by_week[0][i]/agg_inc_max[0];
+      agg_mean_2[i] = agg_inc_by_week[0][i]/agg_inc_max[1];
+      agg_mean_3[i] = agg_inc_by_week[0][i]/agg_inc_max[2];
+    }
+//    for(int i = 0; i < DATADIM_ROWS; i++) {
+//      printf("i = %d agg_mean_1 = %.5f agg_mean_2 = %.5f agg_mean_3 = %.5f\n",i,
+//             agg_mean_1[i], agg_mean_2[i], agg_mean_3[i]);
+//    }
+//    double x[6] = {1,2,3,4,5,6};
+//    double y[6] = {0,0,0,0,0,0};
+//    double mean[6] = {0,1,2,3,4,5};
+//    double sd = 0.25;
+//    dnorm2(6,x,y,mean,sd,true);
+//    for(int i = 0; i < 6; i++){
+//      printf("x[%d] = %.5f y = %.5f\n", i, x[i], y[i]);
+//    }
+//    dnorm2(DATADIM_ROWS, data_h1, dnorm_inc_1, agg_mean_1, 0.25, true);
+//    double sum_1 = dnorm3_sum(DATADIM_ROWS, data_h1, agg_mean_1, 0.25, true);
+//    double sum_2 = dnorm3_sum(DATADIM_ROWS, data_b, agg_mean_2, 0.25, true);
+//    double sum_3 = dnorm3_sum(DATADIM_ROWS, data_h3, agg_mean_3, 0.25, true);
+    double sum_1 = dnorm2_sum(DATADIM_ROWS, data_h1, agg_mean_1, 0.25, true);
+    double sum_2 = dnorm2_sum(DATADIM_ROWS, data_b, agg_mean_2, 0.25, true);
+    double sum_3 = dnorm2_sum(DATADIM_ROWS, data_h3, agg_mean_3, 0.25, true);
+    double r_denom = sum_1 + sum_2 + sum_3;
+    printf("sum_1 = %.5f sum_2 = %.5f sum_3 = %.5f R denom = %.5f\n",sum_1,sum_2,sum_3,r_denom);
+
+//    printf("dnorm_inc_1\n");
+//    for(int i = 0; i < DATADIM_ROWS; i++){
+//      printf("y_data_input_d[%d] = %.5f mean = %.5f dnorm_inc_1 = %.5f\n", i, y_data_input_d[index][i], agg_mean[0][i], dnorm_inc_1[i]);
+//    }
+
+    return;
+}
 __global__
-void solve_ode_mcmc(double* y_d[], double* y_output_d[], GPU_Parameters* params){
+void solve_ode_mcmc(double* y_ode_input_d[], double* y_data_input_d[], double* y_ode_output_d[], double* y_ode_agg_d[], GPU_Parameters* params){
     int index_gpu = threadIdx.x + blockIdx.x * blockDim.x;
     int stride = blockDim.x * gridDim.x;
 
-
     for(int index = index_gpu; index < NUMODE; index += stride)
     {
-      for(int iter = 0; iter < 1; iter++){
-        solve_ode(y_d, y_output_d, index, params);
-
-
-//        mcmc(y_output_d, index, params);
+      for(int iter = 0; iter < 30; iter++){
+        printf("iter %d\n",iter);
+        solve_ode(y_ode_input_d, y_ode_output_d, y_ode_agg_d, index, params);
+        mcmc(y_data_input_d, y_ode_agg_d, index, params);
       }
     }
     return;
@@ -524,26 +671,49 @@ void GPU_RK45::run(){
     printf("[GSL GPU] block_size = %d num_blocks = %d\n",params->block_size,params->num_blocks);
 
     auto start = std::chrono::high_resolution_clock::now();
-    double **y_d = 0;
+    double **y_ode_input_d = 0;
     //temp pointers
     double **tmp_ptr = (double**)malloc (NUMODE * sizeof (double));
     for (int i = 0; i < NUMODE; i++) {
-        checkCuda(cudaMalloc ((void **)&tmp_ptr[i], params->dimension * sizeof (double)));
-        checkCuda(cudaMemcpy(tmp_ptr[i], params->y[i], params->dimension * sizeof(double), cudaMemcpyHostToDevice));
+        checkCuda(cudaMalloc ((void **)&tmp_ptr[i], params->ode_dimension * sizeof (double)));
+        checkCuda(cudaMemcpy(tmp_ptr[i], params->y_ode_input[i], params->ode_dimension * sizeof(double), cudaMemcpyHostToDevice));
     }
-    //y_d
-    checkCuda(cudaMalloc ((void **)&y_d, NUMODE * sizeof (double)));
-    checkCuda(cudaMemcpy (y_d, tmp_ptr, NUMODE * sizeof (double), cudaMemcpyHostToDevice));
+    //y_ode_input_d
+    checkCuda(cudaMalloc ((void **)&y_ode_input_d, NUMODE * sizeof (double)));
+    checkCuda(cudaMemcpy (y_ode_input_d, tmp_ptr, NUMODE * sizeof (double), cudaMemcpyHostToDevice));
 
-    double **y_output_d = 0;
+    double **y_ode_output_d = 0;
     //temp pointers
+    tmp_ptr = (double**)malloc (NUMODE * sizeof (double));
     for (int i = 0; i < NUMODE; i++) {
       checkCuda(cudaMalloc ((void **)&tmp_ptr[i], NUMDAYSOUTPUT * params->display_dimension * sizeof (double)));
-      checkCuda(cudaMemcpy(tmp_ptr[i], params->y_output[i], NUMDAYSOUTPUT * params->display_dimension * sizeof(double), cudaMemcpyHostToDevice));
+      checkCuda(cudaMemcpy(tmp_ptr[i], params->y_ode_output[i], NUMDAYSOUTPUT * params->display_dimension * sizeof(double), cudaMemcpyHostToDevice));
     }
-    //y_output_d
-    checkCuda(cudaMalloc ((void **)&y_output_d, NUMODE * sizeof (double)));
-    checkCuda(cudaMemcpy (y_output_d, tmp_ptr, NUMODE * sizeof (double), cudaMemcpyHostToDevice));
+    //y_ode_output_d
+    checkCuda(cudaMalloc ((void **)&y_ode_output_d, NUMODE * sizeof (double)));
+    checkCuda(cudaMemcpy (y_ode_output_d, tmp_ptr, NUMODE * sizeof (double), cudaMemcpyHostToDevice));
+
+    double **y_data_input_d = 0;
+    //temp pointers
+    tmp_ptr = (double**)malloc (NUMODE * sizeof (double));
+    for (int i = 0; i < NUMODE; i++) {
+      checkCuda(cudaMalloc ((void **)&tmp_ptr[i], params->data_dimension * sizeof (double)));
+      checkCuda(cudaMemcpy(tmp_ptr[i], params->y_data_input[i], params->data_dimension * sizeof(double), cudaMemcpyHostToDevice));
+    }
+    //y_data_input_d
+    checkCuda(cudaMalloc ((void **)&y_data_input_d, NUMODE * sizeof (double)));
+    checkCuda(cudaMemcpy (y_data_input_d, tmp_ptr, NUMODE * sizeof (double), cudaMemcpyHostToDevice));
+
+    double **y_ode_agg_d = 0;
+    //temp pointers
+    tmp_ptr = (double**)malloc (NUMODE * sizeof (double));
+    for (int i = 0; i < NUMODE; i++) {
+      checkCuda(cudaMalloc ((void **)&tmp_ptr[i], NUMDAYSOUTPUT * params->agg_dimension * sizeof (double)));
+      checkCuda(cudaMemcpy(tmp_ptr[i], params->y_ode_agg[i], NUMDAYSOUTPUT * params->agg_dimension * sizeof(double), cudaMemcpyHostToDevice));
+    }
+    //y_ode_agg_d
+    checkCuda(cudaMalloc ((void **)&y_ode_agg_d, NUMODE * sizeof (double)));
+    checkCuda(cudaMemcpy (y_ode_agg_d, tmp_ptr, NUMODE * sizeof (double), cudaMemcpyHostToDevice));
 
     //params_d
     GPU_Parameters* params_d;
@@ -556,7 +726,7 @@ void GPU_RK45::run(){
 
     start = std::chrono::high_resolution_clock::now();
 //    cudaProfilerStart();
-    solve_ode_mcmc<<<params->num_blocks, params->block_size>>>(y_d, y_output_d, params_d);
+    solve_ode_mcmc<<<params->num_blocks, params->block_size>>>(y_ode_input_d, y_data_input_d, y_ode_output_d, y_ode_agg_d,params_d);
 
 //    cudaProfilerStop();
     checkCuda(cudaDeviceSynchronize());
@@ -565,14 +735,25 @@ void GPU_RK45::run(){
     printf("[GSL GPU] Time for calculating %d ODE with %d parameters on GPU: %ld micro seconds which is %.10f seconds\n",NUMODE,DIM,duration.count(),(duration.count()/1e6));
 
     start = std::chrono::high_resolution_clock::now();
+    //y_ode_output_h
     tmp_ptr = (double**)malloc (NUMODE * sizeof (double));
-    double** y_output_h = (double**)malloc (NUMODE * sizeof (double));
+    double** y_ode_output_h = (double**)malloc (NUMODE * sizeof (double));
     for (int i = 0; i < NUMODE; i++) {
-      y_output_h[i] = (double *)malloc (NUMDAYSOUTPUT * params->display_dimension * sizeof (double));
+      y_ode_output_h[i] = (double *)malloc (NUMDAYSOUTPUT * params->display_dimension * sizeof (double));
     }
-    checkCuda(cudaMemcpy (tmp_ptr, y_output_d, NUMODE * sizeof (double), cudaMemcpyDeviceToHost));
+    checkCuda(cudaMemcpy (tmp_ptr, y_ode_output_d, NUMODE * sizeof (double), cudaMemcpyDeviceToHost));
     for (int i = 0; i < NUMODE; i++) {
-        checkCuda(cudaMemcpy (y_output_h[i], tmp_ptr[i], NUMDAYSOUTPUT * params->display_dimension * sizeof (double), cudaMemcpyDeviceToHost));
+        checkCuda(cudaMemcpy (y_ode_output_h[i], tmp_ptr[i], NUMDAYSOUTPUT * params->display_dimension * sizeof (double), cudaMemcpyDeviceToHost));
+    }
+    //y_output_mcmc_h
+    tmp_ptr = (double**)malloc (NUMODE * sizeof (double));
+    double** y_output_agg_h = (double**)malloc (NUMODE * sizeof (double));
+    for (int i = 0; i < NUMODE; i++) {
+      y_output_agg_h[i] = (double *)malloc (NUMDAYSOUTPUT * params->agg_dimension * sizeof (double));
+    }
+    checkCuda(cudaMemcpy (tmp_ptr, y_ode_agg_d, NUMODE * sizeof (double), cudaMemcpyDeviceToHost));
+    for (int i = 0; i < NUMODE; i++) {
+      checkCuda(cudaMemcpy (y_output_agg_h[i], tmp_ptr[i], NUMDAYSOUTPUT * params->agg_dimension * sizeof (double), cudaMemcpyDeviceToHost));
     }
     checkCuda(cudaDeviceSynchronize());
     stop = std::chrono::high_resolution_clock::now();
@@ -592,19 +773,29 @@ void GPU_RK45::run(){
         else{
             random_index = distr(gen);
         }
-        printf("Display y_output_h[%d]\n",random_index);
-        for(int index = 0; index < NUMDAYSOUTPUT * params->display_dimension; index++){
-          printf("%.1f\t", y_output_h[random_index][index]);
-          if(index > 0 && (index + 1) % params->display_dimension == 0){
-            printf("\n");
-          }
-        }
+//        printf("Display y_ode_output_h[%d]\n",random_index);
+//        for(int index = 0; index < NUMDAYSOUTPUT * params->display_dimension; index++){
+//          printf("%.1f\t", y_ode_output_h[random_index][index]);
+//          if(index > 0 && (index + 1) % params->display_dimension == 0){
+//            printf("\n");
+//          }
+//        }
+//        printf("Display y_output_agg_h[%d]\n",random_index);
+//        for(int index = 0; index < NUMDAYSOUTPUT * params->agg_dimension; index++){
+//          printf("%.1f\t", y_output_agg_h[random_index][index]);
+//          if(index > 0 && (index + 1) % params->agg_dimension == 0){
+//            printf("\n");
+//          }
+//        }
     }
     stop = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
     printf("[GSL GPU] Time for display random results on CPU: %ld micro seconds which is %.10f seconds\n",duration.count(),(duration.count()/1e6));
     printf("\n");
     // Free memory
-    checkCuda(cudaFree(y_d));
+    checkCuda(cudaFree(y_ode_input_d));
+    checkCuda(cudaFree(y_ode_output_d));
+    checkCuda(cudaFree(y_ode_agg_d));
+    checkCuda(cudaFree(y_data_input_d));
     return;
 }

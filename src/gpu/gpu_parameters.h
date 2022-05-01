@@ -10,6 +10,12 @@
 #include <thrust/device_malloc.h>
 #include <thrust/device_free.h>
 #include "../flu_default_params.h"
+#include "../csv/csv_data.h"
+
+struct DataParameters{
+  int cols;
+  int rows;
+};
 
 class GPU_Parameters {
 public:
@@ -18,15 +24,20 @@ public:
     int num_blocks;
     int block_size;
     int number_of_ode;
-    int dimension;
+    int ode_dimension;
     int display_dimension;
+    int agg_dimension;
+    int data_dimension;
+    DataParameters data_params;
     int display_number;
     double t_target;
     double t0;
     double h;
     double step;
-    double** y;
-    double** y_output;
+    double** y_ode_input;
+    double** y_data_input;
+    double** y_ode_output;
+    double** y_ode_agg;
     bool isFloat( std::string myString);
     void initFlu(int argc, char **argv);
     void initPen();

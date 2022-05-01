@@ -7,7 +7,7 @@
 #include "../flu_default_params.h"
 
 GPU_Parameters::GPU_Parameters(){
-    dimension = 0;
+    ode_dimension = 0;
     number_of_ode = 0;
     t_target = 0.0;
     t0 = 0.0;
@@ -17,7 +17,7 @@ GPU_Parameters::GPU_Parameters(){
 }
 
 GPU_Parameters::~GPU_Parameters(){
-    dimension = 0;
+    ode_dimension = 0;
     number_of_ode = 0;
     t_target = 0.0;
     t0 = 0.0;
@@ -35,28 +35,46 @@ bool GPU_Parameters::isFloat( std::string myString ) {
 }
 
 void GPU_Parameters::initTest(int argc, char **argv){
-    y = new double*[NUMODE]();
+  y_ode_input = new double*[NUMODE]();
     for (int i = 0; i < NUMODE; i++) {
-      y[i] = new double[dimension];
+      y_ode_input[i] = new double[ode_dimension];
     }
     for (int i = 0; i < NUMODE; i++) {
-      for (int j = 0; j < dimension; j++) {
-        y[i][j] = 0.5;
+      for (int j = 0; j < ode_dimension; j++) {
+        y_ode_input[i][j] = 0.5;
       }
     }
-
-    display_dimension = dimension + 3 + 3;//3 for 0,1,2 columns, 3 for INC,INC2,INC3
-    y_output = new double*[NUMODE]();
+    CSV_Data* csv_data = new CSV_Data();
+    csv_data->read_csv_data();
+    data_dimension = csv_data->get_params().cols * csv_data->get_params().rows;
+    data_params.cols = csv_data->get_params().cols;
+    data_params.rows = csv_data->get_params().rows;
+    y_data_input = new double*[NUMODE]();
     for (int i = 0; i < NUMODE; i++) {
-      y_output[i] = new double[NUMDAYSOUTPUT * display_dimension];
+      y_data_input[i] = new double[data_dimension];
+    }
+    csv_data->load_csv_data(NUMODE, y_data_input);
+    display_dimension = ode_dimension + 3;//3 for 0,1,2 columns
+    y_ode_output = new double*[NUMODE]();
+    for (int i = 0; i < NUMODE; i++) {
+      y_ode_output[i] = new double[NUMDAYSOUTPUT * display_dimension];
     }
     for (int i = 0; i < NUMODE; i++) {
       for (int j = 0; j < NUMDAYSOUTPUT * display_dimension; j++) {
-        y_output[i][j] = -(j * 1.0);
+        y_ode_output[i][j] = -(j * 1.0);
+      }
+    }
+    y_ode_agg = new double*[NUMODE]();
+    for (int i = 0; i < NUMODE; i++) {
+      y_ode_agg[i] = new double[NUMDAYSOUTPUT * agg_dimension];
+    }
+    for (int i = 0; i < NUMODE; i++) {
+      for (int j = 0; j < NUMDAYSOUTPUT * agg_dimension; j++) {
+        y_ode_agg[i][j] = 0.0;
       }
     }
     printf("ODE numbers = %d\n",NUMODE);
-    printf("1 ODE parameters = %d\n", dimension);
+    printf("1 ODE parameters = %d\n", ode_dimension);
     printf("1 ODE lines = %d\n", NUMDAYSOUTPUT);
     printf("Display dimension = %d\n",display_dimension);
     printf("Total display dimension = %d x %d x %d = %d\n",NUMODE, NUMDAYSOUTPUT, display_dimension, NUMODE * NUMDAYSOUTPUT * display_dimension);
@@ -236,7 +254,7 @@ void GPU_Parameters::initTest(int argc, char **argv){
       for(int loc=0; loc<NUMLOC; loc++)
       {
         // put half of the individuals in the susceptible class
-        y[i][ STARTS + loc ] = 0.5 * N[loc];
+        y_ode_input[i][ STARTS + loc ] = 0.5 * N[loc];
 
         // put small number (but slightly different amounts each time) of individuals into the infected classes
         // double r = rand() % 50 + 10;
@@ -255,8 +273,8 @@ void GPU_Parameters::initTest(int argc, char **argv){
           // fprintf(stderr, "r = %1.4f, x = %1.6f", r, x);
 
           sumx += x;
-          y[i][ STARTI + NUMSEROTYPES*loc + vir ] = x * N[loc];
-          y[i][ STARTJ + NUMSEROTYPES*loc + vir ] = 0.0;     // initialize all of the J-variables to zero
+          y_ode_input[i][ STARTI + NUMSEROTYPES*loc + vir ] = x * N[loc];
+          y_ode_input[i][ STARTJ + NUMSEROTYPES*loc + vir ] = 0.0;     // initialize all of the J-variables to zero
 
           x += 0.001;
         }
@@ -268,7 +286,7 @@ void GPU_Parameters::initTest(int argc, char **argv){
           double z = (0.5 - sumx)/((double)NUMR*NUMSEROTYPES);  // this is the remaining fraction of individuals to be distributed
           for(int stg=0; stg<NUMR; stg++)
           {
-            y[i][ NUMSEROTYPES*NUMR*loc + NUMR*vir + stg ] = z * N[loc];
+            y_ode_input[i][ NUMSEROTYPES*NUMR*loc + NUMR*vir + stg ] = z * N[loc];
           }
         }
       }
