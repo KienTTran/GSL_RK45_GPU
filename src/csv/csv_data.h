@@ -4,13 +4,7 @@
 
 #ifndef RK45_CUDA_CSV_Data_H
 #define RK45_CUDA_CSV_Data_H
-#include <DataFrame/DataFrame.h>  // Main DataFrame header
-#include <DataFrame/DataFrameStatsVisitors.h>
-#define STATS_GO_INLINE
-#include "../lib/stats/include/stats.hpp"
 #include "../flu_default_params.h"
-
-using DataFrame = hmdf::StdDataFrame<unsigned long>;
 
 struct Parameters{
   int cols;
@@ -28,7 +22,6 @@ public:
   std::vector<std::string> split_string(const std::string &s, char delim);
   void test();
 public:
-  DataFrame csv_dataframe;
   Parameters csv_params;
   double csv_data[DATADIM_ROWS][DATADIM_COLS];
 };

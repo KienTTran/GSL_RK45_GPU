@@ -5,12 +5,10 @@ set(BUILD_CLUSTER false CACHE BOOL "Enable for builds on the cluster")
 
 if(UNIX)
     include_directories("/usr/local/cuda/include/")
-    include_directories("lib/stats/include/")
     #CMake projects should use: -DCMAKE_CUDA_COMPILER:PATH=/usr/local/cuda/bin/nvcc
     #CMake projects should use: -DCMAKE_TOOLCHAIN_FILE="/mnt/d/BoniLab/vcpkg/scripts/buildsystems/vcpkg.cmake"
     set(CMAKE_TOOLCHAIN_FILE "/mnt/d/BoniLab/vcpkg/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
 else(WIN32)
-    include_directories("lib\\stats\\include\\")
     #CMake projects should use: -DCMAKE_TOOLCHAIN_FILE="D:/BoniLab/vcpkg/scripts/buildsystems/vcpkg.cmake"
     set(CMAKE_TOOLCHAIN_FILE "D:/BoniLab/vcpkg/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
     include_directories("E:\\SDK\\CUDA\\11.5\\Toolkit\\include\\")
@@ -18,8 +16,6 @@ else(WIN32)
 endif()
 
 find_package(GSL REQUIRED)
-find_package(DataFrame REQUIRED)
-find_package(gcem CONFIG REQUIRED)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -74,5 +70,3 @@ else()
 endif()
 
 target_link_libraries(rk45_cuda PRIVATE GSL::gsl GSL::gslcblas) #vcpkg
-target_link_libraries(rk45_cuda PRIVATE DataFrame::DataFrame)
-target_link_libraries(rk45_cuda PRIVATE gcem)

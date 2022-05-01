@@ -646,6 +646,31 @@ void mcmc(double* y_data_input_d[], double* y_ode_agg_d[], int index, GPU_Parame
 
     return;
 }
+
+__global__
+void solve_ode(double* y_ode_input_d[], double* y_ode_output_d[], double* y_ode_agg_d[], GPU_Parameters* params){
+  int index_gpu = threadIdx.x + blockIdx.x * blockDim.x;
+  int stride = blockDim.x * gridDim.x;
+
+  for(int index = index_gpu; index < NUMODE; index += stride)
+  {
+    solve_ode(y_ode_input_d, y_ode_output_d, y_ode_agg_d, index, params);
+  }
+  return;
+}
+
+__global__
+void mcmc(double* y_data_input_d[], double* y_ode_agg_d[], GPU_Parameters* params){
+  int index_gpu = threadIdx.x + blockIdx.x * blockDim.x;
+  int stride = blockDim.x * gridDim.x;
+
+  for(int index = index_gpu; index < NUMODE; index += stride)
+  {
+    mcmc(y_data_input_d, y_ode_agg_d, index, params);
+  }
+  return;
+}
+
 __global__
 void solve_ode_mcmc(double* y_ode_input_d[], double* y_data_input_d[], double* y_ode_output_d[], double* y_ode_agg_d[], GPU_Parameters* params){
     int index_gpu = threadIdx.x + blockIdx.x * blockDim.x;
@@ -653,11 +678,11 @@ void solve_ode_mcmc(double* y_ode_input_d[], double* y_data_input_d[], double* y
 
     for(int index = index_gpu; index < NUMODE; index += stride)
     {
-      for(int iter = 0; iter < 30; iter++){
-        printf("iter %d\n",iter);
+//      for(int iter = 0; iter < 100; iter++){
+//        printf("iter %d\n",iter);
         solve_ode(y_ode_input_d, y_ode_output_d, y_ode_agg_d, index, params);
         mcmc(y_data_input_d, y_ode_agg_d, index, params);
-      }
+//      }
     }
     return;
 }
@@ -726,7 +751,15 @@ void GPU_RK45::run(){
 
     start = std::chrono::high_resolution_clock::now();
 //    cudaProfilerStart();
-    solve_ode_mcmc<<<params->num_blocks, params->block_size>>>(y_ode_input_d, y_data_input_d, y_ode_output_d, y_ode_agg_d,params_d);
+    for(int iter = 0; iter < 100; iter++) {
+//      solve_ode_mcmc<<<params->num_blocks, params->block_size>>>(
+//          y_ode_input_d, y_data_input_d, y_ode_output_d, y_ode_agg_d, params_d);
+      solve_ode<<<params->num_blocks, params->block_size>>>(
+          y_ode_input_d, y_ode_output_d, y_ode_agg_d, params_d);
+      mcmc<<<params->num_blocks, params->block_size>>>(
+          y_data_input_d, y_ode_agg_d, params_d);
+      printf("iter %d\n",iter);
+    }
 
 //    cudaProfilerStop();
     checkCuda(cudaDeviceSynchronize());
@@ -797,5 +830,9 @@ void GPU_RK45::run(){
     checkCuda(cudaFree(y_ode_output_d));
     checkCuda(cudaFree(y_ode_agg_d));
     checkCuda(cudaFree(y_data_input_d));
+    checkCuda(cudaFree(params_d));
+    delete params;
+    delete y_ode_output_h;
+    delete y_output_agg_h;
     return;
 }
