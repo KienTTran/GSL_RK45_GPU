@@ -32,7 +32,7 @@ add_executable(rk45_cuda
         src/csv/csv_data.h
         src/cpu/cpu_functions.cpp
         src/cpu/gsl_functions.cpp
-        src/cpu/cpu_functions.h)
+        src/cpu/cpu_functions.h src/gpu/gpu_reduce.cu)
 
 set_target_properties(
         rk45_cuda

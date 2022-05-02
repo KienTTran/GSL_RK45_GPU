@@ -54,6 +54,7 @@ void GPU_Parameters::initTest(int argc, char **argv){
       y_data_input[i] = new double[data_dimension];
     }
     csv_data->load_csv_data(NUMODE, y_data_input);
+
     display_dimension = ode_dimension + 3;//3 for 0,1,2 columns
     y_ode_output = new double*[NUMODE]();
     for (int i = 0; i < NUMODE; i++) {
@@ -70,7 +71,7 @@ void GPU_Parameters::initTest(int argc, char **argv){
     }
     for (int i = 0; i < NUMODE; i++) {
       for (int j = 0; j < NUMDAYSOUTPUT * agg_dimension; j++) {
-        y_ode_agg[i][j] = 0.0;
+        y_ode_agg[i][j] = -9999.0;
       }
     }
     printf("ODE numbers = %d\n",NUMODE);
