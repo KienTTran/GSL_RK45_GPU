@@ -5,22 +5,44 @@
 #ifndef RK45_CUDA_GPU_PARAMETERS_H
 #define RK45_CUDA_GPU_PARAMETERS_H
 #include <cuda_runtime.h>
+#include <cuda_runtime_api.h>
+#include <cuda_profiler_api.h>
+#include "device_launch_parameters.h"
+#include <curand_kernel.h>
+#include <curand.h>
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
-#include <thrust/device_malloc.h>
-#include <thrust/device_free.h>
+#include <random>
+#include <iostream>
+#include <chrono>
 #include "../flu_default_params.h"
 #include "../csv/csv_data.h"
 
-struct DataParameters{
-  int cols;
-  int rows;
+struct Parameters{
+    double N = 1e6; //  Total population size
+    double Na = 0.8 * 1e6; //  Subpopulation 1 (not used)
+    double Nb = 0.2 * 1e6; //  Subpopulation 2 (not used)
+    double beta_H1 = 0.24; //  transmission for Flu A/H1
+    double beta_B = 0.22; //  transmission for Flu B
+    double beta_H3 = 0.26; //  transmission for Flu A/H3
+    double nu_denom = 5; //  Duration of infection in days
+    double amp = 0.07; //  Quantity of increase in betas during eidemic times
+    double rho_denom = 730; //  Duration of immunity after infection in days
+    double sigma12 = 0.75; //  Cross protection between H1 and B
+    double sigma13 = 0.50; //  Cross protection between H1 and H3
+    double sigma23 = 0.75; //  Cross protection between B and H3
+    double etaab = 0.01; //  Movement between subpopulations (not used)
+    double etaba = 0.05; //  Movement between subpopulations (not used)
+    std::vector<double> phi; //  Timing (in days) of first epidemic peak
+    double phi_0 = 175; //  Timing (in days) of first epidemic peak
+    std::vector<double> tau = {270, 420, 330, 280, 440, 300, 250, 330, 400};
+    double epidur = 60; //  Duration of increased transmmission around each peak
 };
 
-class GPU_Parameters {
+class GPUParameters {
 public:
-    explicit GPU_Parameters();
-    ~GPU_Parameters();
+    explicit GPUParameters();
+    ~GPUParameters();
     int num_blocks;
     int block_size;
     int number_of_ode;
@@ -28,7 +50,10 @@ public:
     int display_dimension;
     int agg_dimension;
     int data_dimension;
-    DataParameters data_params;
+    CSVParameters data_params;
+    Parameters default_prams;
+    Parameters current_params;
+    Parameters new_params;
     int display_number;
     double t_target;
     double t0;
@@ -38,10 +63,6 @@ public:
     double** y_data_input;
     double** y_ode_output;
     double** y_ode_agg;
-    bool isFloat( std::string myString);
-    void initFlu(int argc, char **argv);
-    void initPen();
-    void initTest(int argc, char **argv);
     double seasonal_transmission_factor(double t);
     double sum_foi_sbe[NUMLOC * NUMSEROTYPES * NUMR * NUMLOC * NUMSEROTYPES];
     int sum_foi_y_index[NUMLOC * NUMSEROTYPES * NUMR * NUMLOC * NUMSEROTYPES];
@@ -50,6 +71,10 @@ public:
     int inflow_from_recovereds_y2_index[NUMLOC*NUMSEROTYPES*NUMLOC*NUMSEROTYPES*NUMR];
     double foi_on_susc_all_viruses_eb [NUMLOC*NUMLOC*NUMSEROTYPES];
     int foi_on_susc_all_viruses_y_index [NUMLOC*NUMLOC*NUMSEROTYPES];
+
+    bool is_float( std::string myString);
+    void init();
+    void init_from_cmd(int argc, char **argv);
 
     //from Flu
     std::vector<double> v;           // this holds some of the parameters -- they are indexed by the enums above

@@ -71,6 +71,6 @@ void CSV_Data::load_csv_data(int numode, double* y[]){
   }
 }
 
-Parameters CSV_Data::get_params(){
+CSVParameters CSV_Data::get_params(){
   return csv_params;
 }

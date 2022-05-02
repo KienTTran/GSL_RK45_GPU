@@ -1,32 +1,9 @@
 //
 // Created by kient on 5/1/2022.
 //
-#include "gpu_rk45.h"
-#include <cmath>
-#include "cuda_runtime.h"
-#include "device_launch_parameters.h"
+#include "gpu_ode_mcmc.h"
 
 static const int NUM_ELEMENTS = 512;
-
-//__global__
-//void reduce_sum(double *input, double *output, int len) {
-//    int index = threadIdx.x + blockIdx.x*blockDim.x;
-//    const int gridSize = blockDim.x*gridDim.x;
-//    int parallelsum = 0;
-//    for (int i = index; i < arraySize; i += gridSize)
-//        parallelsum += input[i];
-//    __shared__ double data[NUM_ELEMENTS];
-//    data[threadIdx.x] = parallelsum;
-//    __syncthreads();
-//    for (int size = blockDim.x/2; size>0; size/=2) {
-//        if (threadIdx.x<size)
-//            data[threadIdx.x] += data[threadIdx.x+size];
-//        __syncthreads();
-//    }
-//    if (threadIdx.x == 0) {
-//        output[blockIdx.x] = data[0];
-//    }
-//}
 
 __global__
 void reduce_sum(double *input, double* output, int len)
@@ -48,7 +25,7 @@ void reduce_sum(double *input, double* output, int len)
     }
 
     if (tid == 0){
-        printf("sum = %.5f\n",s_data[tid]);
+//        printf("sum = %.5f\n",s_data[tid]);
         output[blockIdx.x] = s_data[tid];
     }
 }

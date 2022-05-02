@@ -1,5 +1,5 @@
 #include <cuda_runtime.h>
-#include "gpu_rk45.h"
+#include "gpu_ode_mcmc.h"
 
 //__device__
 //void gpu_func_test(double t, const double y[], double f[], int index, GPU_Parameters* gpu_params){
@@ -132,7 +132,7 @@
 //}
 
 __device__
-void gpu_func_test(double t, const double y[], double f[], int index, GPU_Parameters* gpu_params){
+void gpu_func_test(double t, const double y[], double f[], int index, GPUParameters* gpu_params){
     // everything will be indexed by location (loc), the infecting subtype/serotype (vir), and the stage of recovery (stg) in the R-classes
     int loc, vir, stg;
 

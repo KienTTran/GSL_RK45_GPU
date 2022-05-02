@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.18)
-project(rk45_cuda LANGUAGES CXX CUDA)
+project(gpu_flu LANGUAGES CXX CUDA)
 
 set(BUILD_CLUSTER false CACHE BOOL "Enable for builds on the cluster")
 
@@ -20,28 +20,28 @@ find_package(GSL REQUIRED)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_executable(rk45_cuda
+add_executable(gpu_flu
         src/main.cpp
         src/flu_default_params.h
-        src/gpu/gpu_parameters.cpp
+        src/gpu/gpu_parameters.cu
         src/gpu/gpu_parameters.h
         src/gpu/gpu_func_test.cu
-        src/gpu/gpu_rk45.cu
-        src/gpu/gpu_rk45.h
+        src/gpu/gpu_ode_mcmc.cu
+        src/gpu/gpu_ode_mcmc.h
         src/csv/csv_data.cpp
         src/csv/csv_data.h
         src/cpu/cpu_functions.cpp
         src/cpu/gsl_functions.cpp
-        src/cpu/cpu_functions.h src/gpu/gpu_reduce.cu)
+        src/cpu/cpu_functions.h src/gpu/gpu_reduce.cu src/gpu/gpu_ode.cu src/gpu/gpu_mcmc.cu)
 
 set_target_properties(
-        rk45_cuda
+        gpu_flu
         PROPERTIES
         CUDA_SEPARABLE_COMPILATION ON)
 
 if(BUILD_CLUSTER)
 else()
-    #    target_compile_options(rk45_cuda PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
+    #    target_compile_options(gpu_flu PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
     ##            --generate-line-info
     #            --use_fast_math
     #            -ftz=false
@@ -54,7 +54,7 @@ else()
     #            -maxrregcount=255
     #            --ptxas-options=-v
     #            >)
-    target_compile_options(rk45_cuda PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
+    target_compile_options(gpu_flu PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
             #            --generate-line-info
             --use_fast_math
             --relocatable-device-code=true
@@ -64,9 +64,9 @@ else()
 endif()
 
 if (BUILD_CLUSTER)
-    set_target_properties(rk45_cuda PROPERTIES CUDA_ARCHITECTURES 37)
+    set_target_properties(gpu_flu PROPERTIES CUDA_ARCHITECTURES 37)
 else()
-    set_target_properties(rk45_cuda PROPERTIES CUDA_ARCHITECTURES 52)
+    set_target_properties(gpu_flu PROPERTIES CUDA_ARCHITECTURES 52)
 endif()
 
-target_link_libraries(rk45_cuda PRIVATE GSL::gsl GSL::gslcblas) #vcpkg
+target_link_libraries(gpu_flu PRIVATE GSL::gsl GSL::gslcblas) #vcpkg

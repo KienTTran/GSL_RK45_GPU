@@ -6,7 +6,7 @@
 #define RK45_CUDA_CSV_Data_H
 #include "../flu_default_params.h"
 
-struct Parameters{
+struct CSVParameters{
   int cols;
   int rows;
 };
@@ -18,10 +18,10 @@ public:
   void read_csv_data();
   void process_csv_data();
   void load_csv_data(int numode, double* y[]);
-  Parameters get_params();
+    CSVParameters get_params();
   std::vector<std::string> split_string(const std::string &s, char delim);
 public:
-  Parameters csv_params;
+    CSVParameters csv_params;
   double csv_data[DATADIM_ROWS][DATADIM_COLS];
 };
 
