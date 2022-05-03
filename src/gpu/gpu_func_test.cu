@@ -6,13 +6,13 @@
 //
 ////    if(index == 0){
 ////        printf("Here's the info on params: \n");
-////        printf("beta1 = %1.9f \n", gpu_params->beta[0]);
-////        printf("beta2 = %1.9f \n", gpu_params->beta[1]);
-////        printf("beta3 = %1.9f \n", gpu_params->beta[2]);
-////        printf("a = %1.3f \n", gpu_params->v_d[gpu_params->i_amp]);
-////        printf("sigma_H1B = %1.3f \n", gpu_params->sigma[0][1]);
-////        printf("sigma_BH3 = %1.3f \n", gpu_params->sigma[1][2]);
-////        printf("sigma_H1H3 = %1.3f \n", gpu_params->sigma[0][2]);
+////        printf("beta1 = %1.9f \n", gpu_params->flu_params.beta[0]);
+////        printf("beta2 = %1.9f \n", gpu_params->flu_params.beta[1]);
+////        printf("beta3 = %1.9f \n", gpu_params->flu_params.beta[2]);
+////        printf("a = %1.3f \n", gpu_params->flu_params.v_d[gpu_params->i_amp]);
+////        printf("sigma_H1B = %1.3f \n", gpu_params->flu_params.sigma2d[0][1]);
+////        printf("sigma_BH3 = %1.3f \n", gpu_params->flu_params.sigma2d[1][2]);
+////        printf("sigma_H1H3 = %1.3f \n", gpu_params->flu_params.sigma2d[0][2]);
 ////
 ////        printf("phis_length = %d\n",gpu_params->phis_d_length);
 ////        for(int i=0; i<gpu_params->phis_d_length; i++){
@@ -21,7 +21,7 @@
 ////    }
 //
 //    // the transition rate among R-classes
-////    double trr = ((double)NUMR) / gpu_params->v_d[gpu_params->i_immune_duration];
+////    double trr = ((double)NUMR) / gpu_params->flu_params.v_d[gpu_params->i_immune_duration];
 ////    double stf = gpu_params->phis_d_length == 0 ? 1.0 : gpu_stf_d[day];
 //    double stf = seasonal_transmission_factor(gpu_params,t);
 ////    double stf = gpu_params->stf;
@@ -46,12 +46,12 @@
 //        int loc = index / (NUMSEROTYPES * NUMR);
 //        int vir = (index / NUMR) % NUMSEROTYPES;
 //        int stg = index % NUMR;
-//        f[ index ] = - (gpu_params->trr * y[ index ]);
+//        f[ index ] = - (gpu_params->flu_params.trr * y[ index ]);
 //        if(index % NUMR == 0){
-//            f[ index ] += gpu_params->v_d_i_nu * y[ STARTI + NUMSEROTYPES*loc + vir ];
+//            f[ index ] += gpu_params->flu_params.v_d_i_nu * y[ STARTI + NUMSEROTYPES*loc + vir ];
 //        }
 //        else{
-//            f[ index ] += gpu_params->trr * y[ NUMSEROTYPES*NUMR*loc + NUMR*vir + stg - 1 ];
+//            f[ index ] += gpu_params->flu_params.trr * y[ NUMSEROTYPES*NUMR*loc + NUMR*vir + stg - 1 ];
 //        }
 //        double sum_foi = 0.0;
 //        const int start_index = index * NUMLOC*NUMSEROTYPES;
@@ -73,9 +73,9 @@
 //        double foi_on_susc_single_virus = 0.0;
 //
 //        for(int l = 0; l<NUMLOC; l++){
-//            foi_on_susc_single_virus += gpu_params->eta[loc][l]
+//            foi_on_susc_single_virus += gpu_params->flu_params.eta[loc][l]
 //                                        * stf
-//                                        * gpu_params->beta[vir]
+//                                        * gpu_params->flu_params.beta[vir]
 //                                        * y[STARTI + NUMSEROTYPES * l + vir];
 //        }
 //
@@ -96,7 +96,7 @@
 //        f[ STARTJ + NUMSEROTYPES*loc + vir ] += inflow_from_recovereds;
 //
 //        // add the recovery rate - NOTE only for I-classes
-//        f[ STARTI + NUMSEROTYPES*loc + vir ] += - gpu_params->v_d_i_nu * y[ STARTI + NUMSEROTYPES*loc + vir ];
+//        f[ STARTI + NUMSEROTYPES*loc + vir ] += - gpu_params->flu_params.v_d_i_nu * y[ STARTI + NUMSEROTYPES*loc + vir ];
 //    }
 //    if(index >= STARTS && index < gpu_params->ode_dimension)
 //    {
@@ -116,7 +116,7 @@
 //        for(int vir = 0; vir<NUMSEROTYPES; vir++)
 //        {
 //            // add to dS/dt the inflow of recovereds from the final R-stage
-//            f[ index ] += gpu_params->trr * y[ NUMSEROTYPES*NUMR*(loc) + NUMR*vir + (NUMR - 1) ]; // "NUMR-1" gets you the final R-stage only
+//            f[ index ] += gpu_params->flu_params.trr * y[ NUMSEROTYPES*NUMR*(loc) + NUMR*vir + (NUMR - 1) ]; // "NUMR-1" gets you the final R-stage only
 //        }
 //    }
 //
@@ -184,18 +184,18 @@ void gpu_func_test(double t, const double y[], double f[], int index, GPUParamet
             for(stg=0; stg<NUMR; stg++)
             {
                 // first add the rate at which individuals are transitioning out of the R class
-                f[ NUMSEROTYPES*NUMR*loc + NUMR*vir + stg ] = - gpu_params->trr * y[ NUMSEROTYPES*NUMR*loc + NUMR*vir + stg ];
+                f[ NUMSEROTYPES*NUMR*loc + NUMR*vir + stg ] = - gpu_params->flu_params.trr * y[ NUMSEROTYPES*NUMR*loc + NUMR*vir + stg ];
 
                 // now add the rates of individuals coming in
                 if( stg==0 )
                 {
                     // if this is the first R-class, add the recovery term for individuals coming from I
-                    f[ NUMSEROTYPES*NUMR*loc + NUMR*vir + stg ] += gpu_params->v_d_i_nu * y[ STARTI + NUMSEROTYPES*loc + vir ];
+                    f[ NUMSEROTYPES*NUMR*loc + NUMR*vir + stg ] += gpu_params->flu_params.v_d_i_nu * y[ STARTI + NUMSEROTYPES*loc + vir ];
                 }
                 else
                 {
                     // if this is not the first R-class, add a simple transition from the previous R-stage
-                    f[ NUMSEROTYPES*NUMR*loc + NUMR*vir + stg ] += gpu_params->trr * y[ NUMSEROTYPES*NUMR*loc + NUMR*vir + stg - 1 ];
+                    f[ NUMSEROTYPES*NUMR*loc + NUMR*vir + stg ] += gpu_params->flu_params.trr * y[ NUMSEROTYPES*NUMR*loc + NUMR*vir + stg - 1 ];
                 }
 
                 // now sum over all locations and serotypes to get the force of infection that is removing
@@ -203,10 +203,10 @@ void gpu_func_test(double t, const double y[], double f[], int index, GPUParamet
                 double sum_foi = 0.0;
                 for(int l=0; l<NUMLOC; l++)
                     for(int v=0; v<NUMSEROTYPES; v++)
-                        sum_foi += gpu_params->sigma[vir][v]
-                                   * gpu_params->beta[v]
+                        sum_foi += gpu_params->flu_params.sigma2d[vir][v]
+                                   * gpu_params->flu_params.beta[v]
                                    * stf
-                                   * gpu_params->eta[loc][l]
+                                   * gpu_params->flu_params.eta[loc][l]
                                    * y[ STARTI + NUMSEROTYPES*l + v ];
 
 //                printf("index %d sum_foi = %f\n", NUMSEROTYPES*NUMR*loc + NUMR*vir + stg,sum_foi);
@@ -234,13 +234,13 @@ void gpu_func_test(double t, const double y[], double f[], int index, GPUParamet
             double foi_on_susc_single_virus = 0.0;
             for(int l=0; l<NUMLOC; l++) {
                 foi_on_susc_single_virus +=
-                        gpu_params->eta[loc][l]
+                        gpu_params->flu_params.eta[loc][l]
                         * stf
-                        * gpu_params->beta[vir]
+                        * gpu_params->flu_params.beta[vir]
                         * y[STARTI + NUMSEROTYPES * l + vir];
-//                printf("index %d foi_on_susc_single_virus += gpu_params->eta[%d][%d]"
+//                printf("index %d foi_on_susc_single_virus += gpu_params->flu_params.eta[%d][%d]"
 //                       " * stf"
-//                       " * gpu_params->beta[%d]"
+//                       " * gpu_params->flu_params.beta[%d]"
 //                       " * y[%d] = %f\n",
 //                       STARTI + NUMSEROTYPES*loc + vir, loc,l,vir,STARTI + NUMSEROTYPES*l + vir,foi_on_susc_single_virus);
 //                printf("index %d loc %d vir %d l %d Y[%d] = %f\n",STARTI + NUMSEROTYPES*loc + vir,loc,vir,l,STARTI + NUMSEROTYPES * l + vir,y[STARTI + NUMSEROTYPES * l + vir]);
@@ -258,16 +258,16 @@ void gpu_func_test(double t, const double y[], double f[], int index, GPUParamet
             for(int l=0; l<NUMLOC; l++){          // sum over locations
                 for (int v = 0; v < NUMSEROTYPES; v++) { // sum over recent immunity
                     for (int s = 0; s < NUMR; s++) {       // sum over R stage
-                        inflow_from_recovereds += gpu_params->sigma[vir][v]
+                        inflow_from_recovereds += gpu_params->flu_params.sigma2d[vir][v]
                                                   * stf
-                                                  * gpu_params->beta[vir]
-                                                  * gpu_params->eta[loc][l]
+                                                  * gpu_params->flu_params.beta[vir]
+                                                  * gpu_params->flu_params.eta[loc][l]
                                                   * y[STARTI + NUMSEROTYPES * l + vir]
                                                   * y[NUMSEROTYPES * NUMR * loc + NUMR * v + s];
-//                        printf("index = %d inflow_from_recovereds += inflow_from_recovereds_sbe = %f * y[%d] = %f * y[%d] = %f\n",STARTI + NUMSEROTYPES*loc + vir,gpu_params->sigma[vir][v]
+//                        printf("index = %d inflow_from_recovereds += inflow_from_recovereds_sbe = %f * y[%d] = %f * y[%d] = %f\n",STARTI + NUMSEROTYPES*loc + vir,gpu_params->flu_params.sigma2d[vir][v]
 //                                                                                                                                                              * stf
-//                                                                                                                                                              * gpu_params->beta[vir]
-//                                                                                                                                                              * gpu_params->eta[loc][l],
+//                                                                                                                                                              * gpu_params->flu_params.beta[vir]
+//                                                                                                                                                              * gpu_params->flu_params.eta[loc][l],
 //                               STARTI + NUMSEROTYPES * l + vir,NUMSEROTYPES * NUMR * loc + NUMR * v + s,
 //                                y[STARTI + NUMSEROTYPES * l + vir],y[NUMSEROTYPES * NUMR * loc + NUMR * v + s]);
                     }
@@ -280,7 +280,7 @@ void gpu_func_test(double t, const double y[], double f[], int index, GPUParamet
             f[ STARTJ + NUMSEROTYPES*loc + vir ] += inflow_from_recovereds;
 
             // add the recovery rate - NOTE only for I-classes
-            f[ STARTI + NUMSEROTYPES*loc + vir ] += - gpu_params->v_d_i_nu * y[ STARTI + NUMSEROTYPES*loc + vir ];
+            f[ STARTI + NUMSEROTYPES*loc + vir ] += - gpu_params->flu_params.v_d_i_nu * y[ STARTI + NUMSEROTYPES*loc + vir ];
 
         }
     }
@@ -298,7 +298,7 @@ void gpu_func_test(double t, const double y[], double f[], int index, GPUParamet
         double foi_on_susc_all_viruses = 0.0;
         for(int l=0; l<NUMLOC; l++) {
             for (int v = 0; v < NUMSEROTYPES; v++) {
-                foi_on_susc_all_viruses += gpu_params->eta[loc][l] * stf * gpu_params->beta[v] *
+                foi_on_susc_all_viruses += gpu_params->flu_params.eta[loc][l] * stf * gpu_params->flu_params.beta[v] *
                                            y[STARTI + NUMSEROTYPES * l + v];
 //                printf(" loop l-v index %d loc %d foi_on_susc_all_viruses = %f\n",STARTS + loc,loc,foi_on_susc_all_viruses);
             }
@@ -315,7 +315,7 @@ void gpu_func_test(double t, const double y[], double f[], int index, GPUParamet
         for(int vir=0; vir<NUMSEROTYPES; vir++)
         {
             // add to dS/dt the inflow of recovereds from the final R-stage
-            f[ STARTS + loc ] += gpu_params->trr * y[ NUMSEROTYPES*NUMR*loc + NUMR*vir + (NUMR-1) ]; // "NUMR-1" gets you the final R-stage only
+            f[ STARTS + loc ] += gpu_params->flu_params.trr * y[ NUMSEROTYPES*NUMR*loc + NUMR*vir + (NUMR-1) ]; // "NUMR-1" gets you the final R-stage only
 //            printf("loop vir index %d loc %d f[%d] = %f\n",STARTS + loc,loc,STARTS + loc,f[STARTS + loc]);
         }
     }

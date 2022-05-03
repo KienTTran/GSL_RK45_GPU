@@ -17,7 +17,7 @@ double seasonal_transmission_factor(GPUParameters *gpu_params, double t) {
 
     // This is some code that's needed to create the 10-year "cycles" in transmission.
 
-    if (gpu_params->phis_d_length == 0) {
+    if (gpu_params->flu_params.phi_length == 0) {
         return 1.0;
     }
 
@@ -29,17 +29,15 @@ double seasonal_transmission_factor(GPUParameters *gpu_params, double t) {
     t = yy;
     double sine_function_value = 0.0;
 
-    for (int i = 0; i < gpu_params->phis_d_length; i++) {
-        if (fabs(t - gpu_params->phis_d[i]) < (gpu_params->v_d_i_epidur_d2)) {
-            // sine_function_value = sin( 2.0 * 3.141592653589793238 * (phis[i]-t+91.25) / 365.0);
-            sine_function_value = sin(gpu_params->pi_x2 * (gpu_params->phis_d[i] - t + (gpu_params->v_d_i_epidur_d2)) /
-                                      (gpu_params->v_d_i_epidur_x2));
-            //            printf("      in loop %1.3f %d  %1.3f %1.3f\n", t, i, gpu_params->phis_d[i], sine_function_value);
+    for (int i = 0; i < gpu_params->flu_params.phi_length; i++) {
+        if (fabs(t - gpu_params->flu_params.phi[i]) < (gpu_params->flu_params.v_d_i_epidur_d2)) {
+            sine_function_value = sin(gpu_params->flu_params.pi_x2 * (gpu_params->flu_params.phi[i] - t + (gpu_params->flu_params.v_d_i_epidur_d2)) /
+                                      (gpu_params->flu_params.v_d_i_epidur_x2));
         }
     }
     //    printf("    %f sine_function_value %1.3f\n",t,sine_function_value);
     //    printf("    %f return %1.3f\n",t,1.0 + v[i_amp] * sine_function_value);
-    return 1.0 + gpu_params->v_d_i_amp * sine_function_value;
+    return 1.0 + gpu_params->flu_params.v_d_i_amp * sine_function_value;
 }
 
 __device__
@@ -288,6 +286,9 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
         agg_inc_sum[i] = 0.0;
         agg_inc_max[i] = 0.0;
     }
+    for (int i = 0; i < params->ode_dimension; i++) {
+        device_y[i] = y[index][i];
+    }
 
     while (t < t_target) {
         double device_t;
@@ -301,28 +302,27 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
         device_h = h;
 
         int day = t;
-        //      printf("day %d\t", day);
-        //      for (int i = 0; i < params->ode_dimension; i ++) {
-        //        printf("y[%d][%d] = %.1f\t", index, i, y[index][i]);
-        //        if(i == (params->ode_dimension - 1)){
-        //          printf("\n");
-        //        }
-        //      }
+//      printf("day %d\t", day);
+//      for (int i = 0; i < params->ode_dimension; i ++) {
+//        printf("y[%d][%d] = %.1f\t", index, i, device_y[i]);
+//        if(i == (params->ode_dimension - 1)){
+//          printf("\n");
+//        }
+//      }
         for (int i = 0; i < params->ode_dimension; i++) {
-            device_y_yesterday[i] = y[index][i];
+            device_y_yesterday[i] = device_y[i];
         }
         while (device_t < device_t1) {
             int device_final_step = 0;
             const double device_t_0 = device_t;
             device_h_0 = device_h;
             device_dt = device_t1 - device_t_0;
-            //                if(index == 0){
-            //                    printf("\n  [evolve apply] index = %d start\n",index);
-            //                    printf("    t = %.10f t_0 = %.10f  h = %.10f h_0 = %.10f dt = %.10f\n",device_t,device_t_0,device_h,device_h_0,device_dt);
-            //                }
+//            if(index == 0){
+//                printf("\n  [evolve apply] index = %d start\n",index);
+//                printf("    t = %.10f t_0 = %.10f  h = %.10f h_0 = %.10f dt = %.10f\n",device_t,device_t_0,device_h,device_h_0,device_dt);
+//            }
 
             for (int i = 0; i < params->ode_dimension; i++) {
-                device_y[i] = y[index][i];
                 device_y_0[i] = device_y[i];
             }
 
@@ -347,7 +347,7 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
 
                 double h_old = device_h_0;
 
-                //                    printf("    before adjust t = %.10f t_0 = %.10f  h = %.10f h_0 = %.10f h_old = %.10f\n",device_t,device_t_0,device_h,device_h_0,h_old);
+//              printf("    before adjust t = %.10f t_0 = %.10f  h = %.10f h_0 = %.10f h_old = %.10f\n",device_t,device_t_0,device_h,device_h_0,h_old);
 
                 rk45_gpu_adjust_h(device_y, device_y_err, device_dydt_out,
                                   device_h, device_h_0, device_adjustment_out, device_final_step, index);
@@ -355,7 +355,7 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
                 //Extra step to get data from h
                 device_h_0 = device_h;
 
-                //                    printf("    after adjust t = %.10f t_0 = %.10f  h = %.10f h_0 = %.10f h_old = %.10f\n",device_t,device_t_0,device_h,device_h_0,h_old);
+//              printf("    after adjust t = %.10f t_0 = %.10f  h = %.10f h_0 = %.10f h_old = %.10f\n",device_t,device_t_0,device_h,device_h_0,h_old);
 
                 if (device_adjustment_out == -1) {
                     double t_curr = (device_t);
@@ -363,7 +363,7 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
 
                     if (fabs(device_h_0) < fabs(h_old) && t_next != t_curr) {
                         /* Step was decreased. Undo step, and try again with new h0. */
-                        //                            printf("  [evolve apply] index = %d step decreased, y = y0\n",index);
+//                      printf("  [evolve apply] index = %d step decreased, y = y0\n",index);
                         for (int i = 0; i < DIM; i++) {
                             device_y[i] = device_y_0[i];
                         }
@@ -379,56 +379,55 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
             }
             device_h = device_h_0;  /* suggest step size for next time-step */
             h = device_h;
-            for (int i = 0; i < params->ode_dimension; i++) {
-                y[index][i] = device_y[i];
-            }
-            //                printf("    index = %d t = %.10f t_0 = %.10f  h = %.10f h_0 = %.10f\n",index,device_t,device_t_0,device_h,device_h_0);
-            //                for (int i = 0; i < DIM; i++){
-            //                    printf("    index = %d y[%d][%d] = %.10f\n",index,index,i,device_y[i]);
-            //                }
-            //                printf("  [evolve apply] index = %d end\n",index);
-            //                if(device_final_step){
-            //                    printf("[output] index = %d t = %.10f t_0 = %.10f  h = %.10f h_0 = %.10f\n",index,device_t,device_t_0,device_h,device_h_0);
-            //                    for (int i = 0; i < DIM; i++){
-            //                        printf("[output] index = %d y[%d] = %.10f\n",index,i,device_y[i]);
-            //                    }
-            //                }
-            //                device_t = device_t_0 + device_h_0;
+//            printf("    index = %d t = %.10f t_0 = %.10f  h = %.10f h_0 = %.10f\n",index,device_t,device_t_0,device_h,device_h_0);
+//            for (int i = 0; i < DIM; i++){
+//                printf("    index = %d y[%d][%d] = %.10f\n",index,index,i,device_y[i]);
+//            }
+//            printf("  [evolve apply] index = %d end\n",index);
+//            if(device_final_step){
+//                printf("[output] index = %d t = %.10f t_0 = %.10f  h = %.10f h_0 = %.10f\n",index,device_t,device_t_0,device_h,device_h_0);
+//                for (int i = 0; i < DIM; i++){
+//                    printf("[output] index = %d y[%d] = %.10f\n",index,i,device_y[i]);
+//                }
+//            }
+//            device_t = device_t_0 + device_h_0;
         }
-        //            if(index == 0) {
-        //                printf("[evolve apply] Index = %d t = %f h = %f end one day\n", index, t, h);
-        //            }
+//        if(index == 0) {
+//            printf("[evolve apply] Index = %d t = %f h = %f end one day\n", index, t, h);
+//        }
         t += t_delta;
 
-//        /* y_ode_output_d*/
-//        for (int i = 0; i < params->display_dimension; i ++) {
-//          const int y_output_index = day * params->display_dimension + i;
-//          if(y_output_index % params->display_dimension == 0){
-//            //First column
-//            y_output[index][y_output_index] = day*1.0;
-//            //          printf("First day = %d index = %d i = %d y_output_index = %d y_output[%d][%d] = %.5f\n",
-//            //                 day, index, i, y_output_index, index, y_output_index, y_output[index][y_output_index]);
-//          }
-//          else if(y_output_index % params->display_dimension == 1){
-//            //Second column
-//            y_output[index][y_output_index] = seasonal_transmission_factor(params,t);
-//            //          printf("Second day = %d index = %d i = %d y_output_index = %d y_output[%d][%d] = %.5f\n",
-//            //                 day, index, i, y_output_index, index, y_output_index, y_output[index][y_output_index]);
-//          }
-//          else if(y_output_index % params->display_dimension >= 2 && y_output_index % params->display_dimension < params->display_dimension - 1){
-//            //Third column to column next to last column
-//            const int y_index = (y_output_index - 2) % params->display_dimension;
-//            y_output[index][y_output_index] = device_y_yesterday[y_index];
-//            //          printf("day = %d index = %d i = %d y_output_index = %d y[%d][%d] = y[%d][%d] = %.5f\n",
-//            //                 day, index, i, y_output_index, index, y_output_index, index, y_index, y[index][y_index]);
-//          }
-//          else{
-//            //Last column
-//            y_output[index][y_output_index] = pop_sum(y[index]);
-//            //          printf("Third day = %d index = %d i = %d y_output_index = %d y_output[%d][%d] = %.5f\n",
-//            //                 day, index, i, y_output_index, index, y_output_index, y_output[index][y_output_index]);
-//          }
-//        }
+        /* y_ode_output_d*/
+        for (int i = 0; i < params->display_dimension; i ++) {
+          const int y_output_index = day * params->display_dimension + i;
+          if(y_output_index % params->display_dimension == 0){
+            //First column
+            y_output[index][y_output_index] = day*1.0;
+            //          printf("First day = %d index = %d i = %d y_output_index = %d y_output[%d][%d] = %.5f\n",
+            //                 day, index, i, y_output_index, index, y_output_index, y_output[index][y_output_index]);
+          }
+          else if(y_output_index % params->display_dimension == 1){
+            //Second column
+            y_output[index][y_output_index] = seasonal_transmission_factor(params,t);
+            //          printf("Second day = %d index = %d i = %d y_output_index = %d y_output[%d][%d] = %.5f\n",
+            //                 day, index, i, y_output_index, index, y_output_index, y_output[index][y_output_index]);
+          }
+          else if(y_output_index % params->display_dimension >= 2 && y_output_index % params->display_dimension < params->display_dimension - 1){
+            //Third column to column next to last column
+            const int y_index = (y_output_index - 2) % params->display_dimension;
+            y_output[index][y_output_index] = device_y_yesterday[y_index];
+            //          printf("day = %d index = %d i = %d y_output_index = %d y[%d][%d] = y[%d][%d] = %.5f\n",
+            //                 day, index, i, y_output_index, index, y_output_index, index, y_index, device_y[y_index]);
+          }
+          else{
+            //Last column
+//            y_output[index][y_output_index] = pop_sum(device_y);
+            y_output[index][y_output_index] = pop_sum(device_y);
+            //          printf("Third day = %d index = %d i = %d y_output_index = %d y_output[%d][%d] = %.5f\n",
+            //                 day, index, i, y_output_index, index, y_output_index, y_output[index][y_output_index]);
+          }
+        }
+
         /* y_ode_agg_d*/
         /* AGG Output 1-6 */
         for (int i = 0; i < params->data_params.cols; i++) {
@@ -436,7 +435,7 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
             const int y_output_agg_to_sum_index = (day) * params->agg_dimension + i;
             const int y_ode_index = params->ode_dimension - 4 + i;
             if(day == 0) y_output_agg[index][y_output_agg_to_sum_index]= 0.0;
-            y_output_agg[index][y_output_agg_index] = y[index][y_ode_index] - device_y_yesterday[y_ode_index];
+            y_output_agg[index][y_output_agg_index] = device_y[y_ode_index] - device_y_yesterday[y_ode_index];
             agg_inc_sum[i] += y_output_agg[index][y_output_agg_to_sum_index];
         }
 
@@ -459,11 +458,11 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
             }
         }
     }
-    //        if(index == 0){
-    //            for (int i = 0; i < DIM; i++){
-    //                printf("[output] index = %d y[%d] = %1.5f\n",index,i,device_y[i]);
-    //            }
-    //        }
+//    if(index == 0){
+//        for (int i = 0; i < DIM; i++){
+//            printf("[output] index = %d y[%d] = %1.5f\n",index,i,device_y[i]);
+//        }
+//    }
 }
 
 __device__

@@ -9,6 +9,7 @@ __global__ void reduce_sum(double *data, double *out, int len);
 __global__ void solve_ode(double *y_ode_input_d[], double *y_ode_output_d[], double *y_ode_agg_d[], GPUParameters *params);
 __global__ void mcmc_dnorm(double *y_data_input_d[], double *y_ode_agg_d[], double* y_mcmc_dnorm_d[], GPUParameters *params);
 __global__ void mcmc_get_dnorm_outputs_1d(double* d_mcmc_dnorm_h1_b_h3_d[], double d_mcmc_dnorm_h1_1d_d[], double d_mcmc_dnorm_b_1d_d[], double d_mcmc_dnorm_h3_1d_d[], GPUParameters* params);
+__host__ void mcmc_randomize_parameters(GPUParameters* params, GPUParameters* new_params);
 
 void *cpu_thread_display_output(void *params);
 
@@ -24,6 +25,7 @@ public:
     explicit GPUFlu();
     ~GPUFlu();
     void set_parameters(GPUParameters* params);
+    double rand_uniform(double range_from, double range_to);
     void run();
 private:
     GPUParameters* params;

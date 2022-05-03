@@ -7,7 +7,6 @@
 
 GPUParameters::GPUParameters(){
     ode_dimension = 0;
-    number_of_ode = 0;
     t_target = 0.0;
     t0 = 0.0;
     h = 1e-6;
@@ -17,7 +16,6 @@ GPUParameters::GPUParameters(){
 
 GPUParameters::~GPUParameters(){
     ode_dimension = 0;
-    number_of_ode = 0;
     t_target = 0.0;
     t0 = 0.0;
     h = 1e-6;
@@ -79,6 +77,7 @@ void GPUParameters::init_from_cmd(int argc, char **argv){
     printf("Display dimension = %d\n",display_dimension);
     printf("Total display dimension = %d x %d x %d = %d\n",NUMODE, NUMDAYSOUTPUT, display_dimension, NUMODE * NUMDAYSOUTPUT * display_dimension);
 
+    v.clear();
     v.insert( v.begin(), num_params, 0.0 );
     assert( v.size()==num_params );
 
@@ -88,7 +87,7 @@ void GPUParameters::init_from_cmd(int argc, char **argv){
     {
         for(int j=0; j<NUMSEROTYPES; j++)
         {
-            sigma[i][j] = 0.0; // this initializes the system with full cross-immunity among serotypes
+            flu_params.sigma2d[i][j] = 0.0; // this initializes the system with full cross-immunity among serotypes
         }
     }
 
@@ -96,27 +95,20 @@ void GPUParameters::init_from_cmd(int argc, char **argv){
     {
         for(int j=0; j<NUMLOC; j++)
         {
-            if(i==j) eta[i][j] = 1.0;  // the diagonal elements have to be 1.0, as a population mixes fully with itself
-            if(i!=j) eta[i][j] = 0.0;  // these are initialized to 0.0 indicating that the different sub-populations do not mix at all
+            if(i==j) flu_params.eta[i][j] = 1.0;  // the diagonal elements have to be 1.0, as a population mixes fully with itself
+            if(i!=j) flu_params.eta[i][j] = 0.0;  // these are initialized to 0.0 indicating that the different sub-populations do not mix at all
         }
     }
 
     // set initial values for the population sizes, 1 million for first location and 100K for others
-    N[0] = POPSIZE_MAIN;
-    for(int i=1; i<NUMLOC; i++) N[i] = POPSIZE_OUT;
+    flu_params.N[0] = POPSIZE_MAIN;
+    for(int i=1; i<NUMLOC; i++) flu_params.N[i] = POPSIZE_OUT;
 
     //Parse begin
     std::string str;
     int i, start;
     i=1;    // this is the position where you start reading command line options
     // you skip "i=0" which is the text string "odesim"
-
-    /*if( argc<start )
-    {
-        PrintUsageModes();
-        exit(-1);
-    }*/
-
 
     // read in options from left to right
     while(i<argc)
@@ -208,40 +200,26 @@ void GPUParameters::init_from_cmd(int argc, char **argv){
     }
 
     v[ i_amp ]   = G_CLO_AMPL;
-    beta[0] = G_CLO_BETA1 / POPSIZE_MAIN;    // NOTE this is in a density-dependent transmission scheme
-    beta[1] = G_CLO_BETA2 / POPSIZE_MAIN;
-    beta[2] = G_CLO_BETA3 / POPSIZE_MAIN;
+    flu_params.beta[0] = G_CLO_BETA1 / POPSIZE_MAIN;    // NOTE this is in a density-dependent transmission scheme
+    flu_params.beta[1] = G_CLO_BETA2 / POPSIZE_MAIN;
+    flu_params.beta[2] = G_CLO_BETA3 / POPSIZE_MAIN;
 
-    sigma[0][1] = G_CLO_SIGMA12; // 0.7; // the level of susceptibility to H1 if you've had B
-    sigma[1][0] = G_CLO_SIGMA12; // 0.7; // and vice versa
+    flu_params.sigma2d[0][1] = G_CLO_SIGMA12; // 0.7; // the level of susceptibility to H1 if you've had B
+    flu_params.sigma2d[1][0] = G_CLO_SIGMA12; // 0.7; // and vice versa
 
-    sigma[1][2] = G_CLO_SIGMA23; // 0.7; // the level of susceptibility to H3 if you've had B
-    sigma[2][1] = G_CLO_SIGMA23; // 0.7; // and vice versa
+    flu_params.sigma2d[1][2] = G_CLO_SIGMA23; // 0.7; // the level of susceptibility to H3 if you've had B
+    flu_params.sigma2d[2][1] = G_CLO_SIGMA23; // 0.7; // and vice versa
 
-    sigma[0][2] = G_CLO_SIGMA13; // 0.3; // the level of susceptibility to H3 if you've had H1
-    sigma[2][0] = G_CLO_SIGMA13; // 0.3; // and vice versa
+    flu_params.sigma2d[0][2] = G_CLO_SIGMA13; // 0.3; // the level of susceptibility to H3 if you've had H1
+    flu_params.sigma2d[2][0] = G_CLO_SIGMA13; // 0.3; // and vice versa
 
-    sigma[0][0] = 0;
-    sigma[1][1] = 0;
-    sigma[2][2] = 0;
+    flu_params.sigma2d[0][0] = 0;
+    flu_params.sigma2d[1][1] = 0;
+    flu_params.sigma2d[2][2] = 0;
 
     v[ i_nu ]    = 1 / G_CLO_NU_DENOM;                // recovery rate
     v[ i_immune_duration ] = G_CLO_RHO_DENOM;    // 2.5 years of immunity to recent infection'
-
     v[ i_epidur ] = G_CLO_EPIDUR;
-
-//    fprintf(stderr, "Here's the info on params: \n");
-//    fprintf(stderr, "beta1 = %1.9f \n", beta[0]);
-//    fprintf(stderr, "beta2 = %1.9f \n", beta[1]);
-//    fprintf(stderr, "beta3 = %1.9f \n", beta[2]);
-//    fprintf(stderr, "a = %1.3f \n", v[i_amp]);
-//    fprintf(stderr, "sigma_H1B = %1.3f \n", sigma[0][1]);
-//    fprintf(stderr, "sigma_BH3 = %1.3f \n", sigma[1][2]);
-//    fprintf(stderr, "sigma_H1H3 = %1.3f \n", sigma[0][2]);
-//     for (int i = 0; i<phis.size(); i++) {
-//        fprintf(stderr, "phi = %5.1f \n", phis[i]);
-//     }
-
 
     //
     // ###  4.  SET INITIAL CONDITIONS FOR ODE SYSTEM
@@ -254,7 +232,7 @@ void GPUParameters::init_from_cmd(int argc, char **argv){
       for(int loc=0; loc<NUMLOC; loc++)
       {
         // put half of the individuals in the susceptible class
-        y_ode_input[i][ STARTS + loc ] = 0.5 * N[loc];
+        y_ode_input[i][ STARTS + loc ] = 0.5 * flu_params.N[loc];
 
         // put small number (but slightly different amounts each time) of individuals into the infected classes
         // double r = rand() % 50 + 10;
@@ -273,7 +251,7 @@ void GPUParameters::init_from_cmd(int argc, char **argv){
           // fprintf(stderr, "r = %1.4f, x = %1.6f", r, x);
 
           sumx += x;
-          y_ode_input[i][ STARTI + NUMSEROTYPES*loc + vir ] = x * N[loc];
+          y_ode_input[i][ STARTI + NUMSEROTYPES*loc + vir ] = x * flu_params.N[loc];
           y_ode_input[i][ STARTJ + NUMSEROTYPES*loc + vir ] = 0.0;     // initialize all of the J-variables to zero
 
           x += 0.001;
@@ -286,116 +264,22 @@ void GPUParameters::init_from_cmd(int argc, char **argv){
           double z = (0.5 - sumx)/((double)NUMR*NUMSEROTYPES);  // this is the remaining fraction of individuals to be distributed
           for(int stg=0; stg<NUMR; stg++)
           {
-            y_ode_input[i][ NUMSEROTYPES*NUMR*loc + NUMR*vir + stg ] = z * N[loc];
+            y_ode_input[i][ NUMSEROTYPES*NUMR*loc + NUMR*vir + stg ] = z * flu_params.N[loc];
           }
         }
       }
     }
 
-
-//    printf("v size = %d\n",v.size());
-//    printf("phis size = %d\n",phis.size());
-
-    trr = ((double)NUMR) / v[i_immune_duration];
-    v_d_i_nu = v[i_nu];
-    v_d_i_amp = v[i_amp];
-    v_d_i_epidur_d2 = v[i_epidur] / 2.0;
-    v_d_i_epidur_x2 = v[i_epidur] * 2.0;
-    pi_x2 = 2.0 * M_PI;
-
-    //copy cpu vector to gpu vector
-//    v_temp = v;
-//    v_d = thrust::raw_pointer_cast(v_temp.data());
-
-    if(phis.empty()){
-        phis_d = nullptr;
-        phis_d_length = 0;
-    }
-    else{
-        phis_temp = phis;
-        phis_d_length = phis.size();
-        phis_d = thrust::raw_pointer_cast(phis_temp.data());
-    }
-
-//    printf("\nsum_foi_sbe:\n");
-    //sum_foi
-//    m0,m1,.. are dimensions
-//    A(i,j,k,...) -> A0[i + j*m0 + k*m0*m1 + ...]
-    int index = 0;
-    int count = 0;
-    for(int loc = 0; loc < NUMLOC; loc++) {
-        for (int vir = 0; vir < NUMSEROTYPES; vir++) {
-            for (int stg = 0; stg < NUMR; stg++) {
-                for(int l = 0; l < NUMLOC; l++) {
-                    for (int v = 0; v < NUMSEROTYPES; v++) {
-                        index = loc*NUMSEROTYPES*NUMR*NUMLOC*NUMSEROTYPES + vir*NUMR*NUMLOC*NUMSEROTYPES + stg*NUMLOC*NUMSEROTYPES + l*NUMSEROTYPES + v;
-                        sum_foi_sbe[index] = sigma[vir][v]
-                                                * beta[v]
-                                                * eta[loc][l];
-                        sum_foi_y_index[index] = STARTI + NUMSEROTYPES*l + v;
-//                        printf("loc = %d vir = %d stg = %d l = %d v = %d index = %d sum_foi[%d] = %f\n",loc,vir,stg,l,v,index,index,sum_foi_sbe[index]);
-//                        printf("sum_foi_sbe[%d] = sigma[%d][%d] * beta[%d] * eta[%d][%d] * y[%d]\n",index,vir,v,v,loc,l,sum_foi_y_index[index]);
-                        count++;
-                    }
-                }
-            }
-        }
-    }
-//    printf("sum_foi count = %d\n",count);
-
-//    printf("\ninflow_from_recovereds_sbe:\n");
-    index = 0;
-    count = 0;
-    for(int loc = 0; loc < NUMLOC; loc++) {
-        for (int vir = 0; vir < NUMSEROTYPES; vir++) {
-            for(int l=0; l<NUMLOC; l++) {        // sum over locations
-                for (int v = 0; v < NUMSEROTYPES; v++) { // sum over recent immunity
-                    for (int s = 0; s < NUMR; s++) {    // sum over R stage
-                        index = loc*NUMSEROTYPES*NUMLOC*NUMSEROTYPES*NUMR + vir*NUMLOC*NUMSEROTYPES*NUMR + l*NUMSEROTYPES*NUMR + v*NUMR + s;
-                        inflow_from_recovereds_sbe[index] = sigma[vir][v]
-                                                            * beta[vir]
-                                                            * eta[loc][l] ;
-                        inflow_from_recovereds_y1_index[index] = STARTI + NUMSEROTYPES * l + vir;
-                        inflow_from_recovereds_y2_index[index] = NUMSEROTYPES * NUMR * loc + NUMR * v + s;
-//                        printf("loc = %d vir = %d l = %d v = %d s = %d index = %d inflow_from_recovereds[%d] = %f y1_index = %d y2_index = %d\n",loc,vir,l,v,s,index,index,
-//                               inflow_from_recovereds_sbe[index],inflow_from_recovereds_y1_index[index],inflow_from_recovereds_y2_index[index]);
-//                        printf("index = %d inflow_from_recovereds = sigma[%d][%d] * beta[%d] * eta[%d][%d] * y[%d] * y[%d]\n",index,vir,v,vir,loc,l,
-//                               inflow_from_recovereds_sbe[index],inflow_from_recovereds_y1_index[index],inflow_from_recovereds_y2_index[index]);
-                        count++;
-                    }
-                }
-            }
-        }
-    }
-//    printf("inflow_from_recovereds_sbe count = %d\n",count);
-
-//    printf("\nfoi_on_susc_all_viruses_eb:\n");
-    index = 0;
-    count = 0;
-    for(int loc = 0; loc < NUMLOC; loc++) {
-        for(int l=0; l<NUMLOC; l++){
-            for(int v=0; v<NUMSEROTYPES; v++){
-                index = loc*NUMLOC*NUMSEROTYPES + l*NUMSEROTYPES + v;
-                foi_on_susc_all_viruses_eb[index] = eta[loc][l]
-                                                    * beta[v];
-                foi_on_susc_all_viruses_y_index[index] = STARTI + NUMSEROTYPES * l + v;
-//                printf("loc = %d vir = %d index = %d foi_on_susc_all_viruses[%d] = %f\n",loc,v,index,index,foi_on_susc_all_viruses_eb[index]);
-//                printf("foi_on_susc_all_viruses_eb[%d] = eta[%d][%d] * beta[%d] * y[%d]\n",index,loc,l,v,foi_on_susc_all_viruses_y_index[index]);
-                count++;
-            }
-        }
-    }
-//    printf("foi_on_susc_all_viruses_eb count = %d\n",count);
-
-    printf("Total loop in one I thread = %d\n", NUMLOC*NUMSEROTYPES*NUMR);
-    printf("Total loop in one R S thread = %d\n", NUMLOC*NUMSEROTYPES);
-
-    // Copy host_vector H to device_vector D
-//    printf("copy cpu data to gpu\n");
+    flu_params.trr = ((double)NUMR) / v[i_immune_duration];
+    flu_params.v_d_i_nu = v[i_nu];
+    flu_params.v_d_i_amp = v[i_amp];
+    flu_params.v_d_i_epidur_d2 = v[i_epidur] / 2.0;
+    flu_params.v_d_i_epidur_x2 = v[i_epidur] * 2.0;
+    flu_params.pi_x2 = 2.0 * M_PI;
 }
 
 void GPUParameters::init(){
-  y_ode_input = new double*[NUMODE]();
+    y_ode_input = new double*[NUMODE]();
     for (int i = 0; i < NUMODE; i++) {
       y_ode_input[i] = new double[ode_dimension];
     }
@@ -440,6 +324,7 @@ void GPUParameters::init(){
     printf("Display dimension = %d\n",display_dimension);
     printf("Total display dimension = %d x %d x %d = %d\n",NUMODE, NUMDAYSOUTPUT, display_dimension, NUMODE * NUMDAYSOUTPUT * display_dimension);
 
+    v.clear();
     v.insert( v.begin(), num_params, 0.0 );
     assert( v.size()==num_params );
 
@@ -449,7 +334,7 @@ void GPUParameters::init(){
     {
         for(int j=0; j<NUMSEROTYPES; j++)
         {
-            sigma[i][j] = 0.0; // this initializes the system with full cross-immunity among serotypes
+            flu_params.sigma2d[i][j] = 0.0; // this initializes the system with full cross-immunity among serotypes
         }
     }
 
@@ -457,33 +342,33 @@ void GPUParameters::init(){
     {
         for(int j=0; j<NUMLOC; j++)
         {
-            if(i==j) eta[i][j] = 1.0;  // the diagonal elements have to be 1.0, as a population mixes fully with itself
-            if(i!=j) eta[i][j] = 0.0;  // these are initialized to 0.0 indicating that the different sub-populations do not mix at all
+            if(i==j) flu_params.eta[i][j] = 1.0;  // the diagonal elements have to be 1.0, as a population mixes fully with itself
+            if(i!=j) flu_params.eta[i][j] = 0.0;  // these are initialized to 0.0 indicating that the different sub-populations do not mix at all
         }
     }
 
     // set initial values for the population sizes, 1 million for first location and 100K for others
-    N[0] = POPSIZE_MAIN;
-    for(int i=1; i<NUMLOC; i++) N[i] = POPSIZE_OUT;
+    flu_params.N[0] = POPSIZE_MAIN;
+    for(int i=1; i<NUMLOC; i++) flu_params.N[i] = POPSIZE_OUT;
 
     //Load default params
-    G_CLO_BETA1 = default_prams.beta_H1;
-    G_CLO_BETA2 = default_prams.beta_B;
-    G_CLO_BETA3 = default_prams.beta_H3;
-    G_CLO_SIGMA12 = default_prams.sigma12;
-    G_CLO_SIGMA13 = default_prams.sigma13;
-    G_CLO_SIGMA23 = default_prams.sigma23;
-    G_CLO_AMPL = default_prams.amp;
-    G_CLO_NU_DENOM = default_prams.nu_denom;
-    G_CLO_RHO_DENOM = default_prams.rho_denom;
-    G_CLO_EPIDUR = default_prams.epidur;
-    default_prams.phi.push_back(default_prams.phi_0);
-    for(int i = 0; i < default_prams.tau.size(); i++){
-        default_prams.phi.push_back(default_prams.phi.at(i) + default_prams.tau.at(i));
+    G_CLO_BETA1 = flu_params.beta[0];
+    G_CLO_BETA2 = flu_params.beta[1];
+    G_CLO_BETA3 = flu_params.beta[2];
+    G_CLO_SIGMA12 = flu_params.sigma[0];
+    G_CLO_SIGMA13 = flu_params.sigma[1];
+    G_CLO_SIGMA23 = flu_params.sigma[2];
+    G_CLO_AMPL = flu_params.amp;
+    G_CLO_NU_DENOM = flu_params.nu_denom;
+    G_CLO_RHO_DENOM = flu_params.rho_denom;
+    G_CLO_EPIDUR = flu_params.epidur;
+    flu_params.phi_length = sizeof(flu_params.phi)/sizeof(flu_params.phi[0]);
+    flu_params.phi[0] = flu_params.phi_0;
+    for(int i = 1; i < flu_params.phi_length; i++){
+        flu_params.phi[i] = flu_params.phi[i-1] + flu_params.tau[i-1];
     }
-    for(int i = 0; i < default_prams.phi.size(); i++){
-//        printf("phi %d = %.5f\n",(i),default_prams.phi.at(i));
-        phis.push_back( default_prams.phi.at(i) );
+    for(int i = 0; i < flu_params.phi_length; i++){
+        printf("phi[%d] = %.5f\n",i,flu_params.phi[i]);
     }
 
     //
@@ -498,40 +383,27 @@ void GPUParameters::init(){
     }
 
     v[ i_amp ]   = G_CLO_AMPL;
-    beta[0] = G_CLO_BETA1 / POPSIZE_MAIN;    // NOTE this is in a density-dependent transmission scheme
-    beta[1] = G_CLO_BETA2 / POPSIZE_MAIN;
-    beta[2] = G_CLO_BETA3 / POPSIZE_MAIN;
+    flu_params.beta[0] = G_CLO_BETA1 / POPSIZE_MAIN;    // NOTE this is in a density-dependent transmission scheme
+    flu_params.beta[1] = G_CLO_BETA2 / POPSIZE_MAIN;
+    flu_params.beta[2] = G_CLO_BETA3 / POPSIZE_MAIN;
 
-    sigma[0][1] = G_CLO_SIGMA12; // 0.7; // the level of susceptibility to H1 if you've had B
-    sigma[1][0] = G_CLO_SIGMA12; // 0.7; // and vice versa
+    flu_params.sigma2d[0][1] = G_CLO_SIGMA12; // 0.7; // the level of susceptibility to H1 if you've had B
+    flu_params.sigma2d[1][0] = G_CLO_SIGMA12; // 0.7; // and vice versa
 
-    sigma[1][2] = G_CLO_SIGMA23; // 0.7; // the level of susceptibility to H3 if you've had B
-    sigma[2][1] = G_CLO_SIGMA23; // 0.7; // and vice versa
+    flu_params.sigma2d[1][2] = G_CLO_SIGMA23; // 0.7; // the level of susceptibility to H3 if you've had B
+    flu_params.sigma2d[2][1] = G_CLO_SIGMA23; // 0.7; // and vice versa
 
-    sigma[0][2] = G_CLO_SIGMA13; // 0.3; // the level of susceptibility to H3 if you've had H1
-    sigma[2][0] = G_CLO_SIGMA13; // 0.3; // and vice versa
+    flu_params.sigma2d[0][2] = G_CLO_SIGMA13; // 0.3; // the level of susceptibility to H3 if you've had H1
+    flu_params.sigma2d[2][0] = G_CLO_SIGMA13; // 0.3; // and vice versa
 
-    sigma[0][0] = 0;
-    sigma[1][1] = 0;
-    sigma[2][2] = 0;
+    flu_params.sigma2d[0][0] = 0;
+    flu_params.sigma2d[1][1] = 0;
+    flu_params.sigma2d[2][2] = 0;
 
     v[ i_nu ]    = 1 / G_CLO_NU_DENOM;                // recovery rate
     v[ i_immune_duration ] = G_CLO_RHO_DENOM;    // 2.5 years of immunity to recent infection'
 
     v[ i_epidur ] = G_CLO_EPIDUR;
-
-//    fprintf(stderr, "Here's the info on params: \n");
-//    fprintf(stderr, "beta1 = %1.9f \n", beta[0]);
-//    fprintf(stderr, "beta2 = %1.9f \n", beta[1]);
-//    fprintf(stderr, "beta3 = %1.9f \n", beta[2]);
-//    fprintf(stderr, "a = %1.3f \n", v[i_amp]);
-//    fprintf(stderr, "sigma_H1B = %1.3f \n", sigma[0][1]);
-//    fprintf(stderr, "sigma_BH3 = %1.3f \n", sigma[1][2]);
-//    fprintf(stderr, "sigma_H1H3 = %1.3f \n", sigma[0][2]);
-//     for (int i = 0; i<phis.size(); i++) {
-//        fprintf(stderr, "phi = %5.1f \n", phis[i]);
-//     }
-
 
     //
     // ###  4.  SET INITIAL CONDITIONS FOR ODE SYSTEM
@@ -544,7 +416,7 @@ void GPUParameters::init(){
       for(int loc=0; loc<NUMLOC; loc++)
       {
         // put half of the individuals in the susceptible class
-        y_ode_input[i][ STARTS + loc ] = 0.5 * N[loc];
+        y_ode_input[i][ STARTS + loc ] = 0.5 * flu_params.N[loc];
 
         // put small number (but slightly different amounts each time) of individuals into the infected classes
         // double r = rand() % 50 + 10;
@@ -563,7 +435,7 @@ void GPUParameters::init(){
           // fprintf(stderr, "r = %1.4f, x = %1.6f", r, x);
 
           sumx += x;
-          y_ode_input[i][ STARTI + NUMSEROTYPES*loc + vir ] = x * N[loc];
+          y_ode_input[i][ STARTI + NUMSEROTYPES*loc + vir ] = x * flu_params.N[loc];
           y_ode_input[i][ STARTJ + NUMSEROTYPES*loc + vir ] = 0.0;     // initialize all of the J-variables to zero
 
           x += 0.001;
@@ -576,149 +448,193 @@ void GPUParameters::init(){
           double z = (0.5 - sumx)/((double)NUMR*NUMSEROTYPES);  // this is the remaining fraction of individuals to be distributed
           for(int stg=0; stg<NUMR; stg++)
           {
-            y_ode_input[i][ NUMSEROTYPES*NUMR*loc + NUMR*vir + stg ] = z * N[loc];
+            y_ode_input[i][ NUMSEROTYPES*NUMR*loc + NUMR*vir + stg ] = z * flu_params.N[loc];
           }
         }
       }
     }
 
-
-//    printf("v size = %d\n",v.size());
-//    printf("phis size = %d\n",phis.size());
-
-    trr = ((double)NUMR) / v[i_immune_duration];
-    v_d_i_nu = v[i_nu];
-    v_d_i_amp = v[i_amp];
-    v_d_i_epidur_d2 = v[i_epidur] / 2.0;
-    v_d_i_epidur_x2 = v[i_epidur] * 2.0;
-    pi_x2 = 2.0 * M_PI;
-
-    //copy cpu vector to gpu vector
-//    v_temp = v;
-//    v_d = thrust::raw_pointer_cast(v_temp.data());
-
-    if(phis.empty()){
-        phis_d = nullptr;
-        phis_d_length = 0;
-    }
-    else{
-        phis_temp = phis;
-        phis_d_length = phis.size();
-        phis_d = thrust::raw_pointer_cast(phis_temp.data());
-    }
-
-//    printf("\nsum_foi_sbe:\n");
-    //sum_foi
-//    m0,m1,.. are dimensions
-//    A(i,j,k,...) -> A0[i + j*m0 + k*m0*m1 + ...]
-    int index = 0;
-    int count = 0;
-    for(int loc = 0; loc < NUMLOC; loc++) {
-        for (int vir = 0; vir < NUMSEROTYPES; vir++) {
-            for (int stg = 0; stg < NUMR; stg++) {
-                for(int l = 0; l < NUMLOC; l++) {
-                    for (int v = 0; v < NUMSEROTYPES; v++) {
-                        index = loc*NUMSEROTYPES*NUMR*NUMLOC*NUMSEROTYPES + vir*NUMR*NUMLOC*NUMSEROTYPES + stg*NUMLOC*NUMSEROTYPES + l*NUMSEROTYPES + v;
-                        sum_foi_sbe[index] = sigma[vir][v]
-                                                * beta[v]
-                                                * eta[loc][l];
-                        sum_foi_y_index[index] = STARTI + NUMSEROTYPES*l + v;
-//                        printf("loc = %d vir = %d stg = %d l = %d v = %d index = %d sum_foi[%d] = %f\n",loc,vir,stg,l,v,index,index,sum_foi_sbe[index]);
-//                        printf("sum_foi_sbe[%d] = sigma[%d][%d] * beta[%d] * eta[%d][%d] * y[%d]\n",index,vir,v,v,loc,l,sum_foi_y_index[index]);
-                        count++;
-                    }
-                }
-            }
-        }
-    }
-//    printf("sum_foi count = %d\n",count);
-
-//    printf("\ninflow_from_recovereds_sbe:\n");
-    index = 0;
-    count = 0;
-    for(int loc = 0; loc < NUMLOC; loc++) {
-        for (int vir = 0; vir < NUMSEROTYPES; vir++) {
-            for(int l=0; l<NUMLOC; l++) {        // sum over locations
-                for (int v = 0; v < NUMSEROTYPES; v++) { // sum over recent immunity
-                    for (int s = 0; s < NUMR; s++) {    // sum over R stage
-                        index = loc*NUMSEROTYPES*NUMLOC*NUMSEROTYPES*NUMR + vir*NUMLOC*NUMSEROTYPES*NUMR + l*NUMSEROTYPES*NUMR + v*NUMR + s;
-                        inflow_from_recovereds_sbe[index] = sigma[vir][v]
-                                                            * beta[vir]
-                                                            * eta[loc][l] ;
-                        inflow_from_recovereds_y1_index[index] = STARTI + NUMSEROTYPES * l + vir;
-                        inflow_from_recovereds_y2_index[index] = NUMSEROTYPES * NUMR * loc + NUMR * v + s;
-//                        printf("loc = %d vir = %d l = %d v = %d s = %d index = %d inflow_from_recovereds[%d] = %f y1_index = %d y2_index = %d\n",loc,vir,l,v,s,index,index,
-//                               inflow_from_recovereds_sbe[index],inflow_from_recovereds_y1_index[index],inflow_from_recovereds_y2_index[index]);
-//                        printf("index = %d inflow_from_recovereds = sigma[%d][%d] * beta[%d] * eta[%d][%d] * y[%d] * y[%d]\n",index,vir,v,vir,loc,l,
-//                               inflow_from_recovereds_sbe[index],inflow_from_recovereds_y1_index[index],inflow_from_recovereds_y2_index[index]);
-                        count++;
-                    }
-                }
-            }
-        }
-    }
-//    printf("inflow_from_recovereds_sbe count = %d\n",count);
-
-//    printf("\nfoi_on_susc_all_viruses_eb:\n");
-    index = 0;
-    count = 0;
-    for(int loc = 0; loc < NUMLOC; loc++) {
-        for(int l=0; l<NUMLOC; l++){
-            for(int v=0; v<NUMSEROTYPES; v++){
-                index = loc*NUMLOC*NUMSEROTYPES + l*NUMSEROTYPES + v;
-                foi_on_susc_all_viruses_eb[index] = eta[loc][l]
-                                                    * beta[v];
-                foi_on_susc_all_viruses_y_index[index] = STARTI + NUMSEROTYPES * l + v;
-//                printf("loc = %d vir = %d index = %d foi_on_susc_all_viruses[%d] = %f\n",loc,v,index,index,foi_on_susc_all_viruses_eb[index]);
-//                printf("foi_on_susc_all_viruses_eb[%d] = eta[%d][%d] * beta[%d] * y[%d]\n",index,loc,l,v,foi_on_susc_all_viruses_y_index[index]);
-                count++;
-            }
-        }
-    }
-//    printf("foi_on_susc_all_viruses_eb count = %d\n",count);
-
-    printf("Total loop in one I thread = %d\n", NUMLOC*NUMSEROTYPES*NUMR);
-    printf("Total loop in one R S thread = %d\n", NUMLOC*NUMSEROTYPES);
-
-    // Copy host_vector H to device_vector D
-//    printf("copy cpu data to gpu\n");
+    flu_params.trr = ((double)NUMR) / v[i_immune_duration];
+    flu_params.v_d_i_nu = v[i_nu];
+    flu_params.v_d_i_amp = v[i_amp];
+    flu_params.v_d_i_epidur_d2 = v[i_epidur] / 2.0;
+    flu_params.v_d_i_epidur_x2 = v[i_epidur] * 2.0;
+    flu_params.pi_x2 = 2.0 * M_PI;
 }
 
-double GPUParameters::seasonal_transmission_factor(double t)
-{
-    /*
-
-
-        We're gonna make this thing go for 40 years. 30 years of burn in and 10 years of real modeling.
-        We're creating a "10-year model cycle" and need the code below to find a time point's "place" in the "cycle"
-        modulus (denoted with % in C++) only works with integers, so need the acrobatics below
-
-     */
-
-    // This is some code that's needed to create the 10-year "cycles" in transmission.
-
-    if(phis.size() == 0){
-        return 1.0;
+void GPUParameters::update(){
+    double new_sample[flu_params.sample_length];
+    for(int i = 0; i < flu_params.sample_length; i++){
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::normal_distribution<double> d(flu_params.sample[i], flu_params.sample_sd[i]);
+        new_sample[i] = d(gen);
     }
-
-    int x = (int)t; // This is now to turn a double into an integer
-    double remainder = t - (double)x;
-    int xx = x % 3650; // int xx = x % NUMDAYSOUTPUT;
-    double yy = (double)xx + remainder;
-    // put yy into the sine function, let it return the beta value
-    t = yy;
-    double sine_function_value = 0.0;
-
-    for(int i=0; i<phis.size(); i++)
-    {
-        if( std::fabs( t - phis[i] ) < (v[i_epidur] / 2))
-        {
-            // sine_function_value = sin( 2.0 * 3.141592653589793238 * (phis[i]-t+91.25) / 365.0 );
-            sine_function_value = std::sin( 2.0 * 3.141592653589793238 * (phis[i] - t +(v[i_epidur] / 2)) / (v[i_epidur] * 2));
-//            printf("      in loop %1.3f %d  %1.3f %1.3f\n", t, i, phis[i], sine_function_value );
+    flu_params.beta[0] = new_sample[0];
+    flu_params.beta[1] = new_sample[1];
+    flu_params.beta[2] = new_sample[2];
+    flu_params.phi[0] = new_sample[3];
+    flu_params.tau[0] = new_sample[4];
+    flu_params.tau[1] = new_sample[5];
+    flu_params.tau[2] = new_sample[6];
+    flu_params.tau[3] = new_sample[7];
+    flu_params.tau[4] = new_sample[8];
+    flu_params.tau[5] = new_sample[9];
+    flu_params.tau[6] = new_sample[10];
+    flu_params.tau[7] = new_sample[11];
+    flu_params.tau[8] = new_sample[12];
+    
+    y_ode_input = new double*[NUMODE]();
+    for (int i = 0; i < NUMODE; i++) {
+        y_ode_input[i] = new double[ode_dimension];
+    }
+    for (int i = 0; i < NUMODE; i++) {
+        for (int j = 0; j < ode_dimension; j++) {
+            y_ode_input[i][j] = 0.5;
         }
     }
-//    printf("    %f sine_function_value %1.3f\n",t,sine_function_value);
-//    printf("    %f return %1.3f\n",t,1.0 + v[i_amp] * sine_function_value);
-    return 1.0 + v[i_amp] * sine_function_value;
+    y_ode_agg = new double*[NUMODE]();
+    for (int i = 0; i < NUMODE; i++) {
+      y_ode_agg[i] = new double[NUMDAYSOUTPUT * agg_dimension];
+    }
+    for (int i = 0; i < NUMODE; i++) {
+      for (int j = 0; j < NUMDAYSOUTPUT * agg_dimension; j++) {
+        y_ode_agg[i][j] = -9999.0;
+      }
+    }
+    v.clear();
+    v.insert( v.begin(), num_params, 0.0 );
+    assert( v.size()==num_params );
+
+    for(int i=0; i<NUMSEROTYPES; i++)
+    {
+        for(int j=0; j<NUMSEROTYPES; j++)
+        {
+            flu_params.sigma2d[i][j] = 0.0; // this initializes the system with full cross-immunity among serotypes
+        }
+    }
+
+    for(int i=0; i<NUMLOC; i++)
+    {
+        for(int j=0; j<NUMLOC; j++)
+        {
+            if(i==j) flu_params.eta[i][j] = 1.0;  // the diagonal elements have to be 1.0, as a population mixes fully with itself
+            if(i!=j) flu_params.eta[i][j] = 0.0;  // these are initialized to 0.0 indicating that the different sub-populations do not mix at all
+        }
+    }
+
+    // set initial values for the population sizes, 1 million for first location and 100K for others
+    flu_params.N[0] = POPSIZE_MAIN;
+    for(int i=1; i<NUMLOC; i++) flu_params.N[i] = POPSIZE_OUT;
+
+    //Load default params
+    G_CLO_BETA1 = flu_params.beta[0];
+    G_CLO_BETA2 = flu_params.beta[1];
+    G_CLO_BETA3 = flu_params.beta[2];
+    G_CLO_SIGMA12 = flu_params.sigma[0];
+    G_CLO_SIGMA13 = flu_params.sigma[1];
+    G_CLO_SIGMA23 = flu_params.sigma[2];
+    G_CLO_AMPL = flu_params.amp;
+    G_CLO_NU_DENOM = flu_params.nu_denom;
+    G_CLO_RHO_DENOM = flu_params.rho_denom;
+    G_CLO_EPIDUR = flu_params.epidur;
+    flu_params.phi_length = sizeof(flu_params.phi)/sizeof(flu_params.phi[0]);
+    flu_params.phi[0] = flu_params.phi_0;
+    for(int i = 1; i < flu_params.phi_length; i++){
+        flu_params.phi[i] = flu_params.phi[i-1] + flu_params.tau[i-1];
+    }
+    for(int i = 0; i < flu_params.phi_length; i++){
+        printf("phi[%d] = %.5f\n",i,flu_params.phi[i]);
+    }
+
+
+    //
+    // ###  3.  INITIALIZE PARAMETERS - these are the default/starting values
+    //
+
+    // if the phi-parameters are not initialized on the command line
+    if( !G_PHIS_INITIALIZED_ON_COMMAND_LINE )
+    {
+        for(int i=0;  i<10; i++) v[i] = ((double)i)*365.0 + 240.0; // sets the peak epidemic time in late August for the first 10 years
+        for(int i=10; i<20; i++) v[i] = -99.0;
+    }
+
+    v[ i_amp ]   = G_CLO_AMPL;
+    flu_params.beta[0] = G_CLO_BETA1 / POPSIZE_MAIN;    // NOTE this is in a density-dependent transmission scheme
+    flu_params.beta[1] = G_CLO_BETA2 / POPSIZE_MAIN;
+    flu_params.beta[2] = G_CLO_BETA3 / POPSIZE_MAIN;
+
+    flu_params.sigma2d[0][1] = G_CLO_SIGMA12; // 0.7; // the level of susceptibility to H1 if you've had B
+    flu_params.sigma2d[1][0] = G_CLO_SIGMA12; // 0.7; // and vice versa
+
+    flu_params.sigma2d[1][2] = G_CLO_SIGMA23; // 0.7; // the level of susceptibility to H3 if you've had B
+    flu_params.sigma2d[2][1] = G_CLO_SIGMA23; // 0.7; // and vice versa
+
+    flu_params.sigma2d[0][2] = G_CLO_SIGMA13; // 0.3; // the level of susceptibility to H3 if you've had H1
+    flu_params.sigma2d[2][0] = G_CLO_SIGMA13; // 0.3; // and vice versa
+
+    flu_params.sigma2d[0][0] = 0;
+    flu_params.sigma2d[1][1] = 0;
+    flu_params.sigma2d[2][2] = 0;
+
+    v[ i_nu ]    = 1 / G_CLO_NU_DENOM;                // recovery rate
+    v[ i_immune_duration ] = G_CLO_RHO_DENOM;    // 2.5 years of immunity to recent infection'
+
+    v[ i_epidur ] = G_CLO_EPIDUR;
+
+    //
+    // ###  4.  SET INITIAL CONDITIONS FOR ODE SYSTEM
+    //
+
+    // declare the vector y that holds the values of all the state variables (at the current time)
+    // below you are declaring a vector of size DIM
+
+    for(int i = 0; i < NUMODE; i++){
+      for(int loc=0; loc<NUMLOC; loc++)
+      {
+        // put half of the individuals in the susceptible class
+        y_ode_input[i][ STARTS + loc ] = 0.5 * flu_params.N[loc];
+
+        // put small number (but slightly different amounts each time) of individuals into the infected classes
+        // double r = rand() % 50 + 10;
+        //double x = r / 1000.0; // double x = 0.010;
+        double x = 0.010;
+        double sumx = 0.0;
+        for(int vir=0; vir<NUMSEROTYPES; vir++)
+        {
+          double r = rand() % 50 + 1;
+          x = r / 1000.0;
+
+          if (vir == 0) { x = 35 / 1000.0; }
+          if (vir == 1) { x = 25 / 1000.0; }
+          if (vir == 2) { x = 21 / 1000.0; }
+
+          // fprintf(stderr, "r = %1.4f, x = %1.6f", r, x);
+
+          sumx += x;
+          y_ode_input[i][ STARTI + NUMSEROTYPES*loc + vir ] = x * flu_params.N[loc];
+          y_ode_input[i][ STARTJ + NUMSEROTYPES*loc + vir ] = 0.0;     // initialize all of the J-variables to zero
+
+          x += 0.001;
+        }
+        x=0.010; // reset x
+
+        // distribute the remainder of individuals into the different recovered stages equally
+        for(int vir=0; vir<NUMSEROTYPES; vir++)
+        {
+          double z = (0.5 - sumx)/((double)NUMR*NUMSEROTYPES);  // this is the remaining fraction of individuals to be distributed
+          for(int stg=0; stg<NUMR; stg++)
+          {
+            y_ode_input[i][ NUMSEROTYPES*NUMR*loc + NUMR*vir + stg ] = z * flu_params.N[loc];
+          }
+        }
+      }
+    }
+
+    flu_params.trr = ((double)NUMR) / v[i_immune_duration];
+    flu_params.v_d_i_nu = v[i_nu];
+    flu_params.v_d_i_amp = v[i_amp];
+    flu_params.v_d_i_epidur_d2 = v[i_epidur] / 2.0;
+    flu_params.v_d_i_epidur_x2 = v[i_epidur] * 2.0;
+    flu_params.pi_x2 = 2.0 * M_PI;
 }

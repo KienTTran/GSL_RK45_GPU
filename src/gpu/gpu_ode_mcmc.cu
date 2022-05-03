@@ -23,6 +23,13 @@ void GPUFlu::set_parameters(GPUParameters *params_) {
     params = &(*params_);
 }
 
+double GPUFlu::rand_uniform(double range_from, double range_to) {
+    std::random_device                  rand_dev;
+    std::mt19937                        generator(rand_dev());
+    std::uniform_real_distribution<double>    distr(range_from, range_to);
+    return distr(generator);
+}
+
 void GPUFlu::run() {
     int num_SMs;
     checkCuda(cudaDeviceGetAttribute(&num_SMs, cudaDevAttrMultiProcessorCount, 0));
@@ -124,12 +131,12 @@ void GPUFlu::run() {
     checkCuda(cudaMalloc((void **) &y_mcmc_dnorm_h3_d, NUMODE * sizeof(double)));
     checkCuda(cudaMemcpy(y_mcmc_dnorm_h3_d, tmp_ptr, NUMODE * sizeof(double), cudaMemcpyHostToDevice));
 
-    //y_mcmc_dnorm_h1_1d_d
-    double *y_mcmc_dnorm_h1_1d_d = 0;
     double y_mcmc_dnorm_1d_h[DATADIM_ROWS];
     for (int i = 0; i < DATADIM_ROWS; i++) {
         y_mcmc_dnorm_1d_h[i] = i;
     }
+    //y_mcmc_dnorm_h1_1d_d
+    double *y_mcmc_dnorm_h1_1d_d = 0;
     checkCuda(cudaMalloc((void **) &y_mcmc_dnorm_h1_1d_d, params->data_params.rows * sizeof(double)));
     checkCuda(cudaMemcpy(y_mcmc_dnorm_h1_d, y_mcmc_dnorm_1d_h, params->data_params.rows * sizeof(double), cudaMemcpyHostToDevice));
     //y_mcmc_dnorm_b_1d_d
@@ -166,7 +173,10 @@ void GPUFlu::run() {
 
     start = std::chrono::high_resolution_clock::now();
     //    cudaProfilerStart();
-    for (int iter = 0; iter < 1; iter++) {
+    double r_denom = 0.0;
+    double r_num = 0.0;
+    GPUParameters* params_temp;
+    for (int iter = 0; iter < 100; iter++) {
         solve_ode<<<params->num_blocks, params->block_size>>>(
                 y_ode_input_d, y_ode_output_d, y_ode_agg_d, params_d);
         params->block_size = 256; //max is 1024
@@ -176,16 +186,79 @@ void GPUFlu::run() {
         mcmc_get_dnorm_outputs_1d<<<params->num_blocks, params->block_size>>>(y_mcmc_dnorm_h1b_h3_d, y_mcmc_dnorm_h1_1d_d, y_mcmc_dnorm_b_1d_d, y_mcmc_dnorm_h3_1d_d, params_d);
         params->block_size = 512; //max is 1024
         params->num_blocks = (NUMODE*DATADIM_ROWS + params->block_size - 1) / params->block_size;
+        reduce_sum<<<params->num_blocks, params->block_size>>>(data_test_sum_d, dnorm_sum_d,  params->data_params.rows);
+        checkCuda(cudaMemcpy(dnorm_sum_h,dnorm_sum_d,params->data_params.rows * sizeof(double), cudaMemcpyDeviceToHost));
+        printf("sum reduce data_test_sum_d = %.5f\n",dnorm_sum_h[0]+dnorm_sum_h[1]);
+        r_denom = dnorm_sum_h[0]+dnorm_sum_h[1];
         reduce_sum<<<params->num_blocks, params->block_size>>>(y_mcmc_dnorm_h1_1d_d, dnorm_sum_d,  params->data_params.rows);
         checkCuda(cudaMemcpy(dnorm_sum_h,dnorm_sum_d,params->data_params.rows * sizeof(double), cudaMemcpyDeviceToHost));
-        printf("sum reduce y_mcmc_dnorm_h1_1d_d = %.5f\n",dnorm_sum_h[0]);
+        printf("sum reduce r_denom = %.5f\n",dnorm_sum_h[0]+dnorm_sum_h[1]);
+        r_denom = dnorm_sum_h[0]+dnorm_sum_h[1];
         reduce_sum<<<params->num_blocks, params->block_size>>>(y_mcmc_dnorm_b_1d_d, dnorm_sum_d,  params->data_params.rows);
         checkCuda(cudaMemcpy(dnorm_sum_h,dnorm_sum_d,params->data_params.rows * sizeof(double), cudaMemcpyDeviceToHost));
-        printf("sum reduce y_mcmc_dnorm_b_1d_d = %.5f\n",dnorm_sum_h[0]);
+        printf("sum reduce r_denom = %.5f\n",dnorm_sum_h[0]+dnorm_sum_h[1]);
+        r_denom = dnorm_sum_h[0]+dnorm_sum_h[1];
         reduce_sum<<<params->num_blocks, params->block_size>>>(y_mcmc_dnorm_h3_1d_d, dnorm_sum_d,  params->data_params.rows);
         checkCuda(cudaMemcpy(dnorm_sum_h,dnorm_sum_d,params->data_params.rows * sizeof(double), cudaMemcpyDeviceToHost));
-        printf("sum reduce y_mcmc_dnorm_h3_1d_d = %.5f\n",dnorm_sum_h[0]);
-        printf("iter %d\n", iter);
+        printf("sum reduce r_denom = %.5f\n",dnorm_sum_h[0]+dnorm_sum_h[1]);
+        r_denom = dnorm_sum_h[0]+dnorm_sum_h[1];
+
+        //
+        // Generate new parameters
+        //
+
+//        for(int i = 0; i < params->ode_dimension; i++){
+//            printf("before update y_ode_input[%d] = %.5f\n",i,params->y_ode_input[0][i]);
+//        }
+        params_temp = params;
+        params_temp->update();
+//        for(int i = 0; i < params_temp->ode_dimension; i++){
+//            printf("after update y_ode_input[%d] = %.5f\n",i,params_temp->y_ode_input[0][i]);
+//        }
+
+        //
+        // Copy new parameters to gpu
+        //
+
+        checkCuda(cudaMemcpy(params_d, params_temp, sizeof(GPUParameters), cudaMemcpyHostToDevice));
+
+        //
+        // Solve ode with new parameters
+        //
+        solve_ode<<<params->num_blocks, params->block_size>>>(
+                y_ode_input_d, y_ode_output_d, y_ode_agg_d, params_d);
+        params->block_size = 256; //max is 1024
+        params->num_blocks = (NUMODE*DATADIM_ROWS + params->block_size - 1) / params->block_size;
+        mcmc_dnorm<<<params->num_blocks, params->block_size>>>(y_data_input_d, y_ode_agg_d, y_mcmc_dnorm_h1b_h3_d, params_d);
+        mcmc_get_dnorm_outputs_1d<<<params->num_blocks, params->block_size>>>(y_mcmc_dnorm_h1b_h3_d, y_mcmc_dnorm_h1_1d_d, y_mcmc_dnorm_b_1d_d, y_mcmc_dnorm_h3_1d_d, params_d);
+        params->block_size = 512; //max is 1024
+        params->num_blocks = (NUMODE*DATADIM_ROWS + params->block_size - 1) / params->block_size;
+        reduce_sum<<<params->num_blocks, params->block_size>>>(data_test_sum_d, dnorm_sum_d,  params->data_params.rows);
+        checkCuda(cudaMemcpy(dnorm_sum_h,dnorm_sum_d,params->data_params.rows * sizeof(double), cudaMemcpyDeviceToHost));
+        printf("sum reduce data_test_sum_d = %.5f\n",dnorm_sum_h[0] + dnorm_sum_h[1]);
+        r_num = dnorm_sum_h[0]+dnorm_sum_h[1];
+        reduce_sum<<<params->num_blocks, params->block_size>>>(y_mcmc_dnorm_h1_1d_d, dnorm_sum_d,  params->data_params.rows);
+        checkCuda(cudaMemcpy(dnorm_sum_h,dnorm_sum_d,params->data_params.rows * sizeof(double), cudaMemcpyDeviceToHost));
+        printf("sum reduce r_num = %.5f\n",dnorm_sum_h[0]+dnorm_sum_h[1]);
+        r_num = dnorm_sum_h[0]+dnorm_sum_h[1];
+        reduce_sum<<<params->num_blocks, params->block_size>>>(y_mcmc_dnorm_b_1d_d, dnorm_sum_d,  params->data_params.rows);
+        checkCuda(cudaMemcpy(dnorm_sum_h,dnorm_sum_d,params->data_params.rows * sizeof(double), cudaMemcpyDeviceToHost));
+        printf("sum reduce r_num = %.5f\n",dnorm_sum_h[0]+dnorm_sum_h[1]);
+        r_num = dnorm_sum_h[0]+dnorm_sum_h[1];
+        reduce_sum<<<params->num_blocks, params->block_size>>>(y_mcmc_dnorm_h3_1d_d, dnorm_sum_d,  params->data_params.rows);
+        checkCuda(cudaMemcpy(dnorm_sum_h,dnorm_sum_d,params->data_params.rows * sizeof(double), cudaMemcpyDeviceToHost));
+        printf("sum reduce r_num = %.5f\n",dnorm_sum_h[0]+dnorm_sum_h[1]);
+        r_num = dnorm_sum_h[0]+dnorm_sum_h[1];
+
+        double r  = r_num - r_denom;
+        if(exp(r) > rand_uniform(0.0,1.0)){
+            params = params_temp;
+            r_denom = r_num;
+            printf("iter %d accept params (r = %.5f)\n",iter,r);
+        }
+        else{
+            printf("iter %d reject params_temp (r = %.5f)\n",iter,r);
+        }
     }
 
     //    cudaProfilerStop();
@@ -262,8 +335,18 @@ void GPUFlu::run() {
     checkCuda(cudaFree(y_ode_output_d));
     checkCuda(cudaFree(y_ode_agg_d));
     checkCuda(cudaFree(y_data_input_d));
+    checkCuda(cudaFree(y_mcmc_dnorm_h1_1d_d));
+    checkCuda(cudaFree(y_mcmc_dnorm_b_1d_d));
+    checkCuda(cudaFree(y_mcmc_dnorm_h3_1d_d));
+    checkCuda(cudaFree(y_mcmc_dnorm_h1_d));
+    checkCuda(cudaFree(y_mcmc_dnorm_b_d));
+    checkCuda(cudaFree(y_mcmc_dnorm_h3_d));
+    checkCuda(cudaFree(y_mcmc_dnorm_h1b_h3_d));
+    checkCuda(cudaFree(dnorm_sum_d));
+    checkCuda(cudaFree(data_test_sum_d));
     checkCuda(cudaFree(params_d));
     delete params;
+//    delete params_temp;
     delete y_ode_output_h;
     delete y_output_agg_h;
     return;
