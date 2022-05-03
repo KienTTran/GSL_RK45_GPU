@@ -290,6 +290,8 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
         device_y[i] = y[index][i];
     }
 
+//    printf("updated phi[%d] = %.5f\n",9,params->flu_params.phi[9]);
+
     while (t < t_target) {
         double device_t;
         double device_t1;
@@ -397,36 +399,36 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
 //        }
         t += t_delta;
 
-        /* y_ode_output_d*/
-        for (int i = 0; i < params->display_dimension; i ++) {
-          const int y_output_index = day * params->display_dimension + i;
-          if(y_output_index % params->display_dimension == 0){
-            //First column
-            y_output[index][y_output_index] = day*1.0;
-            //          printf("First day = %d index = %d i = %d y_output_index = %d y_output[%d][%d] = %.5f\n",
-            //                 day, index, i, y_output_index, index, y_output_index, y_output[index][y_output_index]);
-          }
-          else if(y_output_index % params->display_dimension == 1){
-            //Second column
-            y_output[index][y_output_index] = seasonal_transmission_factor(params,t);
-            //          printf("Second day = %d index = %d i = %d y_output_index = %d y_output[%d][%d] = %.5f\n",
-            //                 day, index, i, y_output_index, index, y_output_index, y_output[index][y_output_index]);
-          }
-          else if(y_output_index % params->display_dimension >= 2 && y_output_index % params->display_dimension < params->display_dimension - 1){
-            //Third column to column next to last column
-            const int y_index = (y_output_index - 2) % params->display_dimension;
-            y_output[index][y_output_index] = device_y_yesterday[y_index];
-            //          printf("day = %d index = %d i = %d y_output_index = %d y[%d][%d] = y[%d][%d] = %.5f\n",
-            //                 day, index, i, y_output_index, index, y_output_index, index, y_index, device_y[y_index]);
-          }
-          else{
-            //Last column
+//        /* y_ode_output_d*/
+//        for (int i = 0; i < params->display_dimension; i ++) {
+//          const int y_output_index = day * params->display_dimension + i;
+//          if(y_output_index % params->display_dimension == 0){
+//            //First column
+//            y_output[index][y_output_index] = day*1.0;
+//            //          printf("First day = %d index = %d i = %d y_output_index = %d y_output[%d][%d] = %.5f\n",
+//            //                 day, index, i, y_output_index, index, y_output_index, y_output[index][y_output_index]);
+//          }
+//          else if(y_output_index % params->display_dimension == 1){
+//            //Second column
+//            y_output[index][y_output_index] = seasonal_transmission_factor(params,t);
+//            //          printf("Second day = %d index = %d i = %d y_output_index = %d y_output[%d][%d] = %.5f\n",
+//            //                 day, index, i, y_output_index, index, y_output_index, y_output[index][y_output_index]);
+//          }
+//          else if(y_output_index % params->display_dimension >= 2 && y_output_index % params->display_dimension < params->display_dimension - 1){
+//            //Third column to column next to last column
+//            const int y_index = (y_output_index - 2) % params->display_dimension;
+//            y_output[index][y_output_index] = device_y_yesterday[y_index];
+//            //          printf("day = %d index = %d i = %d y_output_index = %d y[%d][%d] = y[%d][%d] = %.5f\n",
+//            //                 day, index, i, y_output_index, index, y_output_index, index, y_index, device_y[y_index]);
+//          }
+//          else{
+//            //Last column
+////            y_output[index][y_output_index] = pop_sum(device_y);
 //            y_output[index][y_output_index] = pop_sum(device_y);
-            y_output[index][y_output_index] = pop_sum(device_y);
-            //          printf("Third day = %d index = %d i = %d y_output_index = %d y_output[%d][%d] = %.5f\n",
-            //                 day, index, i, y_output_index, index, y_output_index, y_output[index][y_output_index]);
-          }
-        }
+//            //          printf("Third day = %d index = %d i = %d y_output_index = %d y_output[%d][%d] = %.5f\n",
+//            //                 day, index, i, y_output_index, index, y_output_index, y_output[index][y_output_index]);
+//          }
+//        }
 
         /* y_ode_agg_d*/
         /* AGG Output 1-6 */
@@ -478,7 +480,9 @@ void solve_ode(double *y_ode_input_d[], double *y_ode_output_d[], double *y_ode_
     int index_gpu = threadIdx.x + blockIdx.x * blockDim.x;
     int stride = blockDim.x * gridDim.x;
     for (int index = index_gpu; index < NUMODE; index += stride) {
-//    printf("ODE %d will be solved by thread index = %d blockIdx.x = %d\n", index, index, blockIdx.x);
+//        if(index % 32 == 0){
+//            printf("ODE %d will be solved by thread index = %d blockIdx.x = %d\n", index, index, blockIdx.x);
+//        }
         solve_ode(y_ode_input_d, y_ode_output_d, y_ode_agg_d, index, params);
     }
     return;

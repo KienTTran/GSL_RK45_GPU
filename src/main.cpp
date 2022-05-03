@@ -14,7 +14,8 @@ int main(int argc, char* argv[])
     gpu_params->t_target = NUMDAYSOUTPUT;
     gpu_params->t0 = 0.0;
     gpu_params->step = 1.0;
-    gpu_params->h = 0.1;
+    gpu_params->h = 1e-6;
+    gpu_params->mcmc_loop = 100;
     gpu_params->init();
 //    gpu_params->init_from_cmd(argc, argv);
     gpu_flu->set_parameters(gpu_params);

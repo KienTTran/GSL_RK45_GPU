@@ -6,6 +6,7 @@
 #include "gpu_parameters.h"
 
 GPUParameters::GPUParameters(){
+    mcmc_loop = 0;
     ode_dimension = 0;
     t_target = 0.0;
     t0 = 0.0;
@@ -15,6 +16,7 @@ GPUParameters::GPUParameters(){
 }
 
 GPUParameters::~GPUParameters(){
+    mcmc_loop = 0;
     ode_dimension = 0;
     t_target = 0.0;
     t0 = 0.0;
@@ -367,9 +369,9 @@ void GPUParameters::init(){
     for(int i = 1; i < flu_params.phi_length; i++){
         flu_params.phi[i] = flu_params.phi[i-1] + flu_params.tau[i-1];
     }
-    for(int i = 0; i < flu_params.phi_length; i++){
-        printf("phi[%d] = %.5f\n",i,flu_params.phi[i]);
-    }
+//    for(int i = 0; i < flu_params.phi_length; i++){
+//        printf("phi[%d] = %.5f\n",i,flu_params.phi[i]);
+//    }
 
     //
     // ###  3.  INITIALIZE PARAMETERS - these are the default/starting values
@@ -543,9 +545,9 @@ void GPUParameters::update(){
     for(int i = 1; i < flu_params.phi_length; i++){
         flu_params.phi[i] = flu_params.phi[i-1] + flu_params.tau[i-1];
     }
-    for(int i = 0; i < flu_params.phi_length; i++){
-        printf("phi[%d] = %.5f\n",i,flu_params.phi[i]);
-    }
+//    for(int i = 0; i < flu_params.phi_length; i++){
+//        printf("phi[%d] = %.5f\n",i,flu_params.phi[i]);
+//    }
 
 
     //

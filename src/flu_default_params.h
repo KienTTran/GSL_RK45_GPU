@@ -72,7 +72,7 @@ namespace {
 
 //#define NUMDAYSOUTPUT 2// use this to define "cycle" lengths
 
-#define NUMODE 1// GPU Streams
+#define NUMODE 256// GPU Streams
 #define DATADIM_ROWS 520
 #define DATADIM_COLS 3
 

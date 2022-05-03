@@ -22,35 +22,42 @@ void mcmc_dnorm(double *y_data_input_d[], double *y_ode_agg_d[], double* y_mcmc_
 
     for (int index = index_gpu; index < NUMODE * DATADIM_ROWS; index += stride) {
         const int ode_index = index / DATADIM_ROWS;
+        const int line_index = index % DATADIM_ROWS;
+
+//        if(ode_index % 32 == 0 && line_index % 32 == 0)
+//        {
+//            printf("index = %d ODE %d line %d will be processed by thread %d (block %d)\n", index, ode_index, line_index, threadIdx.x, blockIdx.x);
+//        }
+
         //Calculate agg mean
         for (int i = 0; i < DATADIM_COLS; i++) {
-            const int y_agg_index = index*params->agg_dimension + 3;//Forth column only
-            const int y_data_and_dnorm_index = index*params->data_params.cols + i;
+            const int y_agg_index = line_index*params->agg_dimension + 3;//Forth column only
+            const int y_data_and_dnorm_index = line_index*params->data_params.cols + i;
             y_mcmc_dnorm_d[ode_index][y_data_and_dnorm_index] = dnorm(y_data_input_d[ode_index][y_data_and_dnorm_index],
                                                                       y_ode_agg_d[ode_index][y_agg_index] < 0 ? -9999.0 : y_ode_agg_d[ode_index][y_agg_index]/y_ode_agg_d[ode_index][i],
                                                                       0.25,
                                                                       true);
         }
-        if(index == 73){
-            printf("Line %d data\t",index);
+        if(ode_index == 1 && line_index == 1){
+            printf("Line %d data\t",line_index);
             for (int i = 0; i < DATADIM_COLS; i++) {
-                const int data_index = index*params->data_params.cols + i;
+                const int data_index = line_index*params->data_params.cols + i;
                 printf("%.5f\t",y_data_input_d[ode_index][data_index]);
                 if(i == DATADIM_COLS - 1){
                     printf("\n");
                 }
             }
             __syncthreads();
-            printf("Line %d agg\t",index);
+            printf("Line %d agg\t",line_index);
             for (int i = 0; i < DATADIM_COLS; i++) {
-                const int agg_index = index*params->agg_dimension + 3;//Forth column only
+                const int agg_index = line_index*params->agg_dimension + 3;//Forth column only
                 printf("%.5f\t",y_ode_agg_d[ode_index][agg_index]);
                 if(i == DATADIM_COLS - 1){
                     printf("\n");
                 }
             }
             __syncthreads();
-            printf("Line %d max\t",index);
+            printf("Line %d max\t",line_index);
             for (int i = 0; i < DATADIM_COLS; i++) {
                 printf("%.5f\t",y_ode_agg_d[ode_index][i]);
                 if(i == DATADIM_COLS - 1){
@@ -58,18 +65,18 @@ void mcmc_dnorm(double *y_data_input_d[], double *y_ode_agg_d[], double* y_mcmc_
                 }
             }
             __syncthreads();
-            printf("Line %d mean\t",index);
+            printf("Line %d mean\t",line_index);
             for (int i = 0; i < DATADIM_COLS; i++) {
-                const int y_agg_index = index*params->agg_dimension + 3;//Forth column only
+                const int y_agg_index = line_index*params->agg_dimension + 3;//Forth column only
                 printf("%.5f\t",y_ode_agg_d[ode_index][y_agg_index] < 0 ? -9999.0 : y_ode_agg_d[ode_index][y_agg_index]/y_ode_agg_d[ode_index][i]);
                 if(i == DATADIM_COLS - 1){
                     printf("\n");
                 }
             }
             __syncthreads();
-            printf("Line %d dnorm\t",index);
+            printf("Line %d dnorm\t",line_index);
             for (int i = 0; i < DATADIM_COLS; i++) {
-                const int dnorm_index = index*params->data_params.cols + i;
+                const int dnorm_index = line_index*params->data_params.cols + i;
                 printf("%.5f\t",y_mcmc_dnorm_d[ode_index][dnorm_index]);
                 if(i == DATADIM_COLS - 1){
                     printf("\n");

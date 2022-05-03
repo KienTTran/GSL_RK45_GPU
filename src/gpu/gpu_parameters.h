@@ -86,6 +86,7 @@ public:
     ~GPUParameters();
     int num_blocks;
     int block_size;
+    int mcmc_loop;
     int ode_dimension;
     int display_dimension;
     int agg_dimension;
