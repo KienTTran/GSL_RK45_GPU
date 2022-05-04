@@ -72,9 +72,11 @@ namespace {
 
 //#define NUMDAYSOUTPUT 2// use this to define "cycle" lengths
 
-#define NUMODE 256// GPU Streams
+#define NUMODE 1// GPU Streams
 #define DATADIM_ROWS 520
 #define DATADIM_COLS 3
+#define GPU_MCMC_THREADS 512
+#define GPU_ODE_THREADS 256
 
 
 // Two population sizes: main population and all outer populations have the same size

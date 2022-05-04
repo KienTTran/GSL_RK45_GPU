@@ -132,17 +132,9 @@
 //}
 
 __device__
-void gpu_func_test(double t, const double y[], double f[], int index, GPUParameters* gpu_params){
+void gpu_func_test(double t, const double y[], double f[], double stf, int index, GPUParameters* gpu_params){
     // everything will be indexed by location (loc), the infecting subtype/serotype (vir), and the stage of recovery (stg) in the R-classes
     int loc, vir, stg;
-
-    // force of infection
-    // double foi = gpu_params->v[i_beta] * y[NUMR+2];
-
-    // the transition rate among R-classes
-//    double trr = ((double)NUMR) / gpu_params->v[i_immune_duration];
-//    double stf = gpu_params->seasonal_transmission_factor(t); //calculate stf one time on the fly
-    double stf = 1.0;
 
 //    for(int j=0;j<DIM;j++) {
 ////        if(j == 0 || j == DIM -1)

@@ -30,7 +30,7 @@ void CSV_Data::read_csv_data(){
   if(!csv_file.is_open()) throw std::runtime_error("Could not open file");
 
   std::string row;
-  for(int i = 0; i < DATADIM_ROWS; i++){
+  for(int i = 0; i < csv_params.rows; i++){
     std::getline(csv_file, row);
     if (csv_file.bad() || csv_file.fail()) {
       break;
@@ -38,7 +38,7 @@ void CSV_Data::read_csv_data(){
 //    printf("row = %s\n",row.c_str());
     std::vector<std::string> words = split_string(row,',');
 
-    for(int j = 0; j < DATADIM_COLS; j++){
+    for(int j = 0; j < csv_params.cols; j++){
 //      printf("words[%d] = %s\n",j,words[j].c_str());
       if (words[j].find("NA") != std::string::npos){
         csv_data[i][j] = -9999;
@@ -58,9 +58,9 @@ void CSV_Data::read_csv_data(){
 }
 
 
-void CSV_Data::load_csv_data(int numode, double* y[]){
+void CSV_Data::load_csv_data(int ode_number, double* y[]){
   printf("Load data from CSV\n");
-  for (int i = 0; i < numode; i++) {
+  for (int i = 0; i < ode_number; i++) {
     for (int j = 0; j < csv_params.rows; j++) {
       for (int k = 0; k < csv_params.cols; k++) {
         const int index = j*csv_params.cols + k;

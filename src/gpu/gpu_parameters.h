@@ -87,6 +87,8 @@ public:
     int num_blocks;
     int block_size;
     int mcmc_loop;
+    int ode_output_day;
+    int ode_number;
     int ode_dimension;
     int display_dimension;
     int agg_dimension;

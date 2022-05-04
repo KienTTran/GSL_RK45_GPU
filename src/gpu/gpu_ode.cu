@@ -5,9 +5,8 @@
 #include "gpu_ode_mcmc.h"
 
 __device__
-double seasonal_transmission_factor(GPUParameters *gpu_params, double t) {
+double seasonal_transmission_factor(GPUParameters *params, double t) {
     /*
-
 
         We're gonna make this thing go for 40 years. 30 years of burn in and 10 years of real modeling.
         We're creating a "10-year model cycle" and need the code below to find a time point's "place" in the "cycle"
@@ -17,27 +16,38 @@ double seasonal_transmission_factor(GPUParameters *gpu_params, double t) {
 
     // This is some code that's needed to create the 10-year "cycles" in transmission.
 
-    if (gpu_params->flu_params.phi_length == 0) {
+
+//    if(t == 0){
+//        printf("params->flu_params.phi_length = %d\n",params->flu_params.phi_length);
+//        printf("params->flu_params.pi_x2 = %.5f\n",params->flu_params.pi_x2);
+//        printf("params->flu_params.v_d_i_epidur_d2 = %.5f\n",params->flu_params.v_d_i_epidur_d2);
+//        printf("params->flu_params.v_d_i_epidur_x2 = %.5f\n",params->flu_params.v_d_i_epidur_x2);
+//        printf("params->flu_params.v_d_i_amp = %.5f\n",params->flu_params.v_d_i_amp);
+//        for(int i = 0; i < params->flu_params.phi_length; i++){
+//            printf("phi[%d] = %.5f\n",i,params->flu_params.phi[i]);
+//        }
+//    }
+    if (params->flu_params.phi_length == 0) {
         return 1.0;
     }
 
     int x = (int) t; // This is now to turn a double into an integer
     double remainder = t - (double) x;
-    int xx = x % 3650; // int xx = x % NUMDAYSOUTPUT;
+    int xx = x % 3650; // int xx = x % params->ode_output_day;
     double yy = (double) xx + remainder;
     // put yy into the sine function, let it return the beta value
     t = yy;
     double sine_function_value = 0.0;
 
-    for (int i = 0; i < gpu_params->flu_params.phi_length; i++) {
-        if (fabs(t - gpu_params->flu_params.phi[i]) < (gpu_params->flu_params.v_d_i_epidur_d2)) {
-            sine_function_value = sin(gpu_params->flu_params.pi_x2 * (gpu_params->flu_params.phi[i] - t + (gpu_params->flu_params.v_d_i_epidur_d2)) /
-                                      (gpu_params->flu_params.v_d_i_epidur_x2));
+    for (int i = 0; i < params->flu_params.phi_length; i++) {
+        if (fabs(t - params->flu_params.phi[i]) < (params->flu_params.v_d_i_epidur_d2)) {
+            sine_function_value = sin(params->flu_params.pi_x2 * (params->flu_params.phi[i] - t + (params->flu_params.v_d_i_epidur_d2)) /
+                                      (params->flu_params.v_d_i_epidur_x2));
         }
     }
-    //    printf("    %f sine_function_value %1.3f\n",t,sine_function_value);
-    //    printf("    %f return %1.3f\n",t,1.0 + v[i_amp] * sine_function_value);
-    return 1.0 + gpu_params->flu_params.v_d_i_amp * sine_function_value;
+//    printf("    %f sine_function_value %1.3f\n",t,sine_function_value);
+//    printf("    %f return %1.3f\n",t,1.0 + params->flu_params.v_d_i_amp * sine_function_value);
+    return 1.0 + params->flu_params.v_d_i_amp * sine_function_value;
 }
 
 __device__
@@ -144,7 +154,7 @@ void rk45_gpu_adjust_h(double y[], double y_err[], double dydt_out[],
 }
 
 __device__
-void rk45_gpu_step_apply(double t, double h, double y[], double y_err[], double dydt_out[],
+void rk45_gpu_step_apply(double t, double h, double y[], double y_err[], double dydt_out[], double stf,
                          const int index, GPUParameters *params) {
     static const double ah[] = {1.0 / 4.0, 3.0 / 8.0, 12.0 / 13.0, 1.0, 1.0 / 2.0};
     static const double b3[] = {3.0 / 32.0, 9.0 / 32.0};
@@ -207,42 +217,42 @@ void rk45_gpu_step_apply(double t, double h, double y[], double y_err[], double 
     //    }
 
     /* k1 */
-    gpu_func_test(t, y, k1, index, params);
+    gpu_func_test(t, y, k1, stf, index, params);
     //    cudaDeviceSynchronize();
     for (int i = 0; i < DIM; i++) {
         //        printf("      k1[%d] = %.10f\n",i,k1[i]);
         y_tmp[i] = y[i] + ah[0] * h * k1[i];
     }
     /* k2 */
-    gpu_func_test(t + ah[0] * h, y_tmp, k2, index, params);
+    gpu_func_test(t + ah[0] * h, y_tmp, k2, stf, index, params);
     //    cudaDeviceSynchronize();
     for (int i = 0; i < DIM; i++) {
         //        printf("      k2[%d] = %.10f\n",i,k2[i]);
         y_tmp[i] = y[i] + h * (b3[0] * k1[i] + b3[1] * k2[i]);
     }
     /* k3 */
-    gpu_func_test(t + ah[1] * h, y_tmp, k3, index, params);
+    gpu_func_test(t + ah[1] * h, y_tmp, k3, stf, index, params);
     //    cudaDeviceSynchronize();
     for (int i = 0; i < DIM; i++) {
         //        printf("      k3[%d] = %.10f\n",i,k3[i]);
         y_tmp[i] = y[i] + h * (b4[0] * k1[i] + b4[1] * k2[i] + b4[2] * k3[i]);
     }
     /* k4 */
-    gpu_func_test(t + ah[2] * h, y_tmp, k4, index, params);
+    gpu_func_test(t + ah[2] * h, y_tmp, k4, stf, index, params);
     //    cudaDeviceSynchronize();
     for (int i = 0; i < DIM; i++) {
         //        printf("      k4[%d] = %.10f\n",i,k4[i]);
         y_tmp[i] = y[i] + h * (b5[0] * k1[i] + b5[1] * k2[i] + b5[2] * k3[i] + b5[3] * k4[i]);
     }
     /* k5 */
-    gpu_func_test(t + ah[3] * h, y_tmp, k5, index, params);
+    gpu_func_test(t + ah[3] * h, y_tmp, k5, stf, index, params);
     //    cudaDeviceSynchronize();
     for (int i = 0; i < DIM; i++) {
         //        printf("      k5[%d] = %.10f\n",i,k5[i]);
         y_tmp[i] = y[i] + h * (b6[0] * k1[i] + b6[1] * k2[i] + b6[2] * k3[i] + b6[3] * k4[i] + b6[4] * k5[i]);
     }
     /* k6 */
-    gpu_func_test(t + ah[4] * h, y_tmp, k6, index, params);
+    gpu_func_test(t + ah[4] * h, y_tmp, k6, stf, index, params);
     //    cudaDeviceSynchronize();
     /* final sum */
     for (int i = 0; i < DIM; i++) {
@@ -251,7 +261,7 @@ void rk45_gpu_step_apply(double t, double h, double y[], double y_err[], double 
         y[i] += h * d_i;
     }
     /* Derivatives at output */
-    gpu_func_test(t + h, y, dydt_out, index, params);
+    gpu_func_test(t + h, y, dydt_out, stf, index, params);
     //    cudaDeviceSynchronize();
     /* difference between 4th and 5th order */
     for (int i = 0; i < DIM; i++) {
@@ -273,7 +283,7 @@ void rk45_gpu_step_apply(double t, double h, double y[], double y_err[], double 
 
 __device__
 void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, double *y[], double *y_output[],
-                           double *y_output_agg[], int index, GPUParameters *params) {
+                           double *y_output_agg[],  double stf[], int index, GPUParameters *params) {
     double device_y[DIM];
     double device_y_0[DIM];
     double device_y_err[DIM];
@@ -304,6 +314,8 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
         device_h = h;
 
         int day = t;
+        double stf_today = stf[day];
+
 //      printf("day %d\t", day);
 //      for (int i = 0; i < params->ode_dimension; i ++) {
 //        printf("y[%d][%d] = %.1f\t", index, i, device_y[i]);
@@ -338,7 +350,7 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
                     device_final_step = 0;
                 }
 
-                rk45_gpu_step_apply(device_t_0, device_h_0, device_y, device_y_err, device_dydt_out,
+                rk45_gpu_step_apply(device_t_0, device_h_0, device_y, device_y_err, device_dydt_out, stf_today,
                                     index, params);
 
                 if (device_final_step) {
@@ -399,36 +411,36 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
 //        }
         t += t_delta;
 
-//        /* y_ode_output_d*/
-//        for (int i = 0; i < params->display_dimension; i ++) {
-//          const int y_output_index = day * params->display_dimension + i;
-//          if(y_output_index % params->display_dimension == 0){
-//            //First column
-//            y_output[index][y_output_index] = day*1.0;
-//            //          printf("First day = %d index = %d i = %d y_output_index = %d y_output[%d][%d] = %.5f\n",
-//            //                 day, index, i, y_output_index, index, y_output_index, y_output[index][y_output_index]);
-//          }
-//          else if(y_output_index % params->display_dimension == 1){
-//            //Second column
-//            y_output[index][y_output_index] = seasonal_transmission_factor(params,t);
-//            //          printf("Second day = %d index = %d i = %d y_output_index = %d y_output[%d][%d] = %.5f\n",
-//            //                 day, index, i, y_output_index, index, y_output_index, y_output[index][y_output_index]);
-//          }
-//          else if(y_output_index % params->display_dimension >= 2 && y_output_index % params->display_dimension < params->display_dimension - 1){
-//            //Third column to column next to last column
-//            const int y_index = (y_output_index - 2) % params->display_dimension;
-//            y_output[index][y_output_index] = device_y_yesterday[y_index];
-//            //          printf("day = %d index = %d i = %d y_output_index = %d y[%d][%d] = y[%d][%d] = %.5f\n",
-//            //                 day, index, i, y_output_index, index, y_output_index, index, y_index, device_y[y_index]);
-//          }
-//          else{
-//            //Last column
-////            y_output[index][y_output_index] = pop_sum(device_y);
+        /* y_ode_output_d*/
+        for (int i = 0; i < params->display_dimension; i ++) {
+          const int y_output_index = day * params->display_dimension + i;
+          if(y_output_index % params->display_dimension == 0){
+            //First column
+            y_output[index][y_output_index] = day*1.0;
+            //          printf("First day = %d index = %d i = %d y_output_index = %d y_output[%d][%d] = %.5f\n",
+            //                 day, index, i, y_output_index, index, y_output_index, y_output[index][y_output_index]);
+          }
+          else if(y_output_index % params->display_dimension == 1){
+            //Second column
+            y_output[index][y_output_index] = stf_today;
+            //          printf("Second day = %d index = %d i = %d y_output_index = %d y_output[%d][%d] = %.5f\n",
+            //                 day, index, i, y_output_index, index, y_output_index, y_output[index][y_output_index]);
+          }
+          else if(y_output_index % params->display_dimension >= 2 && y_output_index % params->display_dimension < params->display_dimension - 1){
+            //Third column to column next to last column
+            const int y_index = (y_output_index - 2) % params->display_dimension;
+            y_output[index][y_output_index] = device_y_yesterday[y_index];
+            //          printf("day = %d index = %d i = %d y_output_index = %d y[%d][%d] = y[%d][%d] = %.5f\n",
+            //                 day, index, i, y_output_index, index, y_output_index, index, y_index, device_y[y_index]);
+          }
+          else{
+            //Last column
 //            y_output[index][y_output_index] = pop_sum(device_y);
-//            //          printf("Third day = %d index = %d i = %d y_output_index = %d y_output[%d][%d] = %.5f\n",
-//            //                 day, index, i, y_output_index, index, y_output_index, y_output[index][y_output_index]);
-//          }
-//        }
+            y_output[index][y_output_index] = pop_sum(device_y);
+            //          printf("Third day = %d index = %d i = %d y_output_index = %d y_output[%d][%d] = %.5f\n",
+            //                 day, index, i, y_output_index, index, y_output_index, y_output[index][y_output_index]);
+          }
+        }
 
         /* y_ode_agg_d*/
         /* AGG Output 1-6 */
@@ -441,7 +453,7 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
             agg_inc_sum[i] += y_output_agg[index][y_output_agg_to_sum_index];
         }
 
-        if ((day+1) % 7 == 0 || day == NUMDAYSOUTPUT - 1) {
+        if ((day+1) % 7 == 0 || day == params->ode_output_day - 1) {
             for(int i = 0; i < params->data_params.cols; i++){
                 //Col 3 4 5
                 const int y_output_agg_col = (3 + i) + week_count * params->agg_dimension;
@@ -453,7 +465,7 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
         }
 
         //Write max agg inc to first line
-        if(day == NUMDAYSOUTPUT - 1){
+        if(day == params->ode_output_day - 1){
             for(int i = 0; i < DATADIM_COLS; i++){
                 //Col 1 2 3
                 y_output_agg[index][i] = agg_inc_max[i];
@@ -469,21 +481,49 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
 
 __device__
 void
-solve_ode(double *y_ode_input_d[], double *y_ode_output_d[], double *y_ode_agg_d[], int index, GPUParameters *params) {
+solve_ode(double *y_ode_input_d[], double *y_ode_output_d[], double *y_ode_agg_d[],  double* stf, int index, GPUParameters *params) {
     rk45_gpu_evolve_apply(params->t0, params->t_target, params->step, params->h, y_ode_input_d, y_ode_output_d,
-                          y_ode_agg_d, index, params);
+                          y_ode_agg_d, stf, index, params);
     return;
 }
 
 __global__
-void solve_ode(double *y_ode_input_d[], double *y_ode_output_d[], double *y_ode_agg_d[], GPUParameters *params) {
+void calculate_stf(double stf_d[], GPUParameters* params){
     int index_gpu = threadIdx.x + blockIdx.x * blockDim.x;
     int stride = blockDim.x * gridDim.x;
-    for (int index = index_gpu; index < NUMODE; index += stride) {
+    for (int index = index_gpu; index < params->ode_output_day; index += stride) {
+        double t = index*1.0;
+        if (params->flu_params.phi_length == 0) {
+            stf_d[index] = 1.0;
+        }
+        double remainder = index - t;
+        int xx = index % 3650;
+        double yy = (double) xx + remainder;
+        // put yy into the sine function, let it return the beta value
+        t = yy;
+        double sine_function_value = 0.0;
+
+        for (int i = 0; i < params->flu_params.phi_length; i++) {
+            if (fabs(t - params->flu_params.phi[i]) < (params->flu_params.v_d_i_epidur_d2)) {
+                sine_function_value = sin(params->flu_params.pi_x2 * (params->flu_params.phi[i] - t + (params->flu_params.v_d_i_epidur_d2)) /
+                                          (params->flu_params.v_d_i_epidur_x2));
+            }
+        }
+//        printf("index %d phi_length %d %f sine_function_value %1.3f\n",index,params->flu_params.phi_length,t,sine_function_value);
+//        printf("index %d %f return %1.3f\n",index,t,1.0 + params->flu_params.v_d_i_amp * sine_function_value);
+        stf_d[index] = 1.0 + params->flu_params.v_d_i_amp * sine_function_value;
+    }
+
+}
+__global__
+void solve_ode(double *y_ode_input_d[], double *y_ode_output_d[], double *y_ode_agg_d[], double stf[], GPUParameters *params) {
+    int index_gpu = threadIdx.x + blockIdx.x * blockDim.x;
+    int stride = blockDim.x * gridDim.x;
+    for (int index = index_gpu; index < params->ode_number; index += stride) {
 //        if(index % 32 == 0){
 //            printf("ODE %d will be solved by thread index = %d blockIdx.x = %d\n", index, index, blockIdx.x);
 //        }
-        solve_ode(y_ode_input_d, y_ode_output_d, y_ode_agg_d, index, params);
+        solve_ode(y_ode_input_d, y_ode_output_d, y_ode_agg_d, stf, index, params);
     }
     return;
 }

@@ -7,6 +7,8 @@
 
 GPUParameters::GPUParameters(){
     mcmc_loop = 0;
+    ode_output_day = 0;
+    ode_number = 0;
     ode_dimension = 0;
     t_target = 0.0;
     t0 = 0.0;
@@ -17,6 +19,8 @@ GPUParameters::GPUParameters(){
 
 GPUParameters::~GPUParameters(){
     mcmc_loop = 0;
+    ode_output_day = 0;
+    ode_number = 0;
     ode_dimension = 0;
     t_target = 0.0;
     t0 = 0.0;
@@ -34,11 +38,11 @@ bool GPUParameters::is_float(std::string myString ) {
 }
 
 void GPUParameters::init_from_cmd(int argc, char **argv){
-  y_ode_input = new double*[NUMODE]();
-    for (int i = 0; i < NUMODE; i++) {
+  y_ode_input = new double*[ode_number]();
+    for (int i = 0; i < ode_number; i++) {
       y_ode_input[i] = new double[ode_dimension];
     }
-    for (int i = 0; i < NUMODE; i++) {
+    for (int i = 0; i < ode_number; i++) {
       for (int j = 0; j < ode_dimension; j++) {
         y_ode_input[i][j] = 0.5;
       }
@@ -48,36 +52,36 @@ void GPUParameters::init_from_cmd(int argc, char **argv){
     data_dimension = csv_data->get_params().cols * csv_data->get_params().rows;
     data_params.cols = csv_data->get_params().cols;
     data_params.rows = csv_data->get_params().rows;
-    y_data_input = new double*[NUMODE]();
-    for (int i = 0; i < NUMODE; i++) {
+    y_data_input = new double*[ode_number]();
+    for (int i = 0; i < ode_number; i++) {
       y_data_input[i] = new double[data_dimension];
     }
-    csv_data->load_csv_data(NUMODE, y_data_input);
+    csv_data->load_csv_data(ode_number, y_data_input);
 
     display_dimension = ode_dimension + 3;//3 for 0,1,2 columns
-    y_ode_output = new double*[NUMODE]();
-    for (int i = 0; i < NUMODE; i++) {
-      y_ode_output[i] = new double[NUMDAYSOUTPUT * display_dimension];
+    y_ode_output = new double*[ode_number]();
+    for (int i = 0; i < ode_number; i++) {
+      y_ode_output[i] = new double[ode_output_day * display_dimension];
     }
-    for (int i = 0; i < NUMODE; i++) {
-      for (int j = 0; j < NUMDAYSOUTPUT * display_dimension; j++) {
+    for (int i = 0; i < ode_number; i++) {
+      for (int j = 0; j < ode_output_day * display_dimension; j++) {
         y_ode_output[i][j] = -(j * 1.0);
       }
     }
-    y_ode_agg = new double*[NUMODE]();
-    for (int i = 0; i < NUMODE; i++) {
-      y_ode_agg[i] = new double[NUMDAYSOUTPUT * agg_dimension];
+    y_ode_agg = new double*[ode_number]();
+    for (int i = 0; i < ode_number; i++) {
+      y_ode_agg[i] = new double[ode_output_day * agg_dimension];
     }
-    for (int i = 0; i < NUMODE; i++) {
-      for (int j = 0; j < NUMDAYSOUTPUT * agg_dimension; j++) {
+    for (int i = 0; i < ode_number; i++) {
+      for (int j = 0; j < ode_output_day * agg_dimension; j++) {
         y_ode_agg[i][j] = -9999.0;
       }
     }
-    printf("ODE numbers = %d\n",NUMODE);
+    printf("ODE numbers = %d\n",ode_number);
     printf("1 ODE parameters = %d\n", ode_dimension);
-    printf("1 ODE lines = %d\n", NUMDAYSOUTPUT);
+    printf("1 ODE lines = %d\n", ode_output_day);
     printf("Display dimension = %d\n",display_dimension);
-    printf("Total display dimension = %d x %d x %d = %d\n",NUMODE, NUMDAYSOUTPUT, display_dimension, NUMODE * NUMDAYSOUTPUT * display_dimension);
+    printf("Total display dimension = %d x %d x %d = %d\n",ode_number, ode_output_day, display_dimension, ode_number * ode_output_day * display_dimension);
 
     v.clear();
     v.insert( v.begin(), num_params, 0.0 );
@@ -230,7 +234,7 @@ void GPUParameters::init_from_cmd(int argc, char **argv){
     // declare the vector y that holds the values of all the state variables (at the current time)
     // below you are declaring a vector of size DIM
 
-    for(int i = 0; i < NUMODE; i++){
+    for(int i = 0; i < ode_number; i++){
       for(int loc=0; loc<NUMLOC; loc++)
       {
         // put half of the individuals in the susceptible class
@@ -281,11 +285,11 @@ void GPUParameters::init_from_cmd(int argc, char **argv){
 }
 
 void GPUParameters::init(){
-    y_ode_input = new double*[NUMODE]();
-    for (int i = 0; i < NUMODE; i++) {
+    y_ode_input = new double*[ode_number]();
+    for (int i = 0; i < ode_number; i++) {
       y_ode_input[i] = new double[ode_dimension];
     }
-    for (int i = 0; i < NUMODE; i++) {
+    for (int i = 0; i < ode_number; i++) {
       for (int j = 0; j < ode_dimension; j++) {
         y_ode_input[i][j] = 0.5;
       }
@@ -295,36 +299,36 @@ void GPUParameters::init(){
     data_dimension = csv_data->get_params().cols * csv_data->get_params().rows;
     data_params.cols = csv_data->get_params().cols;
     data_params.rows = csv_data->get_params().rows;
-    y_data_input = new double*[NUMODE]();
-    for (int i = 0; i < NUMODE; i++) {
+    y_data_input = new double*[ode_number]();
+    for (int i = 0; i < ode_number; i++) {
       y_data_input[i] = new double[data_dimension];
     }
-    csv_data->load_csv_data(NUMODE, y_data_input);
+    csv_data->load_csv_data(ode_number, y_data_input);
 
     display_dimension = ode_dimension + 3;//3 for 0,1,2 columns
-    y_ode_output = new double*[NUMODE]();
-    for (int i = 0; i < NUMODE; i++) {
-      y_ode_output[i] = new double[NUMDAYSOUTPUT * display_dimension];
+    y_ode_output = new double*[ode_number]();
+    for (int i = 0; i < ode_number; i++) {
+      y_ode_output[i] = new double[ode_output_day * display_dimension];
     }
-    for (int i = 0; i < NUMODE; i++) {
-      for (int j = 0; j < NUMDAYSOUTPUT * display_dimension; j++) {
+    for (int i = 0; i < ode_number; i++) {
+      for (int j = 0; j < ode_output_day * display_dimension; j++) {
         y_ode_output[i][j] = -(j * 1.0);
       }
     }
-    y_ode_agg = new double*[NUMODE]();
-    for (int i = 0; i < NUMODE; i++) {
-      y_ode_agg[i] = new double[NUMDAYSOUTPUT * agg_dimension];
+    y_ode_agg = new double*[ode_number]();
+    for (int i = 0; i < ode_number; i++) {
+      y_ode_agg[i] = new double[ode_output_day * agg_dimension];
     }
-    for (int i = 0; i < NUMODE; i++) {
-      for (int j = 0; j < NUMDAYSOUTPUT * agg_dimension; j++) {
+    for (int i = 0; i < ode_number; i++) {
+      for (int j = 0; j < ode_output_day * agg_dimension; j++) {
         y_ode_agg[i][j] = -9999.0;
       }
     }
-    printf("ODE numbers = %d\n",NUMODE);
+    printf("ODE numbers = %d\n",ode_number);
     printf("1 ODE parameters = %d\n", ode_dimension);
-    printf("1 ODE lines = %d\n", NUMDAYSOUTPUT);
+    printf("1 ODE lines = %d\n", ode_output_day);
     printf("Display dimension = %d\n",display_dimension);
-    printf("Total display dimension = %d x %d x %d = %d\n",NUMODE, NUMDAYSOUTPUT, display_dimension, NUMODE * NUMDAYSOUTPUT * display_dimension);
+    printf("Total display dimension = %d x %d x %d = %d\n",ode_number, ode_output_day, display_dimension, ode_number * ode_output_day * display_dimension);
 
     v.clear();
     v.insert( v.begin(), num_params, 0.0 );
@@ -363,7 +367,7 @@ void GPUParameters::init(){
     G_CLO_AMPL = flu_params.amp;
     G_CLO_NU_DENOM = flu_params.nu_denom;
     G_CLO_RHO_DENOM = flu_params.rho_denom;
-    G_CLO_EPIDUR = flu_params.epidur;
+    flu_params.epidur = G_CLO_EPIDUR;
     flu_params.phi_length = sizeof(flu_params.phi)/sizeof(flu_params.phi[0]);
     flu_params.phi[0] = flu_params.phi_0;
     for(int i = 1; i < flu_params.phi_length; i++){
@@ -372,6 +376,15 @@ void GPUParameters::init(){
 //    for(int i = 0; i < flu_params.phi_length; i++){
 //        printf("phi[%d] = %.5f\n",i,flu_params.phi[i]);
 //    }
+
+//    -beta1 0.24 -beta2 0.22 -beta3 0.26 -sigma12 0.75 -sigma13 0.5 -sigma23 0.75 -amp 0.07 -nu_denom 5 -rho_denom 730 -phi 175 445 865 1195 1475 1915 2215 2465 2795 3195"
+    printf("Parameters: -beta1 %.2f -beta2 %.2f -beta3 %.2f -sigma12 %.2f -sigma13 %.2f -sigma23 %.2f -amp %.2f -nu_denom %.2f -rho_denom %.2f\n -phi ",
+           flu_params.beta[0],flu_params.beta[1],flu_params.beta[2],flu_params.sigma[0],flu_params.sigma[1],flu_params.sigma[2],
+           flu_params.amp,flu_params.nu_denom,flu_params.rho_denom);
+    for(int i = 0; i < flu_params.phi_length; i++){
+        printf("%.2f\t",flu_params.phi[i]);
+    }
+    printf("\n");
 
     //
     // ###  3.  INITIALIZE PARAMETERS - these are the default/starting values
@@ -414,7 +427,7 @@ void GPUParameters::init(){
     // declare the vector y that holds the values of all the state variables (at the current time)
     // below you are declaring a vector of size DIM
 
-    for(int i = 0; i < NUMODE; i++){
+    for(int i = 0; i < ode_number; i++){
       for(int loc=0; loc<NUMLOC; loc++)
       {
         // put half of the individuals in the susceptible class
@@ -486,21 +499,21 @@ void GPUParameters::update(){
     flu_params.tau[7] = new_sample[11];
     flu_params.tau[8] = new_sample[12];
     
-    y_ode_input = new double*[NUMODE]();
-    for (int i = 0; i < NUMODE; i++) {
+    y_ode_input = new double*[ode_number]();
+    for (int i = 0; i < ode_number; i++) {
         y_ode_input[i] = new double[ode_dimension];
     }
-    for (int i = 0; i < NUMODE; i++) {
+    for (int i = 0; i < ode_number; i++) {
         for (int j = 0; j < ode_dimension; j++) {
             y_ode_input[i][j] = 0.5;
         }
     }
-    y_ode_agg = new double*[NUMODE]();
-    for (int i = 0; i < NUMODE; i++) {
-      y_ode_agg[i] = new double[NUMDAYSOUTPUT * agg_dimension];
+    y_ode_agg = new double*[ode_number]();
+    for (int i = 0; i < ode_number; i++) {
+      y_ode_agg[i] = new double[ode_output_day * agg_dimension];
     }
-    for (int i = 0; i < NUMODE; i++) {
-      for (int j = 0; j < NUMDAYSOUTPUT * agg_dimension; j++) {
+    for (int i = 0; i < ode_number; i++) {
+      for (int j = 0; j < ode_output_day * agg_dimension; j++) {
         y_ode_agg[i][j] = -9999.0;
       }
     }
@@ -539,15 +552,16 @@ void GPUParameters::update(){
     G_CLO_AMPL = flu_params.amp;
     G_CLO_NU_DENOM = flu_params.nu_denom;
     G_CLO_RHO_DENOM = flu_params.rho_denom;
-    G_CLO_EPIDUR = flu_params.epidur;
+    flu_params.epidur = G_CLO_EPIDUR;
     flu_params.phi_length = sizeof(flu_params.phi)/sizeof(flu_params.phi[0]);
     flu_params.phi[0] = flu_params.phi_0;
     for(int i = 1; i < flu_params.phi_length; i++){
         flu_params.phi[i] = flu_params.phi[i-1] + flu_params.tau[i-1];
     }
-//    for(int i = 0; i < flu_params.phi_length; i++){
-//        printf("phi[%d] = %.5f\n",i,flu_params.phi[i]);
-//    }
+    for(int i = 0; i < flu_params.phi_length; i++){
+        if(i == flu_params.phi_length - 1)
+            printf("updated phi[%d] = %.5f\n",i,flu_params.phi[i]);
+    }
 
 
     //
@@ -591,7 +605,7 @@ void GPUParameters::update(){
     // declare the vector y that holds the values of all the state variables (at the current time)
     // below you are declaring a vector of size DIM
 
-    for(int i = 0; i < NUMODE; i++){
+    for(int i = 0; i < ode_number; i++){
       for(int loc=0; loc<NUMLOC; loc++)
       {
         // put half of the individuals in the susceptible class
@@ -640,3 +654,4 @@ void GPUParameters::update(){
     flu_params.v_d_i_epidur_x2 = v[i_epidur] * 2.0;
     flu_params.pi_x2 = 2.0 * M_PI;
 }
+
