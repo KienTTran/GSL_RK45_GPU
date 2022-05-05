@@ -117,20 +117,38 @@ void GPUFlu::run() {
     size_t y_mcmc_dnorm_i_d_padding_size = (params->data_params.rows + padding) * sizeof(double);
     checkCuda(cudaMalloc((void **) &y_mcmc_dnorm_i_d, y_mcmc_dnorm_i_d_padding_size));
     checkCuda(cudaMemset(y_mcmc_dnorm_i_d, 0, y_mcmc_dnorm_i_d_padding_size));
+    printf("num_sm = %d batch = %d 1 ode size = %d padding = %d total size = %d\n",num_SMs, batch_size,params->data_params.rows,padding,params->data_params.rows + padding);
 
 //    //y_test_sum_h
-//    int test_padding = (batch_size - (params->data_params.rows % batch_size)) % batch_size;
-//    double y_test_sum_h[params->ode_number*(params->data_params.rows + test_padding)];
-//    const int y_test_sum_h_size = params->ode_number*(params->data_params.rows + test_padding);
-//    for (int i = 0; i < y_test_sum_h_size; i++) {
-//        y_test_sum_h[i] = i/y_test_sum_h_size;
+    int test_padding = ceil(params->data_params.rows/1024.0)*1024 - params->data_params.rows;
+    double y_test_1_ode_h[params->data_params.rows];
+    int y_test_1_ode_h_size = params->data_params.rows;
+    for (int i = 0; i < y_test_1_ode_h_size; i++) {
+        y_test_1_ode_h[i] = 1;
+    }
+    double y_test_1_ode_padding_h[params->data_params.rows + test_padding];
+    int y_test_1_ode_padding_h_size = params->data_params.rows + test_padding;
+    memcpy(y_test_1_ode_padding_h, y_test_1_ode_h, y_test_1_ode_h_size * sizeof(double));
+    memset(y_test_1_ode_padding_h + y_test_1_ode_h_size,0,test_padding* sizeof(double));
+//    for(int i = 0; i < y_test_1_ode_padding_h_size; i++){
+//        printf("y_test_1_ode_padding_h_size[%d] = %.1f\n",i,y_test_1_ode_padding_h[i]);
 //    }
-//    double *y_test_sum_d = 0;
-//    size_t y_test_sum_d_size = y_test_sum_h_size * sizeof(double);
-//    checkCuda(cudaMalloc((void **) &y_mcmc_dnorm_d, y_test_sum_d_size));
-//    checkCuda(cudaMemcpy(y_mcmc_dnorm_d, y_mcmc_dnorm_h, y_test_sum_d_size,cudaMemcpyHostToDevice));
-//    size_t y_test_sum_d_padding_size = y_test_sum_h_size * sizeof(double);
-//    checkCuda(cudaMemset(y_test_sum_d, 0, y_test_sum_d_padding_size));
+
+    double y_test_n_ode_padding_h[params->ode_number*(params->data_params.rows + test_padding)];
+    int y_test_n_ode_padding_h_size = params->ode_number*(params->data_params.rows + test_padding);
+    for(int ode_index = 0; ode_index < params->ode_number; ode_index++){
+        memcpy(y_test_n_ode_padding_h + ode_index*y_test_1_ode_padding_h_size, y_test_1_ode_padding_h, y_test_1_ode_padding_h_size * sizeof(double));
+    }
+//    for(int i = 0; i < y_test_n_ode_padding_h_size; i++){
+//        if(y_test_n_ode_padding_h[i] != 0.0){
+//            printf("y_test_n_ode_padding_h[%d] = %.1f\n",i,y_test_n_ode_padding_h[i]);
+//        }
+//    }
+
+    double* y_test_n_ode_padding_d;
+    size_t y_test_n_ode_padding_d_size = y_test_n_ode_padding_h_size * sizeof(double);
+    checkCuda(cudaMalloc((void **) &y_test_n_ode_padding_d, y_test_n_ode_padding_d_size));
+    checkCuda(cudaMemcpy(y_test_n_ode_padding_d, y_test_n_ode_padding_h, y_test_n_ode_padding_d_size,cudaMemcpyHostToDevice));
 
     double r_denom_h[params->ode_number];
     memset(r_denom_h,0,params->ode_number*sizeof(double));
@@ -154,86 +172,97 @@ void GPUFlu::run() {
     params->block_size = GPU_ODE_THREADS; //max is 1024
     params->num_blocks = (params->ode_output_day + params->block_size - 1) / params->block_size;
 
-
-    reduce_sum_n<<<num_SMs, 1024>>>(y_test_sum_d,y_test_sum_d,520,3*520);
-
-
-    //Pre-calculate stf
-    calculate_stf<<<params->num_blocks, params->block_size>>>(stf_d,params_d);
-    for (int iter = 0; iter < params->mcmc_loop; iter++) {
-        solve_ode<<<params->num_blocks, params->block_size>>>(
-                y_ode_input_d, y_ode_output_d, y_ode_agg_d, stf_d, params_d);
-        mcmc_dnorm<<<params->num_blocks, params->block_size>>>(y_data_input_d, y_ode_agg_d, y_mcmc_dnorm_d, params_d);
-        for(int ode_index = 0; ode_index < params->ode_number; ode_index++){
-            checkCuda(cudaMemcpy(y_mcmc_dnorm_i_d,y_mcmc_dnorm_d + params->data_params.rows * ode_index,params->data_params.rows*sizeof(double),cudaMemcpyDeviceToDevice));
-            reduce_sum<<<num_SMs,1024>>>(y_mcmc_dnorm_i_d, y_mcmc_dnorm_i_d, params->data_params.rows);
-            checkCuda(cudaMemcpy(&r_denom_h[ode_index],y_mcmc_dnorm_i_d,sizeof(double),cudaMemcpyDeviceToHost));
-//            printf("ODE %d r_denom_h = %.5f\n",ode_index,r_denom_h[ode_index]);
+    int num_block = ceil(prop.maxBlocksPerMultiProcessor * prop.maxThreadsPerBlock / 1024);
+    printf("max threads = %d block = %d\n",prop.maxBlocksPerMultiProcessor * prop.maxThreadsPerBlock, num_block);
+    reduce_sum_n<<<num_block, 1024>>>(y_test_n_ode_padding_d,y_test_n_ode_padding_d,params->ode_number,y_test_n_ode_padding_h_size);
+    checkCuda(cudaMemcpy(y_test_n_ode_padding_h,y_test_n_ode_padding_d,y_test_n_ode_padding_d_size,cudaMemcpyDeviceToHost));
+    checkCuda(cudaDeviceSynchronize());
+    for(int i = 0; i < y_test_n_ode_padding_h_size; i++){
+        if(y_test_n_ode_padding_h[i] > 1.0){
+            printf("y_test_n_ode_padding_h[%d] = %.1f\n",i,y_test_n_ode_padding_h[i]);
         }
-
-        //
-        // Generate new parameters
-        //
-
-        old_params = params;
-        params->update();
-
-        //
-        // Copy new parameters to gpu
-        //
-
-        checkCuda(cudaMemcpy(params_d, params, sizeof(GPUParameters), cudaMemcpyHostToDevice));
-        calculate_stf<<<params->num_blocks, params->block_size>>>(stf_d,params_d);
-
-        //y_ode_input_d
-        //temp pointers
-        tmp_ptr = (double **) malloc(ode_size);
-        for (int i = 0; i < params->ode_number; i++) {
-            checkCuda(cudaMalloc((void **) &tmp_ptr[i], y_ode_input_d_size));
-            checkCuda(cudaMemcpy(tmp_ptr[i], params->y_ode_input[i], y_ode_input_d_size,cudaMemcpyHostToDevice));
-        }
-        checkCuda(cudaMalloc((void **) &y_ode_input_d, ode_size));
-        checkCuda(cudaMemcpy(y_ode_input_d, tmp_ptr, ode_size, cudaMemcpyHostToDevice));//y_ode_output_d
-
-        //y_ode_agg_d
-        //temp pointers
-        tmp_ptr = (double **) malloc(ode_size);
-        for (int i = 0; i < params->ode_number; i++) {
-            checkCuda(cudaMalloc((void **) &tmp_ptr[i], y_ode_agg_d_size));
-            checkCuda(cudaMemcpy(tmp_ptr[i], params->y_ode_agg[i], y_ode_agg_d_size,cudaMemcpyHostToDevice));
-        }
-        checkCuda(cudaMalloc((void **) &y_ode_agg_d, ode_size));
-        checkCuda(cudaMemcpy(y_ode_agg_d, tmp_ptr, ode_size, cudaMemcpyHostToDevice));
-
-        //y_mcmc_dnorm_d - single 1d array for NUMODE dnorm values (NUMODE*data_dimension.rows)
-        checkCuda(cudaMemcpy(y_mcmc_dnorm_d, y_mcmc_dnorm_h, y_mcmc_dnorm_d_size,cudaMemcpyHostToDevice));
-
-        //
-        // Solve ode with new parameters
-        //
-
-        solve_ode<<<params->num_blocks, params->block_size>>>(
-                y_ode_input_d, y_ode_output_d, y_ode_agg_d, stf_d, params_d);
-        mcmc_dnorm<<<params->num_blocks, params->block_size>>>(y_data_input_d, y_ode_agg_d, y_mcmc_dnorm_d, params_d);
-        for(int ode_index = 0; ode_index < params->ode_number; ode_index++){
-            checkCuda(cudaMemcpy(y_mcmc_dnorm_i_d,y_mcmc_dnorm_d + params->data_params.rows * ode_index,params->data_params.rows*sizeof(double),cudaMemcpyDeviceToDevice));
-            reduce_sum<<<num_SMs,1024>>>(y_mcmc_dnorm_i_d, y_mcmc_dnorm_i_d, params->data_params.rows);
-            checkCuda(cudaMemcpy(&r_num_h[ode_index],y_mcmc_dnorm_i_d,sizeof(double),cudaMemcpyDeviceToHost));
-//            printf("ODE %d r_num_h = %.5f\n",ode_index,r_denom_h[ode_index]);
-        }
-
-        for(int ode_index = 0; ode_index < params->ode_number; ode_index++) {
-            double r = r_num_h[ode_index] - r_denom_h[ode_index];
-            if (exp(r) > rand_uniform(0.0, 1.0)) {
-                params = old_params;
-                printf("iter %d ODE %d accept params (r = %.5f)\n", iter, ode_index, r);
-            } else {
-                printf("iter %d ODE %d reject params_temp (r = %.5f)\n", iter, ode_index, r);
-            }
-        }
-        checkCuda(cudaDeviceSynchronize());
-        printf("\n");
     }
+
+
+//    reduce_sum<<<num_SMs, 1024>>>(y_test_sum_d,y_test_sum_d,params->data_params.rows);
+
+
+//    //Pre-calculate stf
+//    calculate_stf<<<params->num_blocks, params->block_size>>>(stf_d,params_d);
+//    for (int iter = 0; iter < params->mcmc_loop; iter++) {
+//        solve_ode<<<params->num_blocks, params->block_size>>>(
+//                y_ode_input_d, y_ode_output_d, y_ode_agg_d, stf_d, params_d);
+//        mcmc_dnorm<<<params->num_blocks, params->block_size>>>(y_data_input_d, y_ode_agg_d, y_mcmc_dnorm_d, params_d);
+//        for(int ode_index = 0; ode_index < params->ode_number; ode_index++){
+//            checkCuda(cudaMemcpy(y_mcmc_dnorm_i_d,y_mcmc_dnorm_d + params->data_params.rows * ode_index,params->data_params.rows*sizeof(double),cudaMemcpyDeviceToDevice));
+//            reduce_sum<<<num_SMs,1024>>>(y_mcmc_dnorm_i_d, y_mcmc_dnorm_i_d, params->data_params.rows);
+//            checkCuda(cudaMemcpy(&r_denom_h[ode_index],y_mcmc_dnorm_i_d,sizeof(double),cudaMemcpyDeviceToHost));
+////            printf("ODE %d r_denom_h = %.5f\n",ode_index,r_denom_h[ode_index]);
+//        }
+//
+//        //
+//        // Generate new parameters
+//        //
+//
+//        old_params = params;
+//        params->update();
+//
+//        //
+//        // Copy new parameters to gpu
+//        //
+//
+//        checkCuda(cudaMemcpy(params_d, params, sizeof(GPUParameters), cudaMemcpyHostToDevice));
+//        calculate_stf<<<params->num_blocks, params->block_size>>>(stf_d,params_d);
+//
+//        //y_ode_input_d
+//        //temp pointers
+//        tmp_ptr = (double **) malloc(ode_size);
+//        for (int i = 0; i < params->ode_number; i++) {
+//            checkCuda(cudaMalloc((void **) &tmp_ptr[i], y_ode_input_d_size));
+//            checkCuda(cudaMemcpy(tmp_ptr[i], params->y_ode_input[i], y_ode_input_d_size,cudaMemcpyHostToDevice));
+//        }
+//        checkCuda(cudaMalloc((void **) &y_ode_input_d, ode_size));
+//        checkCuda(cudaMemcpy(y_ode_input_d, tmp_ptr, ode_size, cudaMemcpyHostToDevice));//y_ode_output_d
+//
+//        //y_ode_agg_d
+//        //temp pointers
+//        tmp_ptr = (double **) malloc(ode_size);
+//        for (int i = 0; i < params->ode_number; i++) {
+//            checkCuda(cudaMalloc((void **) &tmp_ptr[i], y_ode_agg_d_size));
+//            checkCuda(cudaMemcpy(tmp_ptr[i], params->y_ode_agg[i], y_ode_agg_d_size,cudaMemcpyHostToDevice));
+//        }
+//        checkCuda(cudaMalloc((void **) &y_ode_agg_d, ode_size));
+//        checkCuda(cudaMemcpy(y_ode_agg_d, tmp_ptr, ode_size, cudaMemcpyHostToDevice));
+//
+//        //y_mcmc_dnorm_d - single 1d array for NUMODE dnorm values (NUMODE*data_dimension.rows)
+//        checkCuda(cudaMemcpy(y_mcmc_dnorm_d, y_mcmc_dnorm_h, y_mcmc_dnorm_d_size,cudaMemcpyHostToDevice));
+//
+//        //
+//        // Solve ode with new parameters
+//        //
+//
+//        solve_ode<<<params->num_blocks, params->block_size>>>(
+//                y_ode_input_d, y_ode_output_d, y_ode_agg_d, stf_d, params_d);
+//        mcmc_dnorm<<<params->num_blocks, params->block_size>>>(y_data_input_d, y_ode_agg_d, y_mcmc_dnorm_d, params_d);
+//        for(int ode_index = 0; ode_index < params->ode_number; ode_index++){
+//            checkCuda(cudaMemcpy(y_mcmc_dnorm_i_d,y_mcmc_dnorm_d + params->data_params.rows * ode_index,params->data_params.rows*sizeof(double),cudaMemcpyDeviceToDevice));
+//            reduce_sum<<<num_SMs,1024>>>(y_mcmc_dnorm_i_d, y_mcmc_dnorm_i_d, params->data_params.rows);
+//            checkCuda(cudaMemcpy(&r_num_h[ode_index],y_mcmc_dnorm_i_d,sizeof(double),cudaMemcpyDeviceToHost));
+////            printf("ODE %d r_num_h = %.5f\n",ode_index,r_denom_h[ode_index]);
+//        }
+//
+//        for(int ode_index = 0; ode_index < params->ode_number; ode_index++) {
+//            double r = r_num_h[ode_index] - r_denom_h[ode_index];
+//            if (exp(r) > rand_uniform(0.0, 1.0)) {
+//                params = old_params;
+//                printf("iter %d ODE %d accept params (r = %.5f)\n", iter, ode_index, r);
+//            } else {
+//                printf("iter %d ODE %d reject params_temp (r = %.5f)\n", iter, ode_index, r);
+//            }
+//        }
+//        checkCuda(cudaDeviceSynchronize());
+//        printf("\n");
+//    }
 
     //    cudaProfilerStop();
     checkCuda(cudaDeviceSynchronize());
