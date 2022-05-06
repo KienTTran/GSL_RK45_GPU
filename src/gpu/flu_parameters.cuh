@@ -73,9 +73,37 @@ public:
     double v_d_i_epidur_d2 = 0.0;
     double pi_x2 = 0.0;
 
+    // global variables - CLO means it is a command-line option
+    double G_CLO_BETA1 = 1.20;
+    double G_CLO_BETA2 = 1.40;
+    double G_CLO_BETA3 = 1.60;
+
+    double G_CLO_SIGMA12 = 0.70;
+    double G_CLO_SIGMA13 = 0.30;
+    double G_CLO_SIGMA23 = 0.70;
+
+    double G_CLO_AMPL = 0.10;
+
+    double G_CLO_NU_DENOM = 5;
+    double G_CLO_RHO_DENOM = 900;
+
+    double G_CLO_EPIDUR = 365;
+
+    bool G_CLO_CHECKPOP_MODE = false;
+
+//double G_CLO_OUTPUT_ALL_TRAJ = false;
+
+    double G_CLO_ADJUST_BURNIN = -100.0; // add this number of days to the t0 variable (currently set at -3000.0)
+    double G_CLO_ISS = 10.0; // this is the initial step size in the iterator
+
+    std::string G_CLO_STR_PARAMSFILE;
+    int G_CLO_INT_PARAMSFILE_INDEX = 0;
+
+    bool G_PHIS_INITIALIZED_ON_COMMAND_LINE = false;
+
     //from Flu
-    std::vector<double> v;
-    std::vector<double> phis;
+    std::vector<double> v; /* Never call this in gpu kernel, or use thrust to convert to device vector. But we don't use it in kernel anw */
+    std::vector<double> phis; /* Never call this in gpu kernel, or use thrust to convert to device vector. But we don't use it in kernel anw */
     enum parameter_index {	i_phi01, i_phi02, i_phi03, i_phi04, i_phi05, i_phi06, i_phi07, i_phi08, i_phi09, i_phi10,        // the peak epidemic times
         i_phi11, i_phi12, i_phi13, i_phi14, i_phi15, i_phi16, i_phi17, i_phi18, i_phi19, i_phi20,
         i_amp, i_nu, i_epidur, i_immune_duration, num_params };
@@ -83,7 +111,6 @@ public:
     bool is_float( std::string myString);
     void init_from_cmd(int argc, char **argv);
     void init();
-
 };
 
 #endif //GPU_FLU_FLU_PARAMETERS_CUH

@@ -12,7 +12,6 @@ public:
     ~GPUFlu();
     void set_gpu_parameters(GPUParameters* gpu_params);
     void set_flu_parameters(FluParameters** flu_params);
-    void init();
     void run();
 private:
     GPUParameters* gpu_params;

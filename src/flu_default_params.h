@@ -11,35 +11,35 @@
 #include <sstream>
 #include <fstream>
 
-namespace {
-    // global variables - CLO means it is a command-line option
-    double G_CLO_BETA1 = 1.20;
-    double G_CLO_BETA2 = 1.40;
-    double G_CLO_BETA3 = 1.60;
-
-    double G_CLO_SIGMA12 = 0.70;
-    double G_CLO_SIGMA13 = 0.30;
-    double G_CLO_SIGMA23 = 0.70;
-
-    double G_CLO_AMPL = 0.10;
-
-    double G_CLO_NU_DENOM = 5;
-    double G_CLO_RHO_DENOM = 900;
-
-    double G_CLO_EPIDUR = 365;
-
-    bool G_CLO_CHECKPOP_MODE = false;
-
-//double G_CLO_OUTPUT_ALL_TRAJ = false;
-
-    double G_CLO_ADJUST_BURNIN = -100.0; // add this number of days to the t0 variable (currently set at -3000.0)
-    double G_CLO_ISS = 10.0; // this is the initial step size in the iterator
-
-    std::string G_CLO_STR_PARAMSFILE;
-    int G_CLO_INT_PARAMSFILE_INDEX = 0;
-
-    bool G_PHIS_INITIALIZED_ON_COMMAND_LINE = false;
-}
+//namespace {
+//    // global variables - CLO means it is a command-line option
+//    double G_CLO_BETA1 = 1.20;
+//    double G_CLO_BETA2 = 1.40;
+//    double G_CLO_BETA3 = 1.60;
+//
+//    double G_CLO_SIGMA12 = 0.70;
+//    double G_CLO_SIGMA13 = 0.30;
+//    double G_CLO_SIGMA23 = 0.70;
+//
+//    double G_CLO_AMPL = 0.10;
+//
+//    double G_CLO_NU_DENOM = 5;
+//    double G_CLO_RHO_DENOM = 900;
+//
+//    double G_CLO_EPIDUR = 365;
+//
+//    bool G_CLO_CHECKPOP_MODE = false;
+//
+////double G_CLO_OUTPUT_ALL_TRAJ = false;
+//
+//    double G_CLO_ADJUST_BURNIN = -100.0; // add this number of days to the t0 variable (currently set at -3000.0)
+//    double G_CLO_ISS = 10.0; // this is the initial step size in the iterator
+//
+//    std::string G_CLO_STR_PARAMSFILE;
+//    int G_CLO_INT_PARAMSFILE_INDEX = 0;
+//
+//    bool G_PHIS_INITIALIZED_ON_COMMAND_LINE = false;
+//}
 // number of locations
 #define NUMLOC 1
 
@@ -66,13 +66,13 @@ namespace {
 //#define DIM 2
 
 // this is the number of days of simulation that will be sent to standard output (and used for model fitting)
-//#define NUMDAYSOUTPUT 3650*2// use this to define "cycle" lengths
+#define NUMDAYSOUTPUT 3650*2// use this to define "cycle" lengths
 //#define NUMDAYSOUTPUT 3650// use this to define "cycle" lengths
-#define NUMDAYSOUTPUT 520// use this to define "cycle" lengths
+//#define NUMDAYSOUTPUT 520// use this to define "cycle" lengths
 
 //#define NUMDAYSOUTPUT 2// use this to define "cycle" lengths
 
-#define NUMODE 1// GPU Streams
+#define NUMODE 16// GPU Streams
 #define DATADIM_ROWS 520
 #define DATADIM_COLS 3
 #define GPU_MCMC_THREADS 512

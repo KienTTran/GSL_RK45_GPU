@@ -6,7 +6,11 @@
 
 int main(int argc, char* argv[])
 {
-    GPUFlu* gpu_flu = new GPUFlu();
+    FluParameters** flu_params = new FluParameters*[NUMODE]();
+    for(int ode_index = 0; ode_index < NUMODE; ode_index++){
+        flu_params[ode_index] = new FluParameters();
+        flu_params[ode_index]->init();
+    }
     GPUParameters* gpu_params = new GPUParameters();
     gpu_params->ode_output_day = NUMDAYSOUTPUT;
     gpu_params->ode_number = NUMODE;
@@ -17,15 +21,11 @@ int main(int argc, char* argv[])
     gpu_params->t0 = 0.0;
     gpu_params->step = 1.0;
     gpu_params->h = 1e-6;
-    gpu_params->mcmc_loop = 1;
-    gpu_flu->set_gpu_parameters(gpu_params);/* Always set GPU parameters before Flu parameters*/
-    FluParameters** flu_params = new FluParameters*[NUMODE]();
-    for(int ode_index = 0; ode_index < NUMODE; ode_index++){
-        flu_params[ode_index] = new FluParameters();
-        flu_params[ode_index]->init();
-    }
+    gpu_params->mcmc_loop = 100;
+    gpu_params->init(flu_params);
+    GPUFlu* gpu_flu = new GPUFlu();
     gpu_flu->set_flu_parameters(flu_params);
-    gpu_flu->init();
+    gpu_flu->set_gpu_parameters(gpu_params);
     gpu_flu->run();
 
     delete gpu_flu;

@@ -457,32 +457,32 @@ void solve_ode(double *y_ode_input_d[], double *y_ode_output_d[], double *y_agg_
 }
 
 __global__
-void calculate_stf(double* stf_d[], FluParameters* flu_params[]){
+void calculate_stf(double* stf_d[], GPUParameters* gpu_params, FluParameters* flu_params[]){
     int index_gpu = threadIdx.x + blockIdx.x * blockDim.x;
     int stride = blockDim.x * gridDim.x;
-    for (int index = index_gpu; index < NUMODE*NUMDAYSOUTPUT; index += stride) {
-        const int ode_index = index / NUMDAYSOUTPUT;
-        const int day_index = index % NUMDAYSOUTPUT;
-//        double t = day_index*1.0;
-//        if (flu_params[ode_index]->phi_length == 0) {
-//            stf_d[ode_index][day_index] = 1.0;
-//        }
-//        double remainder = day_index - t;
-//        int xx = day_index % 3650;
-//        double yy = (double) xx + remainder;
-//        // put yy into the sine function, let it return the beta value
-//        t = yy;
-//        double sine_function_value = 0.0;
-//
-//        for (int i = 0; i < flu_params[ode_index]->phi_length; i++) {
-//            if (fabs(t - flu_params[ode_index]->phi[i]) < (flu_params[ode_index]->v_d_i_epidur_d2)) {
-//                sine_function_value = sin(flu_params[ode_index]->pi_x2 * (flu_params[ode_index]->phi[i] - t + (flu_params[ode_index]->v_d_i_epidur_d2)) /
-//                                          (flu_params[ode_index]->v_d_i_epidur_x2));
-//            }
-//        }
+    for (int index = index_gpu; index < gpu_params->ode_number * gpu_params->ode_output_day; index += stride) {
+        const int ode_index = index / gpu_params->ode_output_day;
+        const int day_index = index % gpu_params->ode_output_day;
+        double t = day_index*1.0;
+        if (flu_params[ode_index]->phi_length == 0) {
+            stf_d[ode_index][day_index] = 1.0;
+        }
+        double remainder = day_index - t;
+        int xx = day_index % 3650;
+        double yy = (double) xx + remainder;
+        // put yy into the sine function, let it return the beta value
+        t = yy;
+        double sine_function_value = 0.0;
+
+        for (int i = 0; i < flu_params[ode_index]->phi_length; i++) {
+            if (fabs(t - flu_params[ode_index]->phi[i]) < (flu_params[ode_index]->v_d_i_epidur_d2)) {
+                sine_function_value = sin(flu_params[ode_index]->pi_x2 * (flu_params[ode_index]->phi[i] - t + (flu_params[ode_index]->v_d_i_epidur_d2)) /
+                                          (flu_params[ode_index]->v_d_i_epidur_x2));
+            }
+        }
 //        printf("index %d phi_length %d %f sine_function_value %1.3f\n",index,flu_params->phi_length,t,sine_function_value);
-//        printf("index %d %f return %1.3f\n",index,t,1.0 + flu_params->v_d_i_amp * sine_function_value);
-//        stf_d[ode_index][day_index] = 1.0 + flu_params[ode_index]->v_d_i_amp * sine_function_value;
-        printf("index %d ODE %d day %d stf_d[%d][%d] = %.5f\n", index, ode_index, day_index, ode_index, day_index, stf_d[ode_index][day_index]);
+//        printf("index %d day %f return %1.5f\n",index,day_index,t,1.0 + flu_params[ode_index]->v_d_i_amp * sine_function_value);
+        stf_d[ode_index][day_index] = 1.0 + flu_params[ode_index]->v_d_i_amp * sine_function_value;
+//        printf("index %d ODE %d day %d stf_d[%d][%d] = %.5f\n", index, ode_index, day_index, ode_index, day_index, stf_d[ode_index][day_index]);
     }
 }

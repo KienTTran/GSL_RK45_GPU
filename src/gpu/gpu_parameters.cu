@@ -33,11 +33,9 @@ void GPUParameters::init(FluParameters* flu_params[]){
     y_ode_input = new double*[ode_number]();
     for (int i = 0; i < ode_number; i++) {
       y_ode_input[i] = new double[ode_dimension];
-    }
-    for (int i = 0; i < ode_number; i++) {
-      for (int j = 0; j < ode_dimension; j++) {
-        y_ode_input[i][j] = 0.5;
-      }
+        for (int j = 0; j < ode_dimension; j++) {
+            y_ode_input[i][j] = 0.5;
+        }
     }
     CSV_Data* csv_data = new CSV_Data();
     csv_data->read_csv_data();
@@ -54,20 +52,18 @@ void GPUParameters::init(FluParameters* flu_params[]){
     y_ode_output = new double*[ode_number]();
     for (int i = 0; i < ode_number; i++) {
       y_ode_output[i] = new double[ode_output_day * display_dimension];
+        for (int j = 0; j < ode_output_day * display_dimension; j++) {
+            y_ode_output[i][j] = -(j * 1.0);
+        }
     }
     for (int i = 0; i < ode_number; i++) {
-      for (int j = 0; j < ode_output_day * display_dimension; j++) {
-        y_ode_output[i][j] = -(j * 1.0);
-      }
     }
     y_agg = new double*[ode_number]();
     for (int i = 0; i < ode_number; i++) {
       y_agg[i] = new double[ode_output_day * agg_dimension];
-    }
-    for (int i = 0; i < ode_number; i++) {
-      for (int j = 0; j < ode_output_day * agg_dimension; j++) {
-        y_agg[i][j] = -9999.0;
-      }
+        for (int j = 0; j < ode_output_day * agg_dimension; j++) {
+            y_agg[i][j] = -9999.0;
+        }
     }
     printf("ODE numbers = %d\n",ode_number);
     printf("1 ODE parameters = %d\n", ode_dimension);
@@ -82,11 +78,11 @@ void GPUParameters::init(FluParameters* flu_params[]){
     // declare the vector y that holds the values of all the state variables (at the current time)
     // below you are declaring a vector of size DIM
 
-    for(int i = 0; i < ode_number; i++){
+    for(int ode_index = 0; ode_index < ode_number; ode_index++){
       for(int loc=0; loc<NUMLOC; loc++)
       {
         // put half of the individuals in the susceptible class
-        y_ode_input[i][ STARTS + loc ] = 0.5 * flu_params[i]->N[loc];
+        y_ode_input[ode_index][ STARTS + loc ] = 0.5 * flu_params[ode_index]->N[loc];
 
         // put small number (but slightly different amounts each time) of individuals into the infected classes
         // double r = rand() % 50 + 10;
@@ -105,8 +101,8 @@ void GPUParameters::init(FluParameters* flu_params[]){
           // fprintf(stderr, "r = %1.4f, x = %1.6f", r, x);
 
           sumx += x;
-          y_ode_input[i][ STARTI + NUMSEROTYPES*loc + vir ] = x * flu_params[i]->N[loc];
-          y_ode_input[i][ STARTJ + NUMSEROTYPES*loc + vir ] = 0.0;     // initialize all of the J-variables to zero
+          y_ode_input[ode_index][ STARTI + NUMSEROTYPES*loc + vir ] = x * flu_params[ode_index]->N[loc];
+          y_ode_input[ode_index][ STARTJ + NUMSEROTYPES*loc + vir ] = 0.0;     // initialize all of the J-variables to zero
 
           x += 0.001;
         }
@@ -118,7 +114,7 @@ void GPUParameters::init(FluParameters* flu_params[]){
           double z = (0.5 - sumx)/((double)NUMR*NUMSEROTYPES);  // this is the remaining fraction of individuals to be distributed
           for(int stg=0; stg<NUMR; stg++)
           {
-            y_ode_input[i][ NUMSEROTYPES*NUMR*loc + NUMR*vir + stg ] = z * flu_params[i]->N[loc];
+            y_ode_input[ode_index][ NUMSEROTYPES*NUMR*loc + NUMR*vir + stg ] = z * flu_params[ode_index]->N[loc];
           }
         }
       }
