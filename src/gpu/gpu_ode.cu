@@ -484,5 +484,6 @@ void calculate_stf(double* stf_d[], GPUParameters* gpu_params, FluParameters* fl
 //        printf("index %d day %f return %1.5f\n",index,day_index,t,1.0 + flu_params[ode_index]->v_d_i_amp * sine_function_value);
         stf_d[ode_index][day_index] = 1.0 + flu_params[ode_index]->v_d_i_amp * sine_function_value;
 //        printf("index %d ODE %d day %d stf_d[%d][%d] = %.5f\n", index, ode_index, day_index, ode_index, day_index, stf_d[ode_index][day_index]);
+        printf("%d = %.5f\n", day_index, stf_d[ode_index][day_index]);
     }
 }

@@ -69,6 +69,8 @@ public:
     double trr = 0.0;
     double v_d_i_nu = 0.0;
     double v_d_i_amp = 0.0;
+    double v_d_i_immune_duration = 0.0;
+    double v_d_i_epidur = 0.0;
     double v_d_i_epidur_x2 = 0.0;
     double v_d_i_epidur_d2 = 0.0;
     double pi_x2 = 0.0;

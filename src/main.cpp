@@ -21,7 +21,7 @@ int main(int argc, char* argv[])
     gpu_params->t0 = 0.0;
     gpu_params->step = 1.0;
     gpu_params->h = 1e-6;
-    gpu_params->mcmc_loop = 100;
+    gpu_params->mcmc_loop = 1;
     gpu_params->init(flu_params);
     GPUFlu* gpu_flu = new GPUFlu();
     gpu_flu->set_flu_parameters(flu_params);
