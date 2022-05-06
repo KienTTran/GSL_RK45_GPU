@@ -24,15 +24,20 @@ add_executable(gpu_flu
         src/main.cpp
         src/flu_default_params.h
         src/gpu/gpu_parameters.cu
-        src/gpu/gpu_parameters.h
-        src/gpu/gpu_func_test.cu
-        src/gpu/gpu_ode_mcmc.cu
-        src/gpu/gpu_ode_mcmc.h
+        src/gpu/gpu_parameters.cuh
+        src/gpu/gpu_func_flu.cu
+        src/gpu/gpu_flu.cu
+        src/gpu/gpu_flu.cuh
         src/csv/csv_data.cpp
         src/csv/csv_data.h
         src/cpu/cpu_functions.cpp
         src/cpu/gsl_functions.cpp
-        src/cpu/cpu_functions.h src/gpu/gpu_reduce.cu src/gpu/gpu_ode.cu src/gpu/gpu_mcmc.cu)
+        src/cpu/cpu_functions.h
+        src/gpu/gpu_reduce.cu
+        src/gpu/gpu_ode.cu
+        src/gpu/gpu_mcmc.cu
+        src/gpu/flu_parameters.cu
+        src/gpu/flu_parameters.cuh src/gpu/gpu_ode.cuh src/gpu/gpu_mcmc.cuh src/gpu/gpu_reduce.cuh)
 
 set_target_properties(
         gpu_flu

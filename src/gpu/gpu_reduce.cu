@@ -1,7 +1,8 @@
 //
 // Created by kient on 5/1/2022.
 //
-#include "gpu_ode_mcmc.h"
+#include "gpu_flu.cuh"
+#include "gpu_reduce.cuh"
 
 static const int NUM_ELEMENTS = GPU_MCMC_THREADS;
 
@@ -32,7 +33,7 @@ void reduce_sum(double *input, double* output, int len)
 
 
 __global__
-void reduce_sum_n(double *input, double* output, int ode_num, int total_len)
+void reduce_sum_padding(double *input, double* output, int ode_num, int total_len)
 {
     __shared__ double s_data[1024];
     int tid = threadIdx.x;

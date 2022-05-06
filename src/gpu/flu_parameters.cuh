@@ -1,35 +1,29 @@
 //
-// Created by kient on 1/12/2022.
+// Created by kient on 5/5/2022.
 //
 
-#ifndef RK45_CUDA_GPU_PARAMETERS_H
-#define RK45_CUDA_GPU_PARAMETERS_H
-#include <cuda_runtime.h>
-#include <cuda_runtime_api.h>
-#include <cuda_profiler_api.h>
-#include "device_launch_parameters.h"
-#include <curand_kernel.h>
-#include <curand.h>
-#include <thrust/host_vector.h>
-#include <thrust/device_vector.h>
-#include <random>
-#include <iostream>
-#include <chrono>
-#include "../flu_default_params.h"
-#include "../csv/csv_data.h"
+#ifndef GPU_FLU_FLU_PARAMETERS_CUH
+#define GPU_FLU_FLU_PARAMETERS_CUH
 
-struct Parameters{
+#include <cmath>
+#include "../flu_default_params.h"
+
+class FluParameters {
+public:
+    explicit FluParameters();
+    ~FluParameters();
+public:
     double N[NUMLOC]; //Total population size
     double beta[NUMSEROTYPES] = {
-                                 0.24, // transmission for Flu H1
-                                 0.22, // transmission for Flu B
-                                 0.26
-                                }; //  transmission for Flu A/H3
+            0.24, // transmission for Flu H1
+            0.22, // transmission for Flu B
+            0.26
+    }; //  transmission for Flu A/H3
     double sigma[NUMSEROTYPES] = {
-                                 0.75, // sigma 12 Cross protection between H1 and B
-                                 0.50, // sigma 13 Cross protection between H1 and H3
-                                 0.75 // sigma 23 Cross protection between B and H3
-                                 }; //  transmission for Flu A/H3
+            0.75, // sigma 12 Cross protection between H1 and B
+            0.50, // sigma 13 Cross protection between H1 and H3
+            0.75 // sigma 23 Cross protection between B and H3
+    }; //  transmission for Flu A/H3
     double sigma2d[NUMSEROTYPES][NUMSEROTYPES];
     double eta[NUMLOC][NUMLOC];
     double nu_denom = 5; //  Duration of infection in days
@@ -78,37 +72,6 @@ struct Parameters{
     double v_d_i_epidur_x2 = 0.0;
     double v_d_i_epidur_d2 = 0.0;
     double pi_x2 = 0.0;
-};
-
-class GPUParameters {
-public:
-    explicit GPUParameters();
-    ~GPUParameters();
-    int num_blocks;
-    int block_size;
-    int mcmc_loop;
-    int ode_output_day;
-    int ode_number;
-    int ode_dimension;
-    int display_dimension;
-    int agg_dimension;
-    int data_dimension;
-    CSVParameters data_params;
-    Parameters flu_params;
-    int display_number;
-    double t_target;
-    double t0;
-    double h;
-    double step;
-    double** y_ode_input;
-    double** y_data_input;
-    double** y_ode_output;
-    double** y_ode_agg;
-
-    bool is_float( std::string myString);
-    void init_from_cmd(int argc, char **argv);
-    void init();
-    void update();
 
     //from Flu
     std::vector<double> v;
@@ -117,9 +80,10 @@ public:
         i_phi11, i_phi12, i_phi13, i_phi14, i_phi15, i_phi16, i_phi17, i_phi18, i_phi19, i_phi20,
         i_amp, i_nu, i_epidur, i_immune_duration, num_params };
 
+    bool is_float( std::string myString);
+    void init_from_cmd(int argc, char **argv);
+    void init();
 
-private:
 };
 
-
-#endif //RK45_CUDA_GPU_PARAMETERS_H
+#endif //GPU_FLU_FLU_PARAMETERS_CUH

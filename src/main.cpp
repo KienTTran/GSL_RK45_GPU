@@ -1,5 +1,5 @@
 #include "cpu/cpu_functions.h"
-#include "gpu/gpu_ode_mcmc.h"
+#include "gpu/gpu_flu.cuh"
 #include <chrono>
 #include <iostream>
 #include <thread>
@@ -18,12 +18,18 @@ int main(int argc, char* argv[])
     gpu_params->step = 1.0;
     gpu_params->h = 1e-6;
     gpu_params->mcmc_loop = 1;
-    gpu_params->init();
-//    gpu_params->init_from_cmd(argc, argv);
-    gpu_flu->set_parameters(gpu_params);
+    gpu_flu->set_gpu_parameters(gpu_params);/* Always set GPU parameters before Flu parameters*/
+    FluParameters** flu_params = new FluParameters*[NUMODE]();
+    for(int ode_index = 0; ode_index < NUMODE; ode_index++){
+        flu_params[ode_index] = new FluParameters();
+        flu_params[ode_index]->init();
+    }
+    gpu_flu->set_flu_parameters(flu_params);
+    gpu_flu->init();
     gpu_flu->run();
 
     delete gpu_flu;
+    delete gpu_params;
+    delete flu_params;
     return 0;
-
 }
