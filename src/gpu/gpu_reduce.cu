@@ -33,7 +33,7 @@ void reduce_sum(double *input, double* output, int len)
 
 
 __global__
-void reduce_sum_padding(double *input, double* output, int ode_num, int total_len)
+void reduce_sum_padding(double *input, double* output, GPUParameters* gpu_params_d, int total_len)
 {
     __shared__ double s_data[1024];
     int tid = threadIdx.x;
@@ -57,7 +57,7 @@ void reduce_sum_padding(double *input, double* output, int ode_num, int total_le
         __syncthreads();
     }
 
-    int ode_len = total_len / ode_num;
+    int ode_len = total_len / gpu_params_d->ode_number;
     int ode_index = index / ode_len;
 
     if (tid == 0){
