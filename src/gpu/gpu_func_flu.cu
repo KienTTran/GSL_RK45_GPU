@@ -7,10 +7,10 @@ void gpu_func_flu(double t, const double y[], double f[], double stf, int index,
     int loc, vir, stg;
 
 //    if((NUMODE == 1  || (index > 0 && index % (NUMODE / 2) == 0)) && t == 0){
-//        printf("Here's the info on params: \n");
-//        printf("  beta1 = %1.9f \n", flu_params->beta[index][0]);
-//        printf("  beta2 = %1.9f \n", flu_params->beta[index][1]);
-//        printf("  beta3 = %1.9f \n", flu_params->beta[index][2]);
+//        printf("gpu_func_flu flu_params: \n");
+//        printf("  beta1 = %1.9f \n", flu_params->beta[index*NUMSEROTYPES + 0]);
+//        printf("  beta2 = %1.9f \n", flu_params->beta[index*NUMSEROTYPES + 1]);
+//        printf("  beta3 = %1.9f \n", flu_params->beta[index*NUMSEROTYPES + 2]);
 //        printf("  v_d_i_amp = %1.5f \n", flu_params->v_d_i_amp);
 //        printf("  sigma_H1B = %1.5f \n", flu_params->sigma2d[0][1]);
 //        printf("  sigma_BH3 = %1.5f \n", flu_params->sigma2d[1][2]);
@@ -20,9 +20,9 @@ void gpu_func_flu(double t, const double y[], double f[], double stf, int index,
 //        printf("  eta = %1.5f \n", flu_params->eta[2][2]);
 //        printf("  trr = %1.5f \n", flu_params->trr);
 //        printf("  v_d_i_nu = %1.5f \n", flu_params->v_d_i_nu);
-//        printf("phis_length = %d\n",flu_params->phi_length);
-//        for(int i=0; i<flu_params->phi_length; i++){
-//            printf("  phi = %5.1f \n", flu_params->phi[i]);
+//        printf("phis_length = %d\n",flu_params->SAMPLE_PHI_LENGTH);
+//        for(int i=0; i<SAMPLE_PHI_LENGTH; i++){
+//            printf("  phi = %5.1f \n", flu_params->phi[ode_index*SAMPLE_PHI_LENGTH + i]);
 //        }
 //    }
 
@@ -86,7 +86,7 @@ void gpu_func_flu(double t, const double y[], double f[], double stf, int index,
                 for(int l=0; l<NUMLOC; l++)
                     for(int v=0; v<NUMSEROTYPES; v++)
                         sum_foi += flu_params->sigma2d[vir][v]
-                                   * flu_params->beta[index][v]
+                                   * flu_params->beta[index*NUMSEROTYPES + v]
                                    * stf
                                    * flu_params->eta[loc][l]
                                    * y[ STARTI + NUMSEROTYPES*l + v ];
@@ -118,11 +118,11 @@ void gpu_func_flu(double t, const double y[], double f[], double stf, int index,
                 foi_on_susc_single_virus +=
                         flu_params->eta[loc][l]
                         * stf
-                        * flu_params->beta[index][vir]
+                        * flu_params->beta[index*NUMSEROTYPES + vir]
                         * y[STARTI + NUMSEROTYPES * l + vir];
 //                printf("index %d foi_on_susc_single_virus += flu_params->eta[%d][%d]"
 //                       " * stf"
-//                       " * flu_params->beta[index][%d]"
+//                       " * flu_params->beta[index*NUMSEROTYPES + %d]"
 //                       " * y[%d] = %f\n",
 //                       STARTI + NUMSEROTYPES*loc + vir, loc,l,vir,STARTI + NUMSEROTYPES*l + vir,foi_on_susc_single_virus);
 //                printf("index %d loc %d vir %d l %d Y[%d] = %f\n",STARTI + NUMSEROTYPES*loc + vir,loc,vir,l,STARTI + NUMSEROTYPES * l + vir,y[STARTI + NUMSEROTYPES * l + vir]);
@@ -142,13 +142,13 @@ void gpu_func_flu(double t, const double y[], double f[], double stf, int index,
                     for (int s = 0; s < NUMR; s++) {       // sum over R stage
                         inflow_from_recovereds += flu_params->sigma2d[vir][v]
                                                   * stf
-                                                  * flu_params->beta[index][vir]
+                                                  * flu_params->beta[index*NUMSEROTYPES + vir]
                                                   * flu_params->eta[loc][l]
                                                   * y[STARTI + NUMSEROTYPES * l + vir]
                                                   * y[NUMSEROTYPES * NUMR * loc + NUMR * v + s];
 //                        printf("index = %d inflow_from_recovereds += inflow_from_recovereds_sbe = %f * y[%d] = %f * y[%d] = %f\n",STARTI + NUMSEROTYPES*loc + vir,flu_params->sigma2d[vir][v]
 //                                                                                                                                                              * stf
-//                                                                                                                                                              * flu_params->beta[index][vir]
+//                                                                                                                                                              * flu_params->beta[index*NUMSEROTYPES + vir]
 //                                                                                                                                                              * flu_params->eta[loc][l],
 //                               STARTI + NUMSEROTYPES * l + vir,NUMSEROTYPES * NUMR * loc + NUMR * v + s,
 //                                y[STARTI + NUMSEROTYPES * l + vir],y[NUMSEROTYPES * NUMR * loc + NUMR * v + s]);
@@ -180,7 +180,7 @@ void gpu_func_flu(double t, const double y[], double f[], double stf, int index,
         double foi_on_susc_all_viruses = 0.0;
         for(int l=0; l<NUMLOC; l++) {
             for (int v = 0; v < NUMSEROTYPES; v++) {
-                foi_on_susc_all_viruses += flu_params->eta[loc][l] * stf * flu_params->beta[index][v] *
+                foi_on_susc_all_viruses += flu_params->eta[loc][l] * stf * flu_params->beta[index*NUMSEROTYPES + v] *
                                            y[STARTI + NUMSEROTYPES * l + v];
 //                printf(" loop l-v index %d loc %d foi_on_susc_all_viruses = %f\n",STARTS + loc,loc,foi_on_susc_all_viruses);
             }

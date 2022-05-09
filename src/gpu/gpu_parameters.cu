@@ -121,9 +121,3 @@ void GPUParameters::init(FluParameters *flu_params){
     }
 }
 
-__device__ __host__ void GPUParameters::update_beta() {
-    beta[0] = 0.77;
-    beta[1] = 0.87;
-    beta[2] = 0.97;
-    printf("beta0 = %f\n",beta[0]);
-}

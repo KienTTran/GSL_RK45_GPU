@@ -40,8 +40,6 @@ public:
     double** y_data_input;
     double** y_ode_output;
     double** y_agg;
-    double beta[3] = {0.24, 0.26, 0.34};
-    __device__ __host__ void update_beta();
     void init(FluParameters* flu_params);
 private:
 };

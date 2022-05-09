@@ -263,7 +263,25 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
         device_y[i] = y[index][i];
     }
 
-//    printf("updated phi[%d] = %.5f\n",9,flu_gpu_params->phi[9]);
+//    if((NUMODE == 1  || (index > 0 && index % (NUMODE / 2) == 0)) && t == 0){
+//        printf("rk45_gpu_evolve_apply flu_params: \n");
+//        printf("  beta1 = %1.9f \n", flu_params->beta[index*NUMSEROTYPES + 0]);
+//        printf("  beta2 = %1.9f \n", flu_params->beta[index*NUMSEROTYPES + 1]);
+//        printf("  beta3 = %1.9f \n", flu_params->beta[index*NUMSEROTYPES + 2]);
+//        printf("  v_d_i_amp = %1.5f \n", flu_params->v_d_i_amp);
+//        printf("  sigma_H1B = %1.5f \n", flu_params->sigma2d[0][1]);
+//        printf("  sigma_BH3 = %1.5f \n", flu_params->sigma2d[1][2]);
+//        printf("  sigma_H1H3 = %1.5f \n", flu_params->sigma2d[0][2]);
+//        printf("  eta = %1.5f \n", flu_params->eta[0][0]);
+//        printf("  eta = %1.5f \n", flu_params->eta[1][1]);
+//        printf("  eta = %1.5f \n", flu_params->eta[2][2]);
+//        printf("  trr = %1.5f \n", flu_params->trr);
+//        printf("  v_d_i_nu = %1.5f \n", flu_params->v_d_i_nu);
+//        printf("phis_length = %d\n",flu_params->SAMPLE_PHI_LENGTH);
+//        for(int i=0; i<SAMPLE_PHI_LENGTH; i++){
+//            printf("  phi = %5.1f \n", flu_params->phi[ode_index*SAMPLE_PHI_LENGTH + i]);
+//        }
+//    }
 
     while (t < t_target) {
         double device_t;
@@ -445,6 +463,9 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
                 y_agg_output[index][i] = agg_inc_max[i];
             }
         }
+//        if(index == 0 && t == NUMDAYSOUTPUT - 1) {
+//            printf("[evolve apply agg] Index = %d t = %f h = %f end, agg_inc_max[0] = %.5f\n", index, t, h, agg_inc_max[0]);
+//        }
         __syncthreads();
     }
 //    if(index == 0){
@@ -469,8 +490,8 @@ void solve_ode(double *y_ode_input_d[], double *y_ode_output_d[], double *y_agg_
 //            printf("ODE %d will be solved by thread index = %d blockIdx.x = %d\n", index, index, blockIdx.x);
 //        }
         solve_ode(y_ode_input_d, y_ode_output_d, y_agg_input_d, y_agg_output_d, stf[index], index, gpu_params, flu_params);
-        __syncthreads();
     }
+    __syncthreads();
     return;
 }
 
@@ -485,7 +506,7 @@ void calculate_stf(double* stf_d[], GPUParameters* gpu_params, FluParameters* fl
 
 //        if((NUMODE == 1  || (index > 0 && index % (NUMODE / 2) == 0)) && t == 0) {
 //            printf("\nSTF ODE %d Old phi: ",ode_index);
-//            for(int i = 0; i < flu_params[ode_index]->phi_length; i++){
+//            for(int i = 0; i < flu_params[ode_index]->SAMPLE_PHI_LENGTH; i++){
 //                printf("%.2f\t",flu_params[ode_index]->phi[i]);
 //            }
 //            printf("\nSTF ODE %d Old flu_params[%d]->phi_0 = %.5f\n", ode_index, ode_index, flu_params[ode_index]->phi_0);
@@ -500,7 +521,7 @@ void calculate_stf(double* stf_d[], GPUParameters* gpu_params, FluParameters* fl
 //            printf("STF ODE %d Old flu_params[%d]->rho_denom = %.5f\n", ode_index, ode_index, flu_params[ode_index]->rho_denom);
 //        }
 
-        if (flu_params->phi_length == 0) {
+        if (SAMPLE_PHI_LENGTH == 0) {
             stf_d[ode_index][day_index] = 1.0;
         }
         double remainder = day_index - t;
@@ -510,13 +531,13 @@ void calculate_stf(double* stf_d[], GPUParameters* gpu_params, FluParameters* fl
         t = yy;
         double sine_function_value = 0.0;
 
-        for (int i = 0; i < flu_params->phi_length; i++) {
-            if (fabs(t - flu_params->phi[i]) < (flu_params->v_d_i_epidur_d2)) {
-                sine_function_value = sin(flu_params->pi_x2 * (flu_params->phi[i] - t + (flu_params->v_d_i_epidur_d2)) /
+        for (int i = 0; i < SAMPLE_PHI_LENGTH; i++) {
+            if (fabs(t - flu_params->phi[ode_index*SAMPLE_PHI_LENGTH + i]) < (flu_params->v_d_i_epidur_d2)) {
+                sine_function_value = sin(flu_params->pi_x2 * (flu_params->phi[ode_index*SAMPLE_PHI_LENGTH + i] - t + (flu_params->v_d_i_epidur_d2)) /
                                           (flu_params->v_d_i_epidur_x2));
             }
         }
-//        printf("index %d phi_length %d %f sine_function_value %1.3f\n",index,flu_params->phi_length,t,sine_function_value);
+//        printf("index %d SAMPLE_PHI_LENGTH %d %f sine_function_value %1.3f\n",index,flu_params->SAMPLE_PHI_LENGTH,t,sine_function_value);
 //        printf("index %d day %f return %1.5f\n",index,day_index,t,1.0 + flu_params[ode_index]->v_d_i_amp * sine_function_value);
         stf_d[ode_index][day_index] = 1.0 + flu_params->v_d_i_amp * sine_function_value;
 //        printf("index %d ODE %d day %d stf_d[%d][%d] = %.5f\n", index, ode_index, day_index, ode_index, day_index, stf_d[ode_index][day_index]);
