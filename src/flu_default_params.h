@@ -40,8 +40,26 @@
 //
 //    bool G_PHIS_INITIALIZED_ON_COMMAND_LINE = false;
 //}
+
+// this is the number of days of simulation that will be sent to standard output (and used for model fitting)
+#define NUMDAYSOUTPUT 3650*2// use this to define "cycle" lengths
+//#define NUMDAYSOUTPUT 3650// use this to define "cycle" lengths
+//#define NUMDAYSOUTPUT 520// use this to define "cycle" lengths
+
+//#define NUMDAYSOUTPUT 2// use this to define "cycle" lengths
+
+#define NUMODE 16// GPU Streams
+#define DATADIM_ROWS 520
+#define DATADIM_COLS 3
+#define GPU_ODE_THREADS NUMODE*2
+#define GPU_REDUCE_THREADS 1024
+#define MCMC_ITER 100
+#define SAMPLE_PHI_LENGTH 10
+#define SAMPLE_LENGTH 13
+#define SAMPLE_TAU_LENGTH 9
+
 // number of locations
-#define NUMLOC 1
+#define NUMLOC 3
 
 // number OF types/subtypes of influenza (this will always be three - H1, H3, and B)
 // for generality (and to avoid constantly having to specify type/subtype) we call this serotypes
@@ -62,22 +80,6 @@
 
 // this is the dimensionality of the ODE system
 #define DIM (STARTS+NUMLOC) // 16
-
-//#define DIM 2
-
-// this is the number of days of simulation that will be sent to standard output (and used for model fitting)
-#define NUMDAYSOUTPUT 3650*2// use this to define "cycle" lengths
-//#define NUMDAYSOUTPUT 3650// use this to define "cycle" lengths
-//#define NUMDAYSOUTPUT 520// use this to define "cycle" lengths
-
-//#define NUMDAYSOUTPUT 2// use this to define "cycle" lengths
-
-#define NUMODE 16// GPU Streams
-#define DATADIM_ROWS 520
-#define DATADIM_COLS 3
-#define GPU_MCMC_THREADS 512
-#define GPU_ODE_THREADS 256
-
 
 // Two population sizes: main population and all outer populations have the same size
 #define POPSIZE_MAIN 1000000.00

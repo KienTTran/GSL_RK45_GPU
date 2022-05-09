@@ -4,12 +4,10 @@
 #include "gpu_flu.cuh"
 #include "gpu_reduce.cuh"
 
-static const int NUM_ELEMENTS = GPU_MCMC_THREADS;
-
 __global__
 void reduce_sum(double *input, double* output, int len)
 {
-    __shared__ double s_data[1024];
+    __shared__ double s_data[GPU_REDUCE_THREADS];
     int tid = threadIdx.x;
     int index = tid + blockIdx.x*blockDim.x;
     s_data[tid] = 0.0;
@@ -35,7 +33,7 @@ void reduce_sum(double *input, double* output, int len)
 __global__
 void reduce_sum_padding(double *input, double* output, GPUParameters* gpu_params_d, int total_len)
 {
-    __shared__ double s_data[1024];
+    __shared__ double s_data[GPU_REDUCE_THREADS];
     int tid = threadIdx.x;
     int index = tid + blockIdx.x*blockDim.x;
     s_data[tid] = 0.0;

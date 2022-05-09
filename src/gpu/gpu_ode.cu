@@ -71,6 +71,7 @@ void rk45_gpu_adjust_h(double y[], double y_err[], double dydt_out[],
         //        printf("      compare r = %.10f r_max = %.10f\n",r,r_max);
         r_max = max(r, r_max);
     }
+    __syncthreads();
 
     //    printf("      r_max = %.10f\n",r_max);
 
@@ -178,6 +179,7 @@ void rk45_gpu_step_apply(double t, double h, double y[], double y_err[], double 
         //        printf("      k1[%d] = %.10f\n",i,k1[i]);
         y_tmp[i] = y[i] + ah[0] * h * k1[i];
     }
+    __syncthreads();
     /* k2 */
     gpu_func_flu(t + ah[0] * h, y_tmp, k2, stf, index, flu_params);
     //    cudaDeviceSynchronize();
@@ -185,6 +187,7 @@ void rk45_gpu_step_apply(double t, double h, double y[], double y_err[], double 
         //        printf("      k2[%d] = %.10f\n",i,k2[i]);
         y_tmp[i] = y[i] + h * (b3[0] * k1[i] + b3[1] * k2[i]);
     }
+    __syncthreads();
     /* k3 */
     gpu_func_flu(t + ah[1] * h, y_tmp, k3, stf, index, flu_params);
     //    cudaDeviceSynchronize();
@@ -192,6 +195,7 @@ void rk45_gpu_step_apply(double t, double h, double y[], double y_err[], double 
         //        printf("      k3[%d] = %.10f\n",i,k3[i]);
         y_tmp[i] = y[i] + h * (b4[0] * k1[i] + b4[1] * k2[i] + b4[2] * k3[i]);
     }
+    __syncthreads();
     /* k4 */
     gpu_func_flu(t + ah[2] * h, y_tmp, k4, stf, index, flu_params);
     //    cudaDeviceSynchronize();
@@ -199,6 +203,7 @@ void rk45_gpu_step_apply(double t, double h, double y[], double y_err[], double 
         //        printf("      k4[%d] = %.10f\n",i,k4[i]);
         y_tmp[i] = y[i] + h * (b5[0] * k1[i] + b5[1] * k2[i] + b5[2] * k3[i] + b5[3] * k4[i]);
     }
+    __syncthreads();
     /* k5 */
     gpu_func_flu(t + ah[3] * h, y_tmp, k5, stf, index, flu_params);
     //    cudaDeviceSynchronize();
@@ -206,6 +211,7 @@ void rk45_gpu_step_apply(double t, double h, double y[], double y_err[], double 
         //        printf("      k5[%d] = %.10f\n",i,k5[i]);
         y_tmp[i] = y[i] + h * (b6[0] * k1[i] + b6[1] * k2[i] + b6[2] * k3[i] + b6[3] * k4[i] + b6[4] * k5[i]);
     }
+    __syncthreads();
     /* k6 */
     gpu_func_flu(t + ah[4] * h, y_tmp, k6, stf, index, flu_params);
     //    cudaDeviceSynchronize();
@@ -215,6 +221,7 @@ void rk45_gpu_step_apply(double t, double h, double y[], double y_err[], double 
         const double d_i = c1 * k1[i] + c3 * k3[i] + c4 * k4[i] + c5 * k5[i] + c6 * k6[i];
         y[i] += h * d_i;
     }
+    __syncthreads();
     /* Derivatives at output */
     gpu_func_flu(t + h, y, dydt_out, stf, index, flu_params);
     //    cudaDeviceSynchronize();
@@ -222,6 +229,7 @@ void rk45_gpu_step_apply(double t, double h, double y[], double y_err[], double 
     for (int i = 0; i < DIM; i++) {
         y_err[i] = h * (ec[1] * k1[i] + ec[3] * k3[i] + ec[4] * k4[i] + ec[5] * k5[i] + ec[6] * k6[i]);
     }
+    __syncthreads();
     //debug printout
     //    for (int i = 0; i < DIM; i++) {
     //        printf("      index = %d y[%d] = %.10f\n",index,i,y[i]);
@@ -307,6 +315,7 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
 
                 rk45_gpu_step_apply(device_t_0, device_h_0, device_y, device_y_err, device_dydt_out, stf_today,
                                     index, flu_params);
+                __syncthreads();
 
                 if (device_final_step) {
                     device_t = device_t1;
@@ -320,6 +329,7 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
 
                 rk45_gpu_adjust_h(device_y, device_y_err, device_dydt_out,
                                   device_h, device_h_0, device_adjustment_out, device_final_step, index);
+                __syncthreads();
 
                 //Extra step to get data from h
                 device_h_0 = device_h;
@@ -364,7 +374,11 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
 //        if(index == 0) {
 //            printf("[evolve apply] Index = %d t = %f h = %f end one day\n", index, t, h);
 //        }
+        if(index == 0 && t == NUMDAYSOUTPUT - 1) {
+            printf("[evolve apply] Index = %d t = %f h = %f end, device_y_yesterday[%d][%d] = %.5f\n", index, t, h, index,gpu_params->ode_dimension - 4, device_y_yesterday[gpu_params->ode_dimension - 4]);
+        }
         t += t_delta;
+        __syncthreads();
 
         /* y_ode_output_d*/
 //        for (int i = 0; i < gpu_params->display_dimension; i ++) {
@@ -410,6 +424,7 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
             y_agg_output[index][y_output_agg_index] = device_y[y_ode_index] - device_y_yesterday[y_ode_index];
             agg_inc_sum[i] += y_agg_output[index][y_output_agg_to_sum_index];
         }
+        __syncthreads();
 
         if ((day+1) % 7 == 0 || day == gpu_params->ode_output_day - 1) {
             for(int i = 0; i < gpu_params->data_params.cols; i++){
@@ -421,6 +436,7 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
             }
             week_count++;
         }
+        __syncthreads();
 
         //Write max agg inc to first line
         if(day == gpu_params->ode_output_day - 1){
@@ -429,6 +445,7 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
                 y_agg_output[index][i] = agg_inc_max[i];
             }
         }
+        __syncthreads();
     }
 //    if(index == 0){
 //        for (int i = 0; i < DIM; i++){
@@ -444,27 +461,46 @@ void solve_ode(double *y_ode_input_d[], double *y_ode_output_d[], double *y_agg_
 }
 
 __global__
-void solve_ode(double *y_ode_input_d[], double *y_ode_output_d[], double *y_agg_input_d[], double *y_agg_output_d[], double* stf[], GPUParameters *gpu_params, FluParameters* flu_params[]) {
+void solve_ode(double *y_ode_input_d[], double *y_ode_output_d[], double *y_agg_input_d[], double *y_agg_output_d[], double* stf[], GPUParameters *gpu_params, FluParameters* flu_params) {
     int index_gpu = threadIdx.x + blockIdx.x * blockDim.x;
     int stride = blockDim.x * gridDim.x;
     for (int index = index_gpu; index < gpu_params->ode_number; index += stride) {
 //        if(index % 32 == 0){
 //            printf("ODE %d will be solved by thread index = %d blockIdx.x = %d\n", index, index, blockIdx.x);
 //        }
-        solve_ode(y_ode_input_d, y_ode_output_d, y_agg_input_d, y_agg_output_d, stf[index], index, gpu_params, flu_params[index]);
+        solve_ode(y_ode_input_d, y_ode_output_d, y_agg_input_d, y_agg_output_d, stf[index], index, gpu_params, flu_params);
+        __syncthreads();
     }
     return;
 }
 
 __global__
-void calculate_stf(double* stf_d[], GPUParameters* gpu_params, FluParameters* flu_params[]){
+void calculate_stf(double* stf_d[], GPUParameters* gpu_params, FluParameters* flu_params){
     int index_gpu = threadIdx.x + blockIdx.x * blockDim.x;
     int stride = blockDim.x * gridDim.x;
     for (int index = index_gpu; index < gpu_params->ode_number * gpu_params->ode_output_day; index += stride) {
         const int ode_index = index / gpu_params->ode_output_day;
         const int day_index = index % gpu_params->ode_output_day;
         double t = day_index*1.0;
-        if (flu_params[ode_index]->phi_length == 0) {
+
+//        if((NUMODE == 1  || (index > 0 && index % (NUMODE / 2) == 0)) && t == 0) {
+//            printf("\nSTF ODE %d Old phi: ",ode_index);
+//            for(int i = 0; i < flu_params[ode_index]->phi_length; i++){
+//                printf("%.2f\t",flu_params[ode_index]->phi[i]);
+//            }
+//            printf("\nSTF ODE %d Old flu_params[%d]->phi_0 = %.5f\n", ode_index, ode_index, flu_params[ode_index]->phi_0);
+//            printf("STF ODE %d Old flu_params[%d]->beta[0] = %.10f\n", ode_index, ode_index, flu_params[ode_index]->beta[0]);
+//            printf("STF ODE %d Old flu_params[%d]->beta[1] = %.10f\n", ode_index, ode_index, flu_params[ode_index]->beta[1]);
+//            printf("STF ODE %d Old flu_params[%d]->beta[2] = %.10f\n", ode_index, ode_index, flu_params[ode_index]->beta[2]);
+//            printf("STF ODE %d Old flu_params[%d]->sigma[0] = %.5f\n", ode_index, ode_index, flu_params[ode_index]->sigma[0]);
+//            printf("STF ODE %d Old flu_params[%d]->sigma[1] = %.5f\n", ode_index, ode_index, flu_params[ode_index]->sigma[1]);
+//            printf("STF ODE %d Old flu_params[%d]->sigma[2] = %.5f\n", ode_index, ode_index, flu_params[ode_index]->sigma[2]);
+//            printf("STF ODE %d Old flu_params[%d]->amp = %.5f\n", ode_index, ode_index, flu_params[ode_index]->amp);
+//            printf("STF ODE %d Old flu_params[%d]->nu_denom = %.5f\n", ode_index, ode_index, flu_params[ode_index]->nu_denom);
+//            printf("STF ODE %d Old flu_params[%d]->rho_denom = %.5f\n", ode_index, ode_index, flu_params[ode_index]->rho_denom);
+//        }
+
+        if (flu_params->phi_length == 0) {
             stf_d[ode_index][day_index] = 1.0;
         }
         double remainder = day_index - t;
@@ -474,15 +510,15 @@ void calculate_stf(double* stf_d[], GPUParameters* gpu_params, FluParameters* fl
         t = yy;
         double sine_function_value = 0.0;
 
-        for (int i = 0; i < flu_params[ode_index]->phi_length; i++) {
-            if (fabs(t - flu_params[ode_index]->phi[i]) < (flu_params[ode_index]->v_d_i_epidur_d2)) {
-                sine_function_value = sin(flu_params[ode_index]->pi_x2 * (flu_params[ode_index]->phi[i] - t + (flu_params[ode_index]->v_d_i_epidur_d2)) /
-                                          (flu_params[ode_index]->v_d_i_epidur_x2));
+        for (int i = 0; i < flu_params->phi_length; i++) {
+            if (fabs(t - flu_params->phi[i]) < (flu_params->v_d_i_epidur_d2)) {
+                sine_function_value = sin(flu_params->pi_x2 * (flu_params->phi[i] - t + (flu_params->v_d_i_epidur_d2)) /
+                                          (flu_params->v_d_i_epidur_x2));
             }
         }
 //        printf("index %d phi_length %d %f sine_function_value %1.3f\n",index,flu_params->phi_length,t,sine_function_value);
 //        printf("index %d day %f return %1.5f\n",index,day_index,t,1.0 + flu_params[ode_index]->v_d_i_amp * sine_function_value);
-        stf_d[ode_index][day_index] = 1.0 + flu_params[ode_index]->v_d_i_amp * sine_function_value;
+        stf_d[ode_index][day_index] = 1.0 + flu_params->v_d_i_amp * sine_function_value;
 //        printf("index %d ODE %d day %d stf_d[%d][%d] = %.5f\n", index, ode_index, day_index, ode_index, day_index, stf_d[ode_index][day_index]);
 //        printf("%d = %.5f\n", day_index, stf_d[ode_index][day_index]);
     }

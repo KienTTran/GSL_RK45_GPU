@@ -16,7 +16,8 @@ public:
     void init();
 private:
     GPUParameters* gpu_params;
-    FluParameters** flu_params;
+    FluParameters* flu_params;
+//    double** flu_param_samples;
 };
 
 #endif

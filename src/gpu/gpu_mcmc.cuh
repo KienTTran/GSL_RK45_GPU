@@ -9,8 +9,12 @@
 
 __global__ void mcmc_dnorm_padding(double *y_data_input_d[], double *y_ode_agg_d[], double y_mcmc_dnorm_d[], int ode_padding_size, GPUParameters *params_d);
 __global__ void mcmc_setup_states_for_random(curandState* curand_state_d);
-__global__ void mcmc_update_parameters(GPUParameters* gpu_params_d, FluParameters* flu_params_current_d[], curandState* curand_state_d, unsigned long seed);
+//__global__ void mcmc_update_parameters(GPUParameters* gpu_params_d, FluParameters* flu_params_current_d[], FluParameters* flu_params_new_d[], curandState* curand_state_d, unsigned long seed);
 __global__ void mcmc_compute_r(double y_mcmc_dnorm_d[], double r_d[], int ode_padding_size, GPUParameters *params_d);
 __global__ void mcmc_check_acceptance(double r_denom_d[], double r_num_d[], GPUParameters *gpu_params_d, FluParameters* flu_params_current_d[], FluParameters* flu_params_new_d[], curandState* curand_state_d, unsigned long seed);
+__global__ void mcmc_print_r(GPUParameters* gpu_params_d, double* r_d);
+__global__ void mcmc_update_parameters_test(GPUParameters* gpu_params_d, FluParameters* flu_params_new_d, curandState* curand_state_d);
+//__global__ void mcmc_update_samples_test(GPUParameters* gpu_params_d, double* flu_param_samples_current_d[], double* flu_param_samples_new_d[], curandState* curand_state_d);
+//__global__ void mcmc_update_parameters_from_samples(GPUParameters* gpu_params_d, double* flu_param_samples_d[], FluParameters* flu_params_d[]);
 
 #endif //GPU_FLU_GPU_MCMC_CUH

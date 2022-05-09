@@ -29,7 +29,7 @@ GPUParameters::~GPUParameters(){
     block_size = 1;
 }
 
-void GPUParameters::init(FluParameters* flu_params[]){
+void GPUParameters::init(FluParameters *flu_params){
     y_ode_input = new double*[ode_number]();
     for (int i = 0; i < ode_number; i++) {
       y_ode_input[i] = new double[ode_dimension];
@@ -82,7 +82,7 @@ void GPUParameters::init(FluParameters* flu_params[]){
       for(int loc=0; loc<NUMLOC; loc++)
       {
         // put half of the individuals in the susceptible class
-        y_ode_input[ode_index][ STARTS + loc ] = 0.5 * flu_params[ode_index]->N[loc];
+        y_ode_input[ode_index][ STARTS + loc ] = 0.5 * flu_params->N[loc];
 
         // put small number (but slightly different amounts each time) of individuals into the infected classes
         // double r = rand() % 50 + 10;
@@ -101,7 +101,7 @@ void GPUParameters::init(FluParameters* flu_params[]){
           // fprintf(stderr, "r = %1.4f, x = %1.6f", r, x);
 
           sumx += x;
-          y_ode_input[ode_index][ STARTI + NUMSEROTYPES*loc + vir ] = x * flu_params[ode_index]->N[loc];
+          y_ode_input[ode_index][ STARTI + NUMSEROTYPES*loc + vir ] = x * flu_params->N[loc];
           y_ode_input[ode_index][ STARTJ + NUMSEROTYPES*loc + vir ] = 0.0;     // initialize all of the J-variables to zero
 
           x += 0.001;
@@ -114,9 +114,16 @@ void GPUParameters::init(FluParameters* flu_params[]){
           double z = (0.5 - sumx)/((double)NUMR*NUMSEROTYPES);  // this is the remaining fraction of individuals to be distributed
           for(int stg=0; stg<NUMR; stg++)
           {
-            y_ode_input[ode_index][ NUMSEROTYPES*NUMR*loc + NUMR*vir + stg ] = z * flu_params[ode_index]->N[loc];
+            y_ode_input[ode_index][ NUMSEROTYPES*NUMR*loc + NUMR*vir + stg ] = z * flu_params->N[loc];
           }
         }
       }
     }
+}
+
+__device__ __host__ void GPUParameters::update_beta() {
+    beta[0] = 0.77;
+    beta[1] = 0.87;
+    beta[2] = 0.97;
+    printf("beta0 = %f\n",beta[0]);
 }

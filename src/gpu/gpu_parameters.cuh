@@ -10,8 +10,6 @@
 #include "device_launch_parameters.h"
 #include <curand_kernel.h>
 #include <curand.h>
-#include <thrust/host_vector.h>
-#include <thrust/device_vector.h>
 #include <random>
 #include <iostream>
 #include <chrono>
@@ -21,7 +19,7 @@
 
 class GPUParameters {
 public:
-    explicit GPUParameters();
+    __device__ __host__ explicit GPUParameters();
     ~GPUParameters();
     int num_blocks;
     int block_size;
@@ -42,7 +40,9 @@ public:
     double** y_data_input;
     double** y_ode_output;
     double** y_agg;
-    void init(FluParameters* flu_params[]);
+    double beta[3] = {0.24, 0.26, 0.34};
+    __device__ __host__ void update_beta();
+    void init(FluParameters* flu_params);
 private:
 };
 
