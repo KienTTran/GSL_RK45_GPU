@@ -42,18 +42,18 @@
 //}
 
 // this is the number of days of simulation that will be sent to standard output (and used for model fitting)
-//#define NUMDAYSOUTPUT 3650*2// use this to define "cycle" lengths
+#define NUMDAYSOUTPUT 3650*2// use this to define "cycle" lengths
 //#define NUMDAYSOUTPUT 3650// use this to define "cycle" lengths
-#define NUMDAYSOUTPUT 520// use this to define "cycle" lengths
+//#define NUMDAYSOUTPUT 520// use this to define "cycle" lengths
 
 //#define NUMDAYSOUTPUT 2// use this to define "cycle" lengths
 
-#define NUMODE 64// GPU Streams
+#define NUMODE 1// GPU Streams
 #define DATADIM_ROWS 520
 #define DATADIM_COLS 3
-#define GPU_ODE_THREADS (NUMODE*2)
+#define GPU_ODE_THREADS (NUMODE + 32)
 #define GPU_REDUCE_THREADS 1024
-#define MCMC_ITER 100
+#define MCMC_ITER 1
 #define SAMPLE_TAU_LENGTH 9
 #define SAMPLE_PHI_LENGTH (SAMPLE_TAU_LENGTH + 1)
 #define SAMPLE_LENGTH 13

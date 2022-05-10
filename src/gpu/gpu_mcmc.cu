@@ -50,7 +50,6 @@ void mcmc_dnorm(double *y_data_input_d[], double *y_ode_agg_d[], double y_mcmc_d
 //                    printf("\n");
 //                }
 //            }
-//            __syncthreads();
 //            printf("Line %d agg\t",line_index);
 //            for (int i = 0; i < params->data_params.cols; i++) {
 //                const int agg_index = line_index*params->agg_dimension + 3;//Forth column only
@@ -59,7 +58,6 @@ void mcmc_dnorm(double *y_data_input_d[], double *y_ode_agg_d[], double y_mcmc_d
 //                    printf("\n");
 //                }
 //            }
-//            __syncthreads();
 //            printf("Line %d max\t",line_index);
 //            for (int i = 0; i < params->data_params.cols; i++) {
 //                printf("%.5f\t",y_ode_agg_d[ode_index][i]);
@@ -67,7 +65,6 @@ void mcmc_dnorm(double *y_data_input_d[], double *y_ode_agg_d[], double y_mcmc_d
 //                    printf("\n");
 //                }
 //            }
-//            __syncthreads();
 //            printf("Line %d mean\t",line_index);
 //            for (int i = 0; i < params->data_params.cols; i++) {
 //                const int y_agg_index = line_index*params->agg_dimension + 3;//Forth column only
@@ -156,13 +153,13 @@ void mcmc_update_parameters(GPUParameters* gpu_params_d, FluParameters* flu_para
         }
 
         for(int i = 0; i < NUMSEROTYPES; i++){
-            flu_params_new_d->G_CLO_BETA[index*NUMSEROTYPES + i] = flu_params_current_d->G_CLO_BETA[index*NUMSEROTYPES + i] + flu_params_current_d->beta_sd[index*NUMSEROTYPES + i]*curand_normal(&local_state);
+            flu_params_new_d->G_CLO_BETA[index*NUMSEROTYPES + i] = flu_params_current_d->G_CLO_BETA[index*NUMSEROTYPES + i] + flu_params_current_d->beta_sd[i]*curand_normal(&local_state);
             flu_params_new_d->beta[index*NUMSEROTYPES + i] = flu_params_new_d->G_CLO_BETA[index*NUMSEROTYPES + i] / POPSIZE_MAIN;
         }    // NOTE this is in a density-dependent transmission scheme
         flu_params_new_d->phi_0 = flu_params_current_d->phi_0 + flu_params_current_d->phi_sd * curand_normal(&local_state);
-        for(int i = 0; i < SAMPLE_PHI_LENGTH; i++){
-            flu_params_new_d->phi[index*SAMPLE_PHI_LENGTH] = flu_params_new_d->phi_0;
-            flu_params_new_d->tau[index*SAMPLE_TAU_LENGTH + (i - 1)] = flu_params_current_d->tau[index*SAMPLE_TAU_LENGTH + (i - 1)] + flu_params_current_d->tau_sd[index*SAMPLE_TAU_LENGTH + (i - 1)]*curand_normal(&local_state);
+        flu_params_new_d->phi[index*SAMPLE_PHI_LENGTH] = flu_params_new_d->phi_0;
+        for(int i = 1; i < SAMPLE_PHI_LENGTH; i++){
+            flu_params_new_d->tau[index*SAMPLE_TAU_LENGTH + (i - 1)] = flu_params_current_d->tau[index*SAMPLE_TAU_LENGTH + (i - 1)] + flu_params_current_d->tau_sd[(i - 1)]*curand_normal(&local_state);
             flu_params_new_d->phi[index*SAMPLE_PHI_LENGTH + i] = flu_params_new_d->phi[index*SAMPLE_PHI_LENGTH + (i - 1)] + flu_params_new_d->tau[index*SAMPLE_TAU_LENGTH + (i - 1)];
         }
         curand_state_d[index] = local_state;
@@ -178,7 +175,6 @@ void mcmc_update_parameters(GPUParameters* gpu_params_d, FluParameters* flu_para
             }
         }
     }
-    __syncthreads();
 }
 
 __global__
@@ -227,6 +223,10 @@ void mcmc_check_acceptance(double r_denom_d[], double r_num_d[], GPUParameters *
             }
         }
         curand_state_d[index] = localState;
+//        if(index == 0)
+//        {
+//            printf("\n==== one MCMC Chain Done ====\n\n");
+//        }
     }
 }
 
@@ -238,5 +238,14 @@ void mcmc_print_r(GPUParameters* gpu_params_d, double* r_d){
     for (int index = index_gpu; index < gpu_params_d->ode_number; index += stride) {
         printf("ODE %d r = %.5f\n", index, r_d[index]);
     }
+}
 
+__global__
+void mcmc_print_iter(int iter){
+    int index_gpu = threadIdx.x + blockIdx.x * blockDim.x;
+    int stride = blockDim.x * gridDim.x;
+
+    for (int index = index_gpu; index < 1; index += stride) {
+        printf("\n==== iter %d done =====\n\n", iter);
+    }
 }

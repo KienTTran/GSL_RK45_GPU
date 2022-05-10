@@ -14,12 +14,6 @@
 #include <curand_kernel.h>
 #include "../flu_default_params.h"
 
-class Test{
-public:
-    double beta[3] = {0.1,0.2,0.3};
-    double gamma = 0.4;
-};
-
 class FluParameters {
 public:
     explicit FluParameters();

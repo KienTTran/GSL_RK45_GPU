@@ -1,5 +1,7 @@
 #include <cuda_runtime.h>
 #include "gpu_flu.cuh"
+#include "gpu_ode.cuh"
+
 
 __device__
 void gpu_func_flu(double t, const double y[], double f[], double stf, int index, FluParameters* flu_params){

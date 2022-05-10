@@ -37,7 +37,15 @@ add_executable(gpu_flu
         src/gpu/gpu_ode.cu
         src/gpu/gpu_mcmc.cu
         src/gpu/flu_parameters.cu
-        src/gpu/flu_parameters.cuh src/gpu/gpu_ode.cuh src/gpu/gpu_mcmc.cuh src/gpu/gpu_reduce.cuh)
+        src/gpu/flu_parameters.cuh
+        src/gpu/gpu_ode.cuh
+        src/gpu/gpu_mcmc.cuh
+        src/gpu/gpu_reduce.cuh
+        src/gpu/gpu_ode_stream.cu
+        src/gpu/gpu_ode_stream.cuh
+        src/gpu/gpu_flu_stream.cu
+        src/gpu/gpu_flu_stream.cuh
+        )
 
 set_target_properties(
         gpu_flu

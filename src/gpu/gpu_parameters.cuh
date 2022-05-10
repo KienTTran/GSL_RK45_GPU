@@ -40,6 +40,7 @@ public:
     double** y_data_input;
     double** y_ode_output;
     double** y_agg;
+    double** stf;
     void init(FluParameters* flu_params);
 private:
 };

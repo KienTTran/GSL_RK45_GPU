@@ -30,6 +30,15 @@ GPUParameters::~GPUParameters(){
 }
 
 void GPUParameters::init(FluParameters *flu_params){
+
+    stf = new double*[ode_number]();
+    for(int i = 0; i < ode_number; i++){
+        stf[i] = new double[ode_output_day];
+        for(int j = 0; j < ode_output_day; j++) {
+            stf[i][j] = 7.0;
+        }
+    }
+
     y_ode_input = new double*[ode_number]();
     for (int i = 0; i < ode_number; i++) {
       y_ode_input[i] = new double[ode_dimension];

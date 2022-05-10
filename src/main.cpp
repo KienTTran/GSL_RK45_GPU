@@ -1,5 +1,5 @@
-#include "cpu/cpu_functions.h"
 #include "gpu/gpu_flu.cuh"
+#include "gpu/gpu_flu_stream.cuh"
 #include <chrono>
 #include <iostream>
 #include <thread>
@@ -17,12 +17,19 @@ int main(int argc, char* argv[])
     gpu_params->step = 1.0;
     gpu_params->h = 1e-6;
     gpu_params->mcmc_loop = MCMC_ITER;
+
     GPUFlu* gpu_flu = new GPUFlu();
     gpu_flu->set_gpu_parameters(gpu_params);
     gpu_flu->init();
     gpu_flu->run();
 
+    GPUStreamFlu* gpu_flu_stream = new GPUStreamFlu();
+    gpu_flu_stream->set_gpu_parameters(gpu_params);
+    gpu_flu_stream->init();
+    gpu_flu_stream->run();
+
     delete gpu_flu;
+    delete gpu_flu_stream;
     delete gpu_params;
     return 0;
 }

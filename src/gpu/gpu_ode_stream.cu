@@ -1,11 +1,11 @@
 //
-// Created by kient on 5/2/2022.
+// Created by kient on 5/10/2022.
 //
 
-#include "gpu_ode.cuh"
+#include "gpu_ode_stream.cuh"
 
 __device__
-double pop_sum(double yy[]) {
+double pop_sum_stream(double yy[]) {
     double sum = 0.0;
     for (int i = 0; i < DIM; i++) sum += yy[i];
 
@@ -14,7 +14,7 @@ double pop_sum(double yy[]) {
 }
 
 __device__
-void rk45_gpu_adjust_h(double y[], double y_err[], double dydt_out[],
+void rk45_gpu_adjust_h_stream(double y[], double y_err[], double dydt_out[],
                        double &h, double h_0, int &adjustment_out, int final_step,
                        const int index) {
     /* adaptive adjustment */
@@ -108,7 +108,7 @@ void rk45_gpu_adjust_h(double y[], double y_err[], double dydt_out[],
 }
 
 __device__
-void rk45_gpu_step_apply(double t, double h, double y[], double y_err[], double dydt_out[], double stf,
+void rk45_gpu_step_apply_stream(double t, double h, double y[], double y_err[], double dydt_out[], double stf,
                          const int index, FluParameters *flu_params) {
     static const double ah[] = {1.0 / 4.0, 3.0 / 8.0, 12.0 / 13.0, 1.0, 1.0 / 2.0};
     static const double b3[] = {3.0 / 32.0, 9.0 / 32.0};
@@ -236,8 +236,8 @@ void rk45_gpu_step_apply(double t, double h, double y[], double y_err[], double 
 }
 
 __device__
-void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, double *y[], double *y_output[],
-                           double *y_agg_input[],  double *y_agg_output[],  double stf[], int index, GPUParameters *gpu_params, FluParameters* flu_params) {
+void rk45_gpu_evolve_apply_stream(double t, double t_target, double t_delta, double h, double *y, double *y_output,
+                                  double *y_agg_input,  double *y_agg_output,  double stf[], int index, GPUParameters *gpu_params, FluParameters* flu_params) {
     double device_y[DIM];
     double device_y_0[DIM];
     double device_y_err[DIM];
@@ -251,28 +251,28 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
         agg_inc_max[i] = 0.0;
     }
     for (int i = 0; i < gpu_params->ode_dimension; i++) {
-        device_y[i] = y[index][i];
+        device_y[i] = y[i];
     }
 
-//    if((NUMODE == 1  || (index > 0 && index % (NUMODE / 2) == 0)) && t == 0){
-//        printf("rk45_gpu_evolve_apply flu_params: \n");
-//        printf("  beta1 = %1.9f \n", flu_params->beta[index*NUMSEROTYPES + 0]);
-//        printf("  beta2 = %1.9f \n", flu_params->beta[index*NUMSEROTYPES + 1]);
-//        printf("  beta3 = %1.9f \n", flu_params->beta[index*NUMSEROTYPES + 2]);
-//        printf("  v_d_i_amp = %1.5f \n", flu_params->v_d_i_amp);
-//        printf("  sigma_H1B = %1.5f \n", flu_params->sigma2d[0][1]);
-//        printf("  sigma_BH3 = %1.5f \n", flu_params->sigma2d[1][2]);
-//        printf("  sigma_H1H3 = %1.5f \n", flu_params->sigma2d[0][2]);
-//        printf("  eta = %1.5f \n", flu_params->eta[0][0]);
-//        printf("  eta = %1.5f \n", flu_params->eta[1][1]);
-//        printf("  eta = %1.5f \n", flu_params->eta[2][2]);
-//        printf("  trr = %1.5f \n", flu_params->trr);
-//        printf("  v_d_i_nu = %1.5f \n", flu_params->v_d_i_nu);
-//        printf("phis_length = %d\n",flu_params->SAMPLE_PHI_LENGTH);
-//        for(int i=0; i<SAMPLE_PHI_LENGTH; i++){
-//            printf("  phi = %5.1f \n", flu_params->phi[ode_index*SAMPLE_PHI_LENGTH + i]);
-//        }
-//    }
+    if((NUMODE == 1  || (index > 0 && index % (NUMODE / 2) == 0)) && t == 0){
+        printf("rk45_gpu_evolve_apply flu_params: \n");
+        printf("  beta1 = %1.9f \n", flu_params->beta[index*NUMSEROTYPES + 0]);
+        printf("  beta2 = %1.9f \n", flu_params->beta[index*NUMSEROTYPES + 1]);
+        printf("  beta3 = %1.9f \n", flu_params->beta[index*NUMSEROTYPES + 2]);
+        printf("  v_d_i_amp = %1.5f \n", flu_params->v_d_i_amp);
+        printf("  sigma_H1B = %1.5f \n", flu_params->sigma2d[0][1]);
+        printf("  sigma_BH3 = %1.5f \n", flu_params->sigma2d[1][2]);
+        printf("  sigma_H1H3 = %1.5f \n", flu_params->sigma2d[0][2]);
+        printf("  eta = %1.5f \n", flu_params->eta[0][0]);
+        printf("  eta = %1.5f \n", flu_params->eta[1][1]);
+        printf("  eta = %1.5f \n", flu_params->eta[2][2]);
+        printf("  trr = %1.5f \n", flu_params->trr);
+        printf("  v_d_i_nu = %1.5f \n", flu_params->v_d_i_nu);
+        printf("phis_length = %d\n",SAMPLE_PHI_LENGTH);
+        for(int i=0; i<SAMPLE_PHI_LENGTH; i++){
+            printf("  phi = %5.1f \n", flu_params->phi[index*SAMPLE_PHI_LENGTH + i]);
+        }
+    }
 
     while (t < t_target) {
         double device_t;
@@ -322,8 +322,7 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
                     device_final_step = 0;
                 }
 
-                rk45_gpu_step_apply(device_t_0, device_h_0, device_y, device_y_err, device_dydt_out, stf_today,
-                                    index, flu_params);
+                rk45_gpu_step_apply_stream(device_t_0, device_h_0, device_y, device_y_err, device_dydt_out, stf_today, index,flu_params);
 
                 if (device_final_step) {
                     device_t = device_t1;
@@ -335,8 +334,7 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
 
 //              printf("    before adjust t = %.10f t_0 = %.10f  h = %.10f h_0 = %.10f h_old = %.10f\n",device_t,device_t_0,device_h,device_h_0,h_old);
 
-                rk45_gpu_adjust_h(device_y, device_y_err, device_dydt_out,
-                                  device_h, device_h_0, device_adjustment_out, device_final_step, index);
+                rk45_gpu_adjust_h_stream(device_y, device_y_err, device_dydt_out, device_h, device_h_0, device_adjustment_out, device_final_step, index);
 
                 //Extra step to get data from h
                 device_h_0 = device_h;
@@ -391,29 +389,29 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
 //          const int y_output_index = day * gpu_params->display_dimension + i;
 //          if(y_output_index % gpu_params->display_dimension == 0){
 //            //First column
-//            y_output[index][y_output_index] = day*1.0;
+//            y_output[y_output_index] = day*1.0;
 //            //          printf("First day = %d index = %d i = %d y_output_index = %d y_output[%d][%d] = %.5f\n",
-//            //                 day, index, i, y_output_index, index, y_output_index, y_output[index][y_output_index]);
+//            //                 day, index, i, y_output_index, index, y_output_index, y_output[y_output_index]);
 //          }
 //          else if(y_output_index % gpu_params->display_dimension == 1){
 //            //Second column
-//            y_output[index][y_output_index] = stf_today;
+//            y_output[y_output_index] = stf_today;
 //            //          printf("Second day = %d index = %d i = %d y_output_index = %d y_output[%d][%d] = %.5f\n",
-//            //                 day, index, i, y_output_index, index, y_output_index, y_output[index][y_output_index]);
+//            //                 day, index, i, y_output_index, index, y_output_index, y_output[y_output_index]);
 //          }
 //          else if(y_output_index % gpu_params->display_dimension >= 2 && y_output_index % gpu_params->display_dimension < gpu_params->display_dimension - 1){
 //            //Third column to column next to last column
 //            const int y_index = (y_output_index - 2) % gpu_params->display_dimension;
-//            y_output[index][y_output_index] = device_y_yesterday[y_index];
+//            y_output[y_output_index] = device_y_yesterday[y_index];
 //            //          printf("day = %d index = %d i = %d y_output_index = %d y[%d][%d] = y[%d][%d] = %.5f\n",
 //            //                 day, index, i, y_output_index, index, y_output_index, index, y_index, device_y[y_index]);
 //          }
 //          else{
 //            //Last column
-////            y_output[index][y_output_index] = pop_sum(device_y);
-//            y_output[index][y_output_index] = pop_sum(device_y);
+////            y_output[y_output_index] = pop_sum(device_y);
+//            y_output[y_output_index] = pop_sum(device_y);
 //            //          printf("Third day = %d index = %d i = %d y_output_index = %d y_output[%d][%d] = %.5f\n",
-//            //                 day, index, i, y_output_index, index, y_output_index, y_output[index][y_output_index]);
+//            //                 day, index, i, y_output_index, index, y_output_index, y_output[y_output_index]);
 //          }
 //        }
 
@@ -423,19 +421,19 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
             const int y_output_agg_index = (day + 1) * gpu_params->agg_dimension + i;
             const int y_output_agg_to_sum_index = (day) * gpu_params->agg_dimension + i;
             const int y_ode_index = gpu_params->ode_dimension - 4 + i;
-            y_agg_output[index][y_output_agg_index] = y_agg_input[index][y_output_agg_index];
+            y_agg_output[y_output_agg_index] = y_agg_input[y_output_agg_index];
             if(day == 0) {
-                y_agg_output[index][y_output_agg_to_sum_index] = 0.0;
+                y_agg_output[y_output_agg_to_sum_index] = 0.0;
             }
-            y_agg_output[index][y_output_agg_index] = device_y[y_ode_index] - device_y_yesterday[y_ode_index];
-            agg_inc_sum[i] += y_agg_output[index][y_output_agg_to_sum_index];
+            y_agg_output[y_output_agg_index] = device_y[y_ode_index] - device_y_yesterday[y_ode_index];
+            agg_inc_sum[i] += y_agg_output[y_output_agg_to_sum_index];
         }
 
         if ((day+1) % 7 == 0 || day == gpu_params->ode_output_day - 1) {
             for(int i = 0; i < gpu_params->data_params.cols; i++){
                 //Col 3 4 5
                 const int y_output_agg_col = (3 + i) + week_count * gpu_params->agg_dimension;
-                y_agg_output[index][y_output_agg_col] = agg_inc_sum[i];
+                y_agg_output[y_output_agg_col] = agg_inc_sum[i];
                 if(agg_inc_sum[i] >= agg_inc_max[i]) agg_inc_max[i] = agg_inc_sum[i];
                 agg_inc_sum[i] = 0.0;
             }
@@ -446,7 +444,7 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
         if(day == gpu_params->ode_output_day - 1){
             for(int i = 0; i < DATADIM_COLS; i++){
                 //Col 1 2 3
-                y_agg_output[index][i] = agg_inc_max[i];
+                y_agg_output[i] = agg_inc_max[i];
             }
         }
 //        if(index == 0 && t == NUMDAYSOUTPUT - 1) {
@@ -460,71 +458,40 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
 //    }
 }
 
+
 __device__
-void solve_ode_one(double *y_ode_input_d[], double *y_ode_output_d[], double *y_agg_input_d[], double *y_agg_output_d[],  double stf[], int index, GPUParameters *gpu_params, FluParameters* flu_params) {
-    rk45_gpu_evolve_apply(gpu_params->t0, gpu_params->t_target, gpu_params->step, gpu_params->h, y_ode_input_d, y_ode_output_d, y_agg_input_d, y_agg_output_d, stf, index, gpu_params, flu_params);
+void solve_ode_one_stream(double *y_ode_input_d, double *y_ode_output_d, double *y_agg_input_d, double *y_agg_output_d,  double stf[], int index, GPUParameters *gpu_params, FluParameters* flu_params) {
+    rk45_gpu_evolve_apply_stream(gpu_params->t0, gpu_params->t_target, gpu_params->step, gpu_params->h, y_ode_input_d, y_ode_output_d, y_agg_input_d, y_agg_output_d, stf, index, gpu_params, flu_params);
     return;
 }
 
-__global__
-void solve_ode_n(double *y_ode_input_d[], double *y_ode_output_d[], double *y_agg_input_d[], double *y_agg_output_d[], double* stf[], GPUParameters *gpu_params, FluParameters* flu_params) {
+__global__ void
+solve_ode_n_stream(double *y_ode_input_d, double *y_ode_output_d, double *y_agg_input_d, double *y_agg_output_d, double *stf, GPUParameters *gpu_params, FluParameters *flu_params) {
     int index_gpu = threadIdx.x + blockIdx.x * blockDim.x;
     int stride = blockDim.x * gridDim.x;
     for (int index = index_gpu; index < gpu_params->ode_number; index += stride) {
-//        if(index % 32 == 0){
-//            printf("ODE %d will be solved by thread index = %d blockIdx.x = %d\n", index, index, blockIdx.x);
-//        }
-        solve_ode_one(y_ode_input_d, y_ode_output_d, y_agg_input_d, y_agg_output_d, stf[index], index, gpu_params, flu_params);
+//        if(index % 32 == 0)
+        {
+            printf("ODE %d will be solved by thread index = %d blockIdx.x = %d\n", index, index, blockIdx.x);
+        }
+//        solve_ode_one_stream(y_ode_input_d, y_ode_output_d, y_agg_input_d, y_agg_output_d, stf, index, gpu_params, flu_params);
     }
-    return;
+
 }
 
-__global__
-void calculate_stf(double* stf_d[], GPUParameters* gpu_params, FluParameters* flu_params){
+__global__ void
+solve_ode_n_stream_test(double *y_ode_input_d, double *y_ode_output_d,
+                        double *y_agg_input_d, double *y_agg_output_d,
+                        double *y_data_input_d, double *stf_d,
+                        GPUParameters *gpu_params, FluParameters *flu_params) {
     int index_gpu = threadIdx.x + blockIdx.x * blockDim.x;
     int stride = blockDim.x * gridDim.x;
-    for (int index = index_gpu; index < gpu_params->ode_number * gpu_params->ode_output_day; index += stride) {
-        const int ode_index = index / gpu_params->ode_output_day;
-        const int day_index = index % gpu_params->ode_output_day;
-        double t = day_index*1.0;
-
-//        if((NUMODE == 1  || (index > 0 && index % (NUMODE / 2) == 0)) && t == 0) {
-//            printf("\nSTF ODE %d Old phi: ",ode_index);
-//            for(int i = 0; i < flu_params[ode_index]->SAMPLE_PHI_LENGTH; i++){
-//                printf("%.2f\t",flu_params[ode_index]->phi[i]);
-//            }
-//            printf("\nSTF ODE %d Old flu_params[%d]->phi_0 = %.5f\n", ode_index, ode_index, flu_params[ode_index]->phi_0);
-//            printf("STF ODE %d Old flu_params[%d]->beta[0] = %.10f\n", ode_index, ode_index, flu_params[ode_index]->beta[0]);
-//            printf("STF ODE %d Old flu_params[%d]->beta[1] = %.10f\n", ode_index, ode_index, flu_params[ode_index]->beta[1]);
-//            printf("STF ODE %d Old flu_params[%d]->beta[2] = %.10f\n", ode_index, ode_index, flu_params[ode_index]->beta[2]);
-//            printf("STF ODE %d Old flu_params[%d]->sigma[0] = %.5f\n", ode_index, ode_index, flu_params[ode_index]->sigma[0]);
-//            printf("STF ODE %d Old flu_params[%d]->sigma[1] = %.5f\n", ode_index, ode_index, flu_params[ode_index]->sigma[1]);
-//            printf("STF ODE %d Old flu_params[%d]->sigma[2] = %.5f\n", ode_index, ode_index, flu_params[ode_index]->sigma[2]);
-//            printf("STF ODE %d Old flu_params[%d]->amp = %.5f\n", ode_index, ode_index, flu_params[ode_index]->amp);
-//            printf("STF ODE %d Old flu_params[%d]->nu_denom = %.5f\n", ode_index, ode_index, flu_params[ode_index]->nu_denom);
-//            printf("STF ODE %d Old flu_params[%d]->rho_denom = %.5f\n", ode_index, ode_index, flu_params[ode_index]->rho_denom);
-//        }
-
-        if (SAMPLE_PHI_LENGTH == 0) {
-            stf_d[ode_index][day_index] = 1.0;
+    for (int index = index_gpu; index < gpu_params->ode_number; index += stride) {
+//        if(index % 32 == 0)
+        {
+            printf("ODE %d will be solved by thread index = %d blockIdx.x = %d\n", index, index, blockIdx.x);
         }
-        double remainder = day_index - t;
-        int xx = day_index % 3650;
-        double yy = (double) xx + remainder;
-        // put yy into the sine function, let it return the beta value
-        t = yy;
-        double sine_function_value = 0.0;
-
-        for (int i = 0; i < SAMPLE_PHI_LENGTH; i++) {
-            if (fabs(t - flu_params->phi[ode_index*SAMPLE_PHI_LENGTH + i]) < (flu_params->v_d_i_epidur_d2)) {
-                sine_function_value = sin(flu_params->pi_x2 * (flu_params->phi[ode_index*SAMPLE_PHI_LENGTH + i] - t + (flu_params->v_d_i_epidur_d2)) /
-                                          (flu_params->v_d_i_epidur_x2));
-            }
-        }
-//        printf("index %d SAMPLE_PHI_LENGTH %d %f sine_function_value %1.3f\n",index,flu_params->SAMPLE_PHI_LENGTH,t,sine_function_value);
-//        printf("index %d day %f return %1.5f\n",index,day_index,t,1.0 + flu_params[ode_index]->v_d_i_amp * sine_function_value);
-        stf_d[ode_index][day_index] = 1.0 + flu_params->v_d_i_amp * sine_function_value;
-//        printf("index %d ODE %d day %d stf_d[%d][%d] = %.5f\n", index, ode_index, day_index, ode_index, day_index, stf_d[ode_index][day_index]);
-//        printf("%d = %.5f\n", day_index, stf_d[ode_index][day_index]);
+        solve_ode_one_stream(y_ode_input_d, y_ode_output_d, y_agg_input_d, y_agg_output_d, stf_d, index, gpu_params, flu_params);
     }
+
 }

@@ -1,15 +1,13 @@
-#ifndef GPU_FLU_H
-#define GPU_FLU_H
+#ifndef GPU_FLU_STREAM_H
+#define GPU_FLU_STREAM_H
 
 #include "gpu_parameters.cuh"
-#include "gpu_ode.cuh"
-#include "gpu_mcmc.cuh"
-#include "gpu_reduce.cuh"
+#include "gpu_ode_stream.cuh"
 
-class GPUFlu{
+class GPUStreamFlu{
 public:
-    explicit GPUFlu();
-    ~GPUFlu();
+    explicit GPUStreamFlu();
+    ~GPUStreamFlu();
     void set_gpu_parameters(GPUParameters* gpu_params);
     void run();
     void init();
