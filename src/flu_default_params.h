@@ -48,12 +48,12 @@
 
 //#define NUMDAYSOUTPUT 2// use this to define "cycle" lengths
 
-#define NUMODE 1// GPU Streams
+#define NUMODE 128// GPU Streams
 #define DATADIM_ROWS 520
 #define DATADIM_COLS 3
 #define GPU_ODE_THREADS (NUMODE + 32)
 #define GPU_REDUCE_THREADS 1024
-#define MCMC_ITER 1
+#define MCMC_ITER 100
 #define SAMPLE_TAU_LENGTH 9
 #define SAMPLE_PHI_LENGTH (SAMPLE_TAU_LENGTH + 1)
 #define SAMPLE_LENGTH 13

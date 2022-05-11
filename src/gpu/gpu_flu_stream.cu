@@ -176,11 +176,11 @@ void GPUStreamFlu::run() {
     printf("max threads = %d block = %d\n",prop.maxBlocksPerMultiProcessor * prop.maxThreadsPerBlock, num_block);
 
     for(int ode_index = 0; ode_index < gpu_params->ode_number; ode_index++){
-        solve_ode_n_stream_test<<<1, 1, 0, streams[ode_index]>>>(y_ode_input_d[ode_index], y_ode_output_d[ode_index],
+        solve_ode_n_stream<<<gpu_params->num_blocks, gpu_params->block_size, 0, streams[ode_index]>>>(y_ode_input_d[ode_index], y_ode_output_d[ode_index],
                                                                  y_agg_input_d[ode_index], y_agg_output_d[ode_index],
-                                                                 y_data_input_d[ode_index], stf_d[ode_index],
+                                                                 stf_d[ode_index],
                                                                  gpu_params_d, flu_params_new_d);
-        checkCuda(cudaStreamSynchronize(streams[ode_index]));
+//        checkCuda(cudaStreamSynchronize(streams[ode_index]));
     }
 
     //    cudaProfilerStop();

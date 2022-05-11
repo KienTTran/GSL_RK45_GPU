@@ -130,7 +130,7 @@ void mcmc_setup_states_for_random(curandState* curand_state_d)
     int index_gpu = threadIdx.x + blockIdx.x * blockDim.x;
     int stride = blockDim.x * gridDim.x;
     for (int index = index_gpu; index < NUMODE; index += stride) {
-        curand_init(clock64(), index, 0, &curand_state_d[index]);
+        curand_init(1234, index, 0, &curand_state_d[index]);
     }
 }
 
@@ -141,39 +141,39 @@ void mcmc_update_parameters(GPUParameters* gpu_params_d, FluParameters* flu_para
 
     for (int index = index_gpu; index < gpu_params_d->ode_number; index += stride){
         curandState local_state = curand_state_d[index];
-        if(NUMODE == 1  || (index > 0 && index % (NUMODE / 2) == 0)) {
-            printf("ODE %d Old phi: ",index);
-            for(int i = 0; i < SAMPLE_PHI_LENGTH; i++){
-                printf("%.2f\t",flu_params_current_d->phi[i]);
-            }
-            printf("\n");
-            for(int i = 0; i < NUMSEROTYPES; i++){
-                printf("ODE %d Old flu_params_current_d->beta[%d] = %.9f\n", index, index*NUMSEROTYPES + i, flu_params_current_d->G_CLO_BETA[index*NUMSEROTYPES + i]);
-            }
-        }
+//        if(NUMODE == 1  || (index > 0 && index % (NUMODE / 2) == 0)) {
+//            printf("ODE %d Old phi: ",index);
+//            for(int i = 0; i < SAMPLE_PHI_LENGTH; i++){
+//                printf("%.2f\t",flu_params_current_d->phi[i]);
+//            }
+//            printf("\n");
+//            for(int i = 0; i < NUMSEROTYPES; i++){
+//                printf("ODE %d Old flu_params_current_d->beta[%d] = %.9f\n", index, index*NUMSEROTYPES + i, flu_params_current_d->G_CLO_BETA[index*NUMSEROTYPES + i]);
+//            }
+//        }
 
         for(int i = 0; i < NUMSEROTYPES; i++){
-            flu_params_new_d->G_CLO_BETA[index*NUMSEROTYPES + i] = flu_params_current_d->G_CLO_BETA[index*NUMSEROTYPES + i] + flu_params_current_d->beta_sd[i]*curand_normal(&local_state);
+            flu_params_new_d->G_CLO_BETA[index*NUMSEROTYPES + i] = flu_params_current_d->G_CLO_BETA[index*NUMSEROTYPES + i] + flu_params_current_d->beta_sd[i]*curand_uniform(&local_state);
             flu_params_new_d->beta[index*NUMSEROTYPES + i] = flu_params_new_d->G_CLO_BETA[index*NUMSEROTYPES + i] / POPSIZE_MAIN;
         }    // NOTE this is in a density-dependent transmission scheme
-        flu_params_new_d->phi_0 = flu_params_current_d->phi_0 + flu_params_current_d->phi_sd * curand_normal(&local_state);
+        flu_params_new_d->phi_0 = flu_params_current_d->phi_0 + flu_params_current_d->phi_sd * curand_uniform(&local_state);
         flu_params_new_d->phi[index*SAMPLE_PHI_LENGTH] = flu_params_new_d->phi_0;
         for(int i = 1; i < SAMPLE_PHI_LENGTH; i++){
-            flu_params_new_d->tau[index*SAMPLE_TAU_LENGTH + (i - 1)] = flu_params_current_d->tau[index*SAMPLE_TAU_LENGTH + (i - 1)] + flu_params_current_d->tau_sd[(i - 1)]*curand_normal(&local_state);
+            flu_params_new_d->tau[index*SAMPLE_TAU_LENGTH + (i - 1)] = flu_params_current_d->tau[index*SAMPLE_TAU_LENGTH + (i - 1)] + flu_params_current_d->tau_sd[(i - 1)]*curand_uniform(&local_state);
             flu_params_new_d->phi[index*SAMPLE_PHI_LENGTH + i] = flu_params_new_d->phi[index*SAMPLE_PHI_LENGTH + (i - 1)] + flu_params_new_d->tau[index*SAMPLE_TAU_LENGTH + (i - 1)];
         }
         curand_state_d[index] = local_state;
 
-        if(NUMODE == 1  || (index > 0 && index % (NUMODE / 2) == 0)) {
-            printf("\nODE %d Updated Phi: ", index);
-            for (int i = 0; i < SAMPLE_PHI_LENGTH; i++) {
-                printf("%.2f\t", flu_params_new_d->phi[index*SAMPLE_PHI_LENGTH + i]);
-            }
-            printf("\n");
-            for(int i = 0; i < NUMSEROTYPES; i++){
-                printf("ODE %d Updated flu_params_new_d->beta[%d] = %.9f\n", index, index*NUMSEROTYPES + i, flu_params_new_d->G_CLO_BETA[index*NUMSEROTYPES + i]);
-            }
-        }
+//        if(NUMODE == 1  || (index > 0 && index % (NUMODE / 2) == 0)) {
+//            printf("\nODE %d Updated Phi: ", index);
+//            for (int i = 0; i < SAMPLE_PHI_LENGTH; i++) {
+//                printf("%.2f\t", flu_params_new_d->phi[index*SAMPLE_PHI_LENGTH + i]);
+//            }
+//            printf("\n");
+//            for(int i = 0; i < NUMSEROTYPES; i++){
+//                printf("ODE %d Updated flu_params_new_d->beta[%d] = %.9f\n", index, index*NUMSEROTYPES + i, flu_params_new_d->G_CLO_BETA[index*NUMSEROTYPES + i]);
+//            }
+//        }
     }
 }
 
@@ -197,30 +197,30 @@ void mcmc_check_acceptance(double r_denom_d[], double r_num_d[], GPUParameters *
     for (int index = index_gpu; index < gpu_params_d->ode_number; index += stride) {
         curandState localState = curand_state_d[index];
         if(exp(r_num_d[index] - r_denom_d[index]) > curand_uniform_double (&localState)){
-            if(NUMODE == 1  || (index > 0 && index % (NUMODE / 2) == 0)){
-                printf("ODE %d before copy flu_params_current_d->phi[9] = %.5f flu_params_new_d->phi[9] = %.5f\n",
-                       index, flu_params_current_d->phi[9], flu_params_new_d->phi[9]);
-                printf("ODE %d before copy flu_params_current_d->beta[0] = %.9f flu_params_new_d->beta[0] = %.9f\n",
-                       index, flu_params_current_d->G_CLO_BETA[index*NUMSEROTYPES], flu_params_new_d->G_CLO_BETA[index*NUMSEROTYPES]);
-            }
+//            if(NUMODE == 1  || (index > 0 && index % (NUMODE / 2) == 0)){
+//                printf("ODE %d before copy flu_params_current_d->phi[9] = %.5f flu_params_new_d->phi[9] = %.5f\n",
+//                       index, flu_params_current_d->phi[9], flu_params_new_d->phi[9]);
+//                printf("ODE %d before copy flu_params_current_d->beta[0] = %.9f flu_params_new_d->beta[0] = %.9f\n",
+//                       index, flu_params_current_d->G_CLO_BETA[index*NUMSEROTYPES], flu_params_new_d->G_CLO_BETA[index*NUMSEROTYPES]);
+//            }
             memcpy(flu_params_current_d, flu_params_new_d, sizeof(FluParameters));
-            if(NUMODE == 1  || (index > 0 && index % (NUMODE / 2) == 0)){
-                printf("ODE %d after copy flu_params_current_d->phi[9] = %.5f\n",
-                       index, flu_params_current_d->phi[9]);
-                printf("ODE %d after copy flu_params_current_d->beta[0] = %.9f\n",
-                       index, flu_params_current_d->G_CLO_BETA[index*NUMSEROTYPES]);
-            }
+//            if(NUMODE == 1  || (index > 0 && index % (NUMODE / 2) == 0)){
+//                printf("ODE %d after copy flu_params_current_d->phi[9] = %.5f\n",
+//                       index, flu_params_current_d->phi[9]);
+//                printf("ODE %d after copy flu_params_current_d->beta[0] = %.9f\n",
+//                       index, flu_params_current_d->G_CLO_BETA[index*NUMSEROTYPES]);
+//            }
             r_denom_d[index] = r_num_d[index];
-            if(NUMODE == 1  || (index > 0 && index % (NUMODE / 4) == 0))
-            {
-                printf("ODE %d exp(r) = %.5f > curand_uniform_double, accepted\n", index, exp(r_num_d[index] - r_denom_d[index]));
-            }
+//            if(NUMODE == 1  || (index > 0 && index % (NUMODE / 4) == 0))
+//            {
+//                printf("ODE %d exp(r) = %.5f > curand_uniform_double, accepted\n", index, exp(r_num_d[index] - r_denom_d[index]));
+//            }
         }
         else{
-            if(NUMODE == 1  || (index > 0 && index % (NUMODE / 4) == 0))
-            {
-                printf("ODE %d exp(r) = %.5f <= curand_uniform_double, rejected\n", index, exp(r_num_d[index] - r_denom_d[index]));
-            }
+//            if(NUMODE == 1  || (index > 0 && index % (NUMODE / 4) == 0))
+//            {
+//                printf("ODE %d exp(r) = %.5f <= curand_uniform_double, rejected\n", index, exp(r_num_d[index] - r_denom_d[index]));
+//            }
         }
         curand_state_d[index] = localState;
 //        if(index == 0)

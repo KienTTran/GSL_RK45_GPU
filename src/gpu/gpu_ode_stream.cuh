@@ -9,8 +9,5 @@
 
 __device__ void gpu_func_flu(double t, const double y[], double f[], double stf, int index, FluParameters* flu_params);
 __global__ void solve_ode_n_stream(double *y_ode_input_d, double *y_ode_output_d, double *y_agg_input_d, double *y_agg_output_d, double* stf, GPUParameters *gpu_params, FluParameters* flu_params);
-__global__ void solve_ode_n_stream_test(double *y_ode_input_d, double *y_ode_output_d,
-                                        double *y_agg_input_d, double *y_agg_output_d,
-                                        double *y_data_input_d, double *stf_d,
-                                        GPUParameters *gpu_params, FluParameters *flu_params);
+
 #endif //GPU_FLU_GPU_ODE_STREAM_CUH

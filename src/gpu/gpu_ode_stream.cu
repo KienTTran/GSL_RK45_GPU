@@ -254,25 +254,25 @@ void rk45_gpu_evolve_apply_stream(double t, double t_target, double t_delta, dou
         device_y[i] = y[i];
     }
 
-    if((NUMODE == 1  || (index > 0 && index % (NUMODE / 2) == 0)) && t == 0){
-        printf("rk45_gpu_evolve_apply flu_params: \n");
-        printf("  beta1 = %1.9f \n", flu_params->beta[index*NUMSEROTYPES + 0]);
-        printf("  beta2 = %1.9f \n", flu_params->beta[index*NUMSEROTYPES + 1]);
-        printf("  beta3 = %1.9f \n", flu_params->beta[index*NUMSEROTYPES + 2]);
-        printf("  v_d_i_amp = %1.5f \n", flu_params->v_d_i_amp);
-        printf("  sigma_H1B = %1.5f \n", flu_params->sigma2d[0][1]);
-        printf("  sigma_BH3 = %1.5f \n", flu_params->sigma2d[1][2]);
-        printf("  sigma_H1H3 = %1.5f \n", flu_params->sigma2d[0][2]);
-        printf("  eta = %1.5f \n", flu_params->eta[0][0]);
-        printf("  eta = %1.5f \n", flu_params->eta[1][1]);
-        printf("  eta = %1.5f \n", flu_params->eta[2][2]);
-        printf("  trr = %1.5f \n", flu_params->trr);
-        printf("  v_d_i_nu = %1.5f \n", flu_params->v_d_i_nu);
-        printf("phis_length = %d\n",SAMPLE_PHI_LENGTH);
-        for(int i=0; i<SAMPLE_PHI_LENGTH; i++){
-            printf("  phi = %5.1f \n", flu_params->phi[index*SAMPLE_PHI_LENGTH + i]);
-        }
-    }
+//    if((NUMODE == 1  || (index > 0 && index % (NUMODE / 2) == 0)) && t == 0){
+//        printf("rk45_gpu_evolve_apply flu_params: \n");
+//        printf("  beta1 = %1.9f \n", flu_params->beta[index*NUMSEROTYPES + 0]);
+//        printf("  beta2 = %1.9f \n", flu_params->beta[index*NUMSEROTYPES + 1]);
+//        printf("  beta3 = %1.9f \n", flu_params->beta[index*NUMSEROTYPES + 2]);
+//        printf("  v_d_i_amp = %1.5f \n", flu_params->v_d_i_amp);
+//        printf("  sigma_H1B = %1.5f \n", flu_params->sigma2d[0][1]);
+//        printf("  sigma_BH3 = %1.5f \n", flu_params->sigma2d[1][2]);
+//        printf("  sigma_H1H3 = %1.5f \n", flu_params->sigma2d[0][2]);
+//        printf("  eta = %1.5f \n", flu_params->eta[0][0]);
+//        printf("  eta = %1.5f \n", flu_params->eta[1][1]);
+//        printf("  eta = %1.5f \n", flu_params->eta[2][2]);
+//        printf("  trr = %1.5f \n", flu_params->trr);
+//        printf("  v_d_i_nu = %1.5f \n", flu_params->v_d_i_nu);
+//        printf("phis_length = %d\n",SAMPLE_PHI_LENGTH);
+//        for(int i=0; i<SAMPLE_PHI_LENGTH; i++){
+//            printf("  phi = %5.1f \n", flu_params->phi[index*SAMPLE_PHI_LENGTH + i]);
+//        }
+//    }
 
     while (t < t_target) {
         double device_t;
@@ -442,10 +442,13 @@ void rk45_gpu_evolve_apply_stream(double t, double t_target, double t_delta, dou
 
         //Write max agg inc to first line
         if(day == gpu_params->ode_output_day - 1){
+//            printf("ODE %d agg_inc_max: ", index);
             for(int i = 0; i < DATADIM_COLS; i++){
                 //Col 1 2 3
                 y_agg_output[i] = agg_inc_max[i];
+//                printf("%.5f\t", agg_inc_max[i]);
             }
+//            printf("\n");
         }
 //        if(index == 0 && t == NUMDAYSOUTPUT - 1) {
 //            printf("[evolve apply agg] Index = %d t = %f h = %f end, agg_inc_max[0] = %.5f\n", index, t, h, agg_inc_max[0]);
@@ -466,31 +469,17 @@ void solve_ode_one_stream(double *y_ode_input_d, double *y_ode_output_d, double 
 }
 
 __global__ void
-solve_ode_n_stream(double *y_ode_input_d, double *y_ode_output_d, double *y_agg_input_d, double *y_agg_output_d, double *stf, GPUParameters *gpu_params, FluParameters *flu_params) {
-    int index_gpu = threadIdx.x + blockIdx.x * blockDim.x;
-    int stride = blockDim.x * gridDim.x;
-    for (int index = index_gpu; index < gpu_params->ode_number; index += stride) {
-//        if(index % 32 == 0)
-        {
-            printf("ODE %d will be solved by thread index = %d blockIdx.x = %d\n", index, index, blockIdx.x);
-        }
-//        solve_ode_one_stream(y_ode_input_d, y_ode_output_d, y_agg_input_d, y_agg_output_d, stf, index, gpu_params, flu_params);
-    }
-
-}
-
-__global__ void
-solve_ode_n_stream_test(double *y_ode_input_d, double *y_ode_output_d,
+solve_ode_n_stream(double *y_ode_input_d, double *y_ode_output_d,
                         double *y_agg_input_d, double *y_agg_output_d,
-                        double *y_data_input_d, double *stf_d,
+                        double *stf_d,
                         GPUParameters *gpu_params, FluParameters *flu_params) {
     int index_gpu = threadIdx.x + blockIdx.x * blockDim.x;
     int stride = blockDim.x * gridDim.x;
     for (int index = index_gpu; index < gpu_params->ode_number; index += stride) {
 //        if(index % 32 == 0)
-        {
-            printf("ODE %d will be solved by thread index = %d blockIdx.x = %d\n", index, index, blockIdx.x);
-        }
+//        {
+//            printf("ODE %d will be solved by thread index = %d blockIdx.x = %d\n", index, index, blockIdx.x);
+//        }
         solve_ode_one_stream(y_ode_input_d, y_ode_output_d, y_agg_input_d, y_agg_output_d, stf_d, index, gpu_params, flu_params);
     }
 
