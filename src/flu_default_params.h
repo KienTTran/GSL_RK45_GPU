@@ -53,8 +53,8 @@
 #define DATADIM_ROWS 520
 #define DATADIM_COLS 3
 #define GPU_ODE_THREADS (NUMODE)
-#define GPU_REDUCE_THREADS 1024 /* closed 2^n to DATADIM_ROWS */
-#define MCMC_ITER 1
+#define GPU_REDUCE_THREADS 1024 /* 2^n that is closest and bigger than DATADIM_ROWS */
+#define MCMC_ITER 10
 #define SAMPLE_TAU_LENGTH 9
 #define SAMPLE_PHI_LENGTH (SAMPLE_TAU_LENGTH + 1)
 

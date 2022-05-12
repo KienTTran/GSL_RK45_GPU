@@ -1,0 +1,92 @@
+Load data from CSV
+ODE numbers = 16
+1 ODE parameters = 57
+1 ODE lines = 7300
+Display dimension = 60
+Total display dimension = 16 x 7300 x 60 = 7008000
+GPU reduce threads = 32768 block = 32
+ODE 8 t = 7299.000000 h = 2.976280 end, y[8][53] = 209.69659
+ODE 8 updated parameters: 0.278753703	0.163152678	0.268788605	178.72	480.87	897.78	1208.00	1482.16	1955.39	2218.98	2460.92	2783.90	3176.35	
+ODE 8 t = 7299.000000 h = 5.000000 end, y[8][53] = 19.87975
+==== iter 0 update done in 0.000538 seconds ====
+==== iter 0 stf done in 0.026712 seconds ====
+==== iter 0 ode done in 4.373450 seconds ====
+==== iter 0 mcmc done in 0.015349 seconds ====
+==== iter 0 update-stf-ode-mcmc done in 9.425741 seconds ====
+
+ODE 8 updated parameters: 0.313591667	0.252187420	0.258410431	160.93	496.49	937.57	1224.50	1502.21	1979.81	2266.58	2534.55	2855.58	3208.62	
+ODE 8 t = 7299.000000 h = 5.000000 end, y[8][53] = 19.30721
+==== iter 1 update done in 0.000556 seconds ====
+==== iter 1 stf done in 0.026694 seconds ====
+==== iter 1 ode done in 4.385115 seconds ====
+==== iter 1 mcmc done in 0.015119 seconds ====
+==== iter 1 update-stf-ode-mcmc done in 4.428079 seconds ====
+
+ODE 8 updated parameters: 0.391987213	0.255055073	0.145125247	191.88	548.87	960.94	1255.11	1577.90	2024.32	2354.59	2614.87	2964.10	3316.14	
+ODE 8 t = 7299.000000 h = 5.000000 end, y[8][53] = 10.63657
+==== iter 2 update done in 0.000550 seconds ====
+==== iter 2 stf done in 0.026721 seconds ====
+==== iter 2 ode done in 4.376171 seconds ====
+==== iter 2 mcmc done in 0.015123 seconds ====
+==== iter 2 update-stf-ode-mcmc done in 4.419144 seconds ====
+
+ODE 8 updated parameters: 0.390816480	0.226193428	0.054367591	159.63	470.57	919.45	1220.28	1594.53	2048.34	2389.75	2670.24	3023.38	3343.01	
+ODE 8 t = 7299.000000 h = 5.000000 end, y[8][53] = 4.03555
+==== iter 3 update done in 0.000557 seconds ====
+==== iter 3 stf done in 0.026703 seconds ====
+==== iter 3 ode done in 4.384253 seconds ====
+==== iter 3 mcmc done in 0.015337 seconds ====
+==== iter 3 update-stf-ode-mcmc done in 4.427253 seconds ====
+
+ODE 8 updated parameters: 0.410923749	0.280051506	-0.006089854	170.54	446.19	890.27	1183.75	1547.87	1973.11	2351.76	2589.05	3009.47	3339.24	
+ODE 8 t = 7299.000000 h = 5.000000 end, y[8][53] = -0.44820
+==== iter 4 update done in 0.000552 seconds ====
+==== iter 4 stf done in 0.026558 seconds ====
+==== iter 4 ode done in 4.376277 seconds ====
+==== iter 4 mcmc done in 0.015076 seconds ====
+==== iter 4 update-stf-ode-mcmc done in 4.418524 seconds ====
+
+ODE 8 updated parameters: 0.349486750	0.354278660	-0.013889591	197.42	443.25	912.34	1213.29	1579.07	2024.93	2395.55	2604.81	3058.56	3387.41	
+ODE 8 t = 7299.000000 h = 5.000000 end, y[8][53] = -1.01207
+==== iter 5 update done in 0.000545 seconds ====
+==== iter 5 stf done in 0.026561 seconds ====
+==== iter 5 ode done in 4.389864 seconds ====
+==== iter 5 mcmc done in 0.015185 seconds ====
+==== iter 5 update-stf-ode-mcmc done in 4.432598 seconds ====
+
+ODE 8 updated parameters: 0.306258538	0.358943436	0.035115217	188.58	461.88	947.54	1271.73	1614.38	2067.03	2468.02	2642.73	3121.80	3459.75	
+ODE 8 t = 7299.000000 h = 5.000000 end, y[8][53] = 2.56487
+==== iter 6 update done in 0.000554 seconds ====
+==== iter 6 stf done in 0.026559 seconds ====
+==== iter 6 ode done in 4.374616 seconds ====
+==== iter 6 mcmc done in 0.015120 seconds ====
+==== iter 6 update-stf-ode-mcmc done in 4.417351 seconds ====
+
+ODE 8 updated parameters: 0.389067468	0.299625603	-0.062667406	204.77	490.69	1014.15	1335.18	1645.26	2055.24	2481.49	2694.13	3152.68	3465.20	
+ODE 8 t = 7299.000000 h = 5.000000 end, y[8][53] = -4.55802
+==== iter 7 update done in 0.000548 seconds ====
+==== iter 7 stf done in 0.026709 seconds ====
+==== iter 7 ode done in 4.388489 seconds ====
+==== iter 7 mcmc done in 0.015201 seconds ====
+==== iter 7 update-stf-ode-mcmc done in 4.431352 seconds ====
+
+ODE 8 updated parameters: 0.342545861	0.285802009	-0.105598683	203.00	475.79	974.46	1272.85	1554.49	1971.34	2392.70	2596.00	3037.61	3352.23	
+ODE 8 t = 7299.000000 h = 5.000000 end, y[8][53] = -7.66945
+==== iter 8 update done in 0.000550 seconds ====
+==== iter 8 stf done in 0.026564 seconds ====
+==== iter 8 ode done in 4.388293 seconds ====
+==== iter 8 mcmc done in 0.015088 seconds ====
+==== iter 8 update-stf-ode-mcmc done in 4.430558 seconds ====
+
+ODE 8 updated parameters: 0.375789562	0.266227368	-0.094183783	194.14	437.93	928.03	1240.21	1554.00	1998.91	2429.22	2580.84	3029.10	3363.19	
+ODE 8 t = 7299.000000 h = 5.000000 end, y[8][53] = -6.84456
+==== iter 9 update done in 0.000557 seconds ====
+==== iter 9 stf done in 0.026558 seconds ====
+==== iter 9 ode done in 4.377819 seconds ====
+==== iter 9 mcmc done in 0.015098 seconds ====
+==== iter 9 update-stf-ode-mcmc done in 4.420204 seconds ====
+
+[GPU FLU] GPU Time for transfer data from CPU to GPU: 24.026432 milliseconds which is 0.024026 seconds
+[GPU FLU] GPU Time for compute 16 MCMC chain in 10 iteration, each chain has 1 ODE system with 57 equations, step 0.000001 in 7300.000000 days on GPU: 49251.015625 milliseconds which is 49.251016 seconds
+[GPU FLU] GPU Time for transfer data from GPU on CPU: 20.769728 milliseconds which is 0.020770 seconds
+[GPU FLU] GPU Time for complete 16 MCMC chain in 10 iteration, each chain has 1 ODE system with 57 equations: 49295.839844 milliseconds which is 49.295840 seconds
