@@ -40,9 +40,9 @@ void rk45_gpu_adjust_h(double y[], double y_err[], double dydt_out[],
     static double eps_rel = 0.0;
     static double a_y = 1.0;
     static double a_dydt = 0.0;
-    static unsigned int ord = 5;
-    static double one_over_ord = 0.2;// 1/5
-    static double one_over_ord_plus_one = 0.166666667;// 1/6
+    //static unsigned int ord = 5;
+    static double one_over_ord = 0.2;// 1 / ord = 1 / 5
+    static double one_over_ord_plus_one = 0.166666667;// 1 / ord = 1/ 6
     const double S = 0.9;
     double h_old;
     if (final_step) {

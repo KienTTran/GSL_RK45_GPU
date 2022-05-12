@@ -21,13 +21,7 @@ void GPUFlu::set_gpu_parameters(GPUParameters *gpu_params_) {
     gpu_params = gpu_params_;
 }
 
-void GPUFlu::init() {
-    flu_params = new FluParameters();
-    flu_params->init();
-    gpu_params->init(flu_params);
-}
-
-void GPUFlu::run() {
+void GPUFlu::init(){
     checkCuda(cudaEventCreate(&start_event));
     checkCuda(cudaEventCreate(&stop_event));
     checkCuda(cudaEventCreate(&start_event_all));
@@ -46,7 +40,11 @@ void GPUFlu::run() {
     checkCuda(cudaEventRecord(start_event_all,0));
     checkCuda(cudaEventRecord(start_event,0));
 
-    size_t ode_double_size = gpu_params->ode_number* sizeof(double);
+    flu_params = new FluParameters();
+    flu_params->init();
+    gpu_params->init(flu_params);
+
+    ode_double_size = gpu_params->ode_number* sizeof(double);
 
     /* stf_d - stf on device */
     stf_d_size = gpu_params->ode_output_day * sizeof(double);
@@ -156,11 +154,11 @@ void GPUFlu::run() {
     r_h = (double*)malloc(ode_double_size);
     memset(r_h,0,ode_double_size);
 
-    /* r_denom - on device */
+    /* r_denom_d - on device */
     checkCuda(cudaMalloc((void **) &r_denom_d, ode_double_size));
     checkCuda(cudaMemcpy(r_denom_d, r_h, ode_double_size,cudaMemcpyHostToDevice));
 
-    /* r_num - on device */
+    /* r_num_d - on device */
     checkCuda(cudaMalloc((void **) &r_num_d, ode_double_size));
     checkCuda(cudaMemcpy(r_num_d, r_h, ode_double_size,cudaMemcpyHostToDevice));
 
@@ -188,24 +186,20 @@ void GPUFlu::run() {
     gpu_params->block_size = GPU_ODE_THREADS; //max is 1024
     gpu_params->num_blocks = (gpu_params->ode_number + gpu_params->block_size - 1) / gpu_params->block_size;
     /* Blocks to process reduction sum with padding, must be divided by 1024 */
-    int gpu_reduce_num_block = ceil(prop.maxBlocksPerMultiProcessor * prop.maxThreadsPerBlock / GPU_REDUCE_THREADS);
+    gpu_reduce_num_block = ceil(prop.maxBlocksPerMultiProcessor * prop.maxThreadsPerBlock / GPU_REDUCE_THREADS);
     printf("GPU reduce threads = %d block = %d\n",prop.maxBlocksPerMultiProcessor * prop.maxThreadsPerBlock, gpu_reduce_num_block);
 
     checkCuda(cudaEventRecord(stop_event, 0));
     checkCuda(cudaEventSynchronize(stop_event));
     checkCuda(cudaEventElapsedTime(&transfer_h2d_ms, start_event, stop_event));
+}
 
+void GPUFlu::run() {
     checkCuda(cudaEventRecord(start_event,0));
     //cudaProfilerStart();
-//    solve_ode_n<<<gpu_params->num_blocks, gpu_params->block_size>>>(y_ode_input_d, y_ode_output_d, y_agg_input_d, y_agg_output_d, stf_d, gpu_params_d, flu_params_new_d);
 
     /* Setup prng states */
     mcmc_setup_states_for_random<<<gpu_params->num_blocks, gpu_params->block_size>>>(curand_state_d, norm_size);
-//    mcmc_setup_states_for_random<<<gpu_params->num_blocks, gpu_params->block_size>>>(curand_state_d, norm_size);
-//    mcmc_generate_norm_random<<<gpu_reduce_num_block, GPU_REDUCE_THREADS>>>(norm_ran_d, norm_ran_size, curand_state_d);
-//    mcmc_update_parameters_with_pre_norm_ran<<<gpu_params->num_blocks, gpu_params->block_size>>>(gpu_params_d, flu_params_current_d, flu_params_new_d, norm_ran_d);
-//    checkCuda(cudaDeviceSynchronize());
-
     for (int iter = 0; iter < gpu_params->mcmc_loop; iter++) {
         checkCuda(cudaEventRecord(start_one_iter_event,0));
         if(iter == 0){
@@ -230,8 +224,6 @@ void GPUFlu::run() {
         checkCuda(cudaMemcpy(y_mcmc_dnorm_n_ode_padding_d, y_mcmc_dnorm_n_ode_padding_zero_d, y_mcmc_dnorm_n_ode_padding_d_size, cudaMemcpyDeviceToDevice));
         /* Update new flu parameters */
         mcmc_generate_norm<<<gpu_reduce_num_block, GPU_REDUCE_THREADS>>>(norm_d, norm_size, curand_state_d);
-//        mcmc_compute_norm_sd<<<gpu_reduce_num_block, GPU_REDUCE_THREADS>>>(flu_params_current_d, norm_d, norm_sd_d, norm_size);
-//        mcmc_update_parameters_with_norm_sd<<<gpu_params->num_blocks, gpu_params->block_size>>>(gpu_params_d, flu_params_current_d, flu_params_new_d, norm_sd_d);
         mcmc_update_parameters<<<gpu_params->num_blocks, gpu_params->block_size>>>(gpu_params_d, flu_params_current_d, flu_params_new_d, curand_state_d);
         checkCuda(cudaEventRecord(stop_one_update_event,0));
         checkCuda(cudaEventSynchronize(stop_one_update_event));
@@ -276,10 +268,9 @@ void GPUFlu::run() {
         printf("==== iter %d ode done in %f seconds ====\n",iter,(one_ode_ms/1e3));
         printf("==== iter %d mcmc done in %f seconds ====\n",iter,(one_mcmc_ms/1e3));
 	    printf("==== iter %d update-stf-ode-mcmc done in %f seconds ====\n\n",iter,(one_iter_ms/1e3));
-//        mcmc_print_iter<<<1,1>>>(iter);
     }
 
-        cudaProfilerStop();
+//    cudaProfilerStop();
     checkCuda(cudaDeviceSynchronize());
 
     checkCuda(cudaEventRecord(stop_event, 0));
@@ -325,13 +316,13 @@ void GPUFlu::run() {
     std::mt19937 gen(rd()); // seed the generator
     std::uniform_int_distribution<> distr(0, NUMODE); // define the range
 
-    for (int i = 0; i < gpu_params->display_number; i++) {
-        int random_index = 0;
-        if (NUMODE == 1) {
-            random_index = 0;
-        } else {
-            random_index = distr(gen);
-        }
+//    for (int i = 0; i < gpu_params->display_number; i++) {
+//        int random_index = 0;
+//        if (NUMODE == 1) {
+//            random_index = 0;
+//        } else {
+//            random_index = distr(gen);
+//        }
 //        printf("Display y_ode_output_h[%d]\n",random_index);
 //        for(int index = 0; index < gpu_params->ode_output_day * gpu_params->display_dimension; index++){
 //            const int line_index = (index / gpu_params->display_dimension) % NUMDAYSOUTPUT;
@@ -354,17 +345,17 @@ void GPUFlu::run() {
 //                }
 //            }
 //        }
-    }
-    printf("\n");
+//    }
+//    printf("\n");
+
     checkCuda(cudaDeviceSynchronize());
 
-    printf("[GSL GPU] GPU Time for transfer data from CPU to GPU: %f milliseconds which is %f seconds\n",transfer_h2d_ms,(transfer_h2d_ms/1e3));
-    printf("[GSL GPU] GPU Time for compute MCMC %d iteration with %d ODE(s) with %d parameters, step %f in %f days on GPU: %f milliseconds which is %f seconds\n",
+    printf("[GPU FLU] GPU Time for transfer data from CPU to GPU: %f milliseconds which is %f seconds\n",transfer_h2d_ms,(transfer_h2d_ms/1e3));
+    printf("[GPU FLU] GPU Time for compute MCMC %d iteration with %d ODE(s) with %d parameters, step %f in %f days on GPU: %f milliseconds which is %f seconds\n",
            gpu_params->mcmc_loop,gpu_params->ode_number,gpu_params->ode_dimension,gpu_params->h,gpu_params->t_target,compute_ms,(compute_ms/1e3));
-    printf("[GSL GPU] GPU Time for transfer data from GPU on CPU: %f milliseconds which is %f seconds\n",transfer_d2h_ms,(transfer_d2h_ms/1e3));
-    printf("[GSL GPU] GPU Time for complete MCMC %d iteration with %d ODE(s) with %d parameters: %f milliseconds which is %f seconds\n",
+    printf("[GPU FLU] GPU Time for transfer data from GPU on CPU: %f milliseconds which is %f seconds\n",transfer_d2h_ms,(transfer_d2h_ms/1e3));
+    printf("[GPU FLU] GPU Time for complete MCMC %d iteration with %d ODE(s) with %d parameters: %f milliseconds which is %f seconds\n",
            gpu_params->mcmc_loop,gpu_params->ode_number,gpu_params->ode_dimension,all_ms,(all_ms/1e3));
-
 
     // Free memory
 
@@ -392,10 +383,19 @@ void GPUFlu::run() {
     checkCuda(cudaFree(gpu_params_d));
     checkCuda(cudaFree(flu_params_current_d));
     checkCuda(cudaFree(flu_params_new_d));
+    checkCuda(cudaFree(norm_d));
+    checkCuda(cudaFree(norm_sd_d));
+    checkCuda(cudaFree(stf_d));
+    checkCuda(cudaFree(curand_state_d));
+    checkCuda(cudaFree(r_denom_d));
+    checkCuda(cudaFree(r_num_d));
     gpu_params = nullptr;
     flu_params = nullptr;
     delete y_ode_output_h;
     delete y_output_agg_h;
+    delete norm_h;
+    delete r_h;
+
     delete [] tmp_ptr;
     return;
 }

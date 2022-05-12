@@ -35,6 +35,8 @@ private:
     cudaEvent_t start_one_stf_event, stop_one_stf_event;
     cudaEvent_t start_event_all, stop_event_all;
 
+    size_t ode_double_size;
+
     //temp pointers
     double **tmp_ptr = 0;
 
@@ -109,6 +111,8 @@ private:
 
     /* r_num - on device */
     double* r_num_d = 0;
+
+    int gpu_reduce_num_block;
 
 };
 
