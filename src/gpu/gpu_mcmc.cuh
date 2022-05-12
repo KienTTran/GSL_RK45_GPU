@@ -11,7 +11,6 @@ __global__ void mcmc_dnorm_padding(double *y_data_input_d[], double *y_ode_agg_d
                                    double y_mcmc_dnorm_d[], int ode_padding_size,
                                    GPUParameters *params_d);
 __global__ void mcmc_setup_states_for_random(curandState* curand_state_d, int size);
-__global__ void mcmc_generate_norm(double* norm_d, size_t norm_size, curandState* curand_state_d);
 __global__ void mcmc_compute_r(double y_mcmc_dnorm_d[], double r_d[], GPUParameters *params_d);
 __global__ void mcmc_update_parameters(GPUParameters* gpu_params_d,
                                        FluParameters* flu_params_current_d, FluParameters* flu_params_new_d,

@@ -134,22 +134,6 @@ void mcmc_setup_states_for_random(curandState* curand_state_d, int size){
 }
 
 __global__
-void mcmc_generate_norm(double* norm_d, size_t norm_size, curandState* curand_state_d){
-    int index_gpu = threadIdx.x + blockIdx.x * blockDim.x;
-    int stride = blockDim.x * gridDim.x;
-    for (int index = index_gpu; index < norm_size; index += stride) {
-        curandState local_state = curand_state_d[index];
-        norm_d[index] = curand_normal(&local_state);
-        curand_state_d[index] = local_state;
-//        if(NUMODE == 1  || (index > 0 && index % (NUMODE / 2) == 0)) {
-//            const int ode_index = index / SAMPLE_LENGTH;
-//            printf("ODE %d norm_d[%d] = %.5f\n",ode_index, index, norm_d[index]);
-//            printf("Index %d Norm Random = %.5f\n",index, norm_d[index]);
-//        }
-    }
-}
-
-__global__
 void mcmc_update_parameters(GPUParameters* gpu_params_d,
                             FluParameters* flu_params_current_d, FluParameters* flu_params_new_d,
                             curandState* curand_state_d){
@@ -158,16 +142,16 @@ void mcmc_update_parameters(GPUParameters* gpu_params_d,
 
     for (int index = index_gpu; index < gpu_params_d->ode_number; index += stride){
         curandState local_state = curand_state_d[index];
-        if(NUMODE == 1  || (index > 0 && index % (NUMODE / 2) == 0)) {
-            printf("ODE %d Old phi: ",index);
-            for(int i = 0; i < SAMPLE_PHI_LENGTH; i++){
-                printf("%.2f\t",flu_params_current_d->phi[i]);
-            }
-            printf("\n");
-            for(int i = 0; i < NUMSEROTYPES; i++){
-                printf("ODE %d Old flu_params_current_d->beta[%d] = %.9f\n", index, index*NUMSEROTYPES + i, flu_params_current_d->G_CLO_BETA[index*NUMSEROTYPES + i]);
-            }
-        }
+//        if(NUMODE == 1  || (index > 0 && index % (NUMODE / 2) == 0)) {
+//            printf("ODE %d current parameters: ", index);
+//            for(int i = 0; i < NUMSEROTYPES; i++){
+//                printf("%.9f\t", flu_params_current_d->G_CLO_BETA[index*NUMSEROTYPES + i]);
+//            }
+//            for (int i = 0; i < SAMPLE_PHI_LENGTH; i++) {
+//                printf("%.2f\t", flu_params_current_d->phi[index*SAMPLE_PHI_LENGTH + i]);
+//            }
+//            printf("\n");
+//        }
 
         /* 0 - 2 */
         for(int i = 0; i < NUMSEROTYPES; i++){
@@ -187,14 +171,14 @@ void mcmc_update_parameters(GPUParameters* gpu_params_d,
         curand_state_d[index] = local_state;
 
         if(NUMODE == 1  || (index > 0 && index % (NUMODE / 2) == 0)) {
-            printf("\nODE %d Updated Phi: ", index);
+            printf("ODE %d updated parameters: ", index);
+            for(int i = 0; i < NUMSEROTYPES; i++){
+                printf("%.9f\t", flu_params_new_d->G_CLO_BETA[index*NUMSEROTYPES + i]);
+            }
             for (int i = 0; i < SAMPLE_PHI_LENGTH; i++) {
                 printf("%.2f\t", flu_params_new_d->phi[index*SAMPLE_PHI_LENGTH + i]);
             }
             printf("\n");
-            for(int i = 0; i < NUMSEROTYPES; i++){
-                printf("ODE %d Updated flu_params_new_d->beta[%d] = %.9f\n", index, index*NUMSEROTYPES + i, flu_params_new_d->G_CLO_BETA[index*NUMSEROTYPES + i]);
-            }
         }
     }
 }

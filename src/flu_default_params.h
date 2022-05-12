@@ -41,10 +41,10 @@
 // Two population sizes: main population and all outer populations have the same size
 #define POPSIZE_MAIN 1000000.00 /* Remember to change BETA_OVER_POP_MAIN = 1 / POPSIZE_MAIN*/
 #define POPSIZE_OUT 100000.00
-/* This is to improve speed in the kernel.
+/* BETA_OVER_POP_MAIN is used improve speed in the kernel.
  * Instead of beta = clo_beta / POPSIZE_MAIN,
- * using beta  = clo_beta * (1/POPSIZE_MAIN)
- * increased speed to double time
+ * using beta  = clo_beta * (1/POPSIZE_MAIN) as constant
+ * to reduce speed in half
  * */
 #define BETA_OVER_POP_MAIN 0.0000001
 
@@ -54,10 +54,8 @@
 #define DATADIM_COLS 3
 #define GPU_ODE_THREADS (NUMODE)
 #define GPU_REDUCE_THREADS 1024
-#define MCMC_ITER 10
+#define MCMC_ITER 2
 #define SAMPLE_TAU_LENGTH 9
-#define SAMPLE_PHI_0_INDEX 3
 #define SAMPLE_PHI_LENGTH (SAMPLE_TAU_LENGTH + 1)
-#define SAMPLE_LENGTH (NUMSEROTYPES + 1 + SAMPLE_TAU_LENGTH) /* beta + phi_0 + tau */
 
 #endif //RK45_CUDA_FLU_DEFAULT_PARAMS_H

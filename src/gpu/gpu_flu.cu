@@ -162,23 +162,8 @@ void GPUFlu::init(){
     checkCuda(cudaMalloc((void **) &r_num_d, ode_double_size));
     checkCuda(cudaMemcpy(r_num_d, r_h, ode_double_size,cudaMemcpyHostToDevice));
 
-    /* norm_h - on host */
-    norm_size = gpu_params->ode_number * SAMPLE_LENGTH;
-    norm_h = (double*)malloc(norm_size * sizeof(double));
-    for (int i = 0; i < norm_size; i++) {
-        norm_h[i] = 0.0;
-    }
-
-    /* norm_d - on device */
-    checkCuda(cudaMalloc((void **) &norm_d, norm_size * sizeof(double)));
-    checkCuda(cudaMemcpy(norm_d, norm_h, norm_size * sizeof(double),cudaMemcpyHostToDevice));
-
-    /* norm_and_sd_d - on device */
-    checkCuda(cudaMalloc((void **) &norm_sd_d, norm_size * sizeof(double)));
-    checkCuda(cudaMemcpy(norm_d, norm_h, norm_size * sizeof(double),cudaMemcpyHostToDevice));
-
     /* curand_state_d - on device */
-    checkCuda(cudaMalloc((void **)&curand_state_d, norm_size * sizeof(curandState)));
+    checkCuda(cudaMalloc((void **)&curand_state_d, gpu_params->ode_number * sizeof(curandState)));
 
     cudaDeviceProp prop;
     cudaGetDeviceProperties(&prop, 0);
@@ -196,10 +181,16 @@ void GPUFlu::init(){
 
 void GPUFlu::run() {
     checkCuda(cudaEventRecord(start_event,0));
-    //cudaProfilerStart();
+//    cudaProfilerStart();
+
+    /* One MCMC pass for testing */
+//    mcmc_setup_states_for_random<<<gpu_params->num_blocks, gpu_params->block_size>>>(curand_state_d, gpu_params->ode_number);
+//    mcmc_update_parameters<<<gpu_params->num_blocks, gpu_params->block_size>>>(gpu_params_d, flu_params_current_d, flu_params_new_d, curand_state_d);
+//    calculate_stf<<<gpu_params->num_blocks, gpu_params->block_size>>>(stf_d, gpu_params_d, flu_params_new_d);
+//    solve_ode_n<<<gpu_params->num_blocks, gpu_params->block_size>>>(y_ode_input_d, y_ode_output_d, y_agg_input_d, y_agg_output_d, stf_d, gpu_params_d, flu_params_new_d);
 
     /* Setup prng states */
-    mcmc_setup_states_for_random<<<gpu_params->num_blocks, gpu_params->block_size>>>(curand_state_d, norm_size);
+    mcmc_setup_states_for_random<<<gpu_params->num_blocks, gpu_params->block_size>>>(curand_state_d, gpu_params->ode_number);
     for (int iter = 0; iter < gpu_params->mcmc_loop; iter++) {
         checkCuda(cudaEventRecord(start_one_iter_event,0));
         if(iter == 0){
@@ -223,7 +214,6 @@ void GPUFlu::run() {
         /* Reset dnorm vector on device */
         checkCuda(cudaMemcpy(y_mcmc_dnorm_n_ode_padding_d, y_mcmc_dnorm_n_ode_padding_zero_d, y_mcmc_dnorm_n_ode_padding_d_size, cudaMemcpyDeviceToDevice));
         /* Update new flu parameters */
-        mcmc_generate_norm<<<gpu_reduce_num_block, GPU_REDUCE_THREADS>>>(norm_d, norm_size, curand_state_d);
         mcmc_update_parameters<<<gpu_params->num_blocks, gpu_params->block_size>>>(gpu_params_d, flu_params_current_d, flu_params_new_d, curand_state_d);
         checkCuda(cudaEventRecord(stop_one_update_event,0));
         checkCuda(cudaEventSynchronize(stop_one_update_event));
@@ -351,11 +341,11 @@ void GPUFlu::run() {
     checkCuda(cudaDeviceSynchronize());
 
     printf("[GPU FLU] GPU Time for transfer data from CPU to GPU: %f milliseconds which is %f seconds\n",transfer_h2d_ms,(transfer_h2d_ms/1e3));
-    printf("[GPU FLU] GPU Time for compute MCMC %d iteration with %d ODE(s) with %d parameters, step %f in %f days on GPU: %f milliseconds which is %f seconds\n",
-           gpu_params->mcmc_loop,gpu_params->ode_number,gpu_params->ode_dimension,gpu_params->h,gpu_params->t_target,compute_ms,(compute_ms/1e3));
+    printf("[GPU FLU] GPU Time for compute %d MCMC chain in %d iteration, each chain has 1 ODE system with %d equations, step %f in %f days on GPU: %f milliseconds which is %f seconds\n",
+           gpu_params->ode_number,gpu_params->mcmc_loop,gpu_params->ode_dimension,gpu_params->h,gpu_params->t_target,compute_ms,(compute_ms/1e3));
     printf("[GPU FLU] GPU Time for transfer data from GPU on CPU: %f milliseconds which is %f seconds\n",transfer_d2h_ms,(transfer_d2h_ms/1e3));
-    printf("[GPU FLU] GPU Time for complete MCMC %d iteration with %d ODE(s) with %d parameters: %f milliseconds which is %f seconds\n",
-           gpu_params->mcmc_loop,gpu_params->ode_number,gpu_params->ode_dimension,all_ms,(all_ms/1e3));
+    printf("[GPU FLU] GPU Time for complete %d MCMC chain in %d iteration, each chain has 1 ODE system with %d equations: %f milliseconds which is %f seconds\n",
+           gpu_params->ode_number,gpu_params->mcmc_loop,gpu_params->ode_dimension,all_ms,(all_ms/1e3));
 
     // Free memory
 
@@ -383,8 +373,6 @@ void GPUFlu::run() {
     checkCuda(cudaFree(gpu_params_d));
     checkCuda(cudaFree(flu_params_current_d));
     checkCuda(cudaFree(flu_params_new_d));
-    checkCuda(cudaFree(norm_d));
-    checkCuda(cudaFree(norm_sd_d));
     checkCuda(cudaFree(stf_d));
     checkCuda(cudaFree(curand_state_d));
     checkCuda(cudaFree(r_denom_d));
@@ -393,7 +381,6 @@ void GPUFlu::run() {
     flu_params = nullptr;
     delete y_ode_output_h;
     delete y_output_agg_h;
-    delete norm_h;
     delete r_h;
 
     delete [] tmp_ptr;

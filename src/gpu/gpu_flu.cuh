@@ -97,12 +97,6 @@ private:
     /* curand_state_d - on device */
     curandState *curand_state_d;
 
-    /* norm_d and norm_sd_d - on device */
-    double *norm_d = 0;
-    double *norm_sd_d = 0;
-    double *norm_h;
-    size_t norm_size;
-
     /* r_denom/r_num - on host */
     double *r_h = 0;
 

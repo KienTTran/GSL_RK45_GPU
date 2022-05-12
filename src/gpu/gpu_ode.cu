@@ -65,10 +65,12 @@ void rk45_gpu_adjust_h(double y[], double y_err[], double dydt_out[],
     //        printf("      dydt_out[%d] = %.10f\n",i,dydt_out[i]);
     //    }
 
-    double r_max = 2.2250738585072014e-308;
+    float r_max = 1.175494e-38;
+//    double r_max = 2.2250738585072014e-308;
     for (int i = 0; i < DIM; i++) {
         const double D0 = eps_rel * (a_y * fabs(y[i]) + a_dydt * fabs((h_old) * dydt_out[i])) + eps_abs;
-        const double r = fabs(y_err[i]) / fabs(D0);
+        const float r = __fdividef(fabs(y_err[i]), fabs(D0));
+//        const double r = fabs(y_err[i]) / fabs(D0);
         //        printf("      compare r = %.10f r_max = %.10f\n",r,r_max);
         r_max = max(r, r_max);
     }
@@ -78,7 +80,8 @@ void rk45_gpu_adjust_h(double y[], double y_err[], double dydt_out[],
     if (r_max > 1.1) {
         /* decrease step, no more than factor of 5, but a fraction S more
            than scaling suggests (for better accuracy) */
-        double r = S / pow(r_max, one_over_ord);
+        float r = __fdividef(S,pow(r_max, one_over_ord));
+//        double r = S / pow(r_max, one_over_ord);
 
         if (r < 0.2)
             r = 0.2;
@@ -88,7 +91,8 @@ void rk45_gpu_adjust_h(double y[], double y_err[], double dydt_out[],
         adjustment_out = -1;
     } else if (r_max < 0.5) {
         /* increase step, no more than factor of 5 */
-        double r = S / pow(r_max, one_over_ord_plus_one);
+        float r = __fdividef(S,pow(r_max, one_over_ord_plus_one));
+//        double r = S / pow(r_max, one_over_ord_plus_one);
 
         if (r > 5.0)
             r = 5.0;
@@ -112,26 +116,48 @@ void rk45_gpu_adjust_h(double y[], double y_err[], double dydt_out[],
 __device__
 void rk45_gpu_step_apply(double t, double h, double y[], double y_err[], double dydt_out[], double stf,
                          const int index, FluParameters *flu_params) {
-    static const double ah[] = {1.0 / 4.0, 3.0 / 8.0, 12.0 / 13.0, 1.0, 1.0 / 2.0};
-    static const double b3[] = {3.0 / 32.0, 9.0 / 32.0};
-    static const double b4[] = {1932.0 / 2197.0, -7200.0 / 2197.0, 7296.0 / 2197.0};
-    static const double b5[] = {8341.0 / 4104.0, -32832.0 / 4104.0, 29440.0 / 4104.0, -845.0 / 4104.0};
-    static const double b6[] = {-6080.0 / 20520.0, 41040.0 / 20520.0, -28352.0 / 20520.0, 9295.0 / 20520.0,
-                                -5643.0 / 20520.0};
+//    static const double ah[] = {1.0 / 4.0, 3.0 / 8.0, 12.0 / 13.0, 1.0, 1.0 / 2.0};
+//    static const double b3[] = {3.0 / 32.0, 9.0 / 32.0};
+//    static const double b4[] = {1932.0 / 2197.0, -7200.0 / 2197.0, 7296.0 / 2197.0};
+//    static const double b5[] = {8341.0 / 4104.0, -32832.0 / 4104.0, 29440.0 / 4104.0, -845.0 / 4104.0};
+//    static const double b6[] = {-6080.0 / 20520.0, 41040.0 / 20520.0, -28352.0 / 20520.0, 9295.0 / 20520.0,
+//                                -5643.0 / 20520.0};
+//
+//    static const double c1 = 902880.0 / 7618050.0;
+//    static const double c3 = 3953664.0 / 7618050.0;
+//    static const double c4 = 3855735.0 / 7618050.0;
+//    static const double c5 = -1371249.0 / 7618050.0;
+//    static const double c6 = 277020.0 / 7618050.0;
+//
+//    static const double ec[] = {0.0,
+//                                1.0 / 360.0,
+//                                0.0,
+//                                -128.0 / 4275.0,
+//                                -2197.0 / 75240.0,
+//                                1.0 / 50.0,
+//                                2.0 / 55.0
+//    };
 
-    static const double c1 = 902880.0 / 7618050.0;
-    static const double c3 = 3953664.0 / 7618050.0;
-    static const double c4 = 3855735.0 / 7618050.0;
-    static const double c5 = -1371249.0 / 7618050.0;
-    static const double c6 = 277020.0 / 7618050.0;
+    static const double ah[] = {0.25, 0.375, 0.923076923, 1.0, 0.5};
+    static const double b3[] = {0.09375, 0.28125};
+    static const double b4[] = {0.879380974, -3.277196177, 3.320892126};
+    static const double b5[] = {2.032407407, -8.0, 7.173489279, -0.205896686};
+    static const double b6[] = {-0.296296296, 2.0, -1.381676413, 0.45297271,
+                                -0.275};
+
+    static const double c1 = 0.118518519;
+    static const double c3 = 0.518986355;
+    static const double c4 = 0.50613149;
+    static const double c5 = -0.18;
+    static const double c6 = 0.036363636;
 
     static const double ec[] = {0.0,
-                                1.0 / 360.0,
+                                0.002777778,
                                 0.0,
-                                -128.0 / 4275.0,
-                                -2197.0 / 75240.0,
-                                1.0 / 50.0,
-                                2.0 / 55.0
+                                -0.02994152,
+                                -0.029199894,
+                                0.02,
+                                0.036363636
     };
 
     //    printf("    [step apply] index = %d start\n",index);
@@ -384,8 +410,8 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
 //        if(index == 0) {
 //            printf("[evolve apply] Index = %d t = %f h = %f end one day\n", index, t, h);
 //        }
-        if(index == 0 && t == NUMDAYSOUTPUT - 1) {
-            printf("[evolve apply] Index = %d t = %f h = %f end, device_y_yesterday[%d][%d] = %.5f\n", index, t, h, index,gpu_params->ode_dimension - 4, device_y_yesterday[gpu_params->ode_dimension - 4]);
+        if(NUMODE == 1  || (index > 0 && index % (NUMODE / 2) == 0) && t == NUMDAYSOUTPUT - 1) {
+            printf("ODE %d t = %f h = %f end, y[%d][%d] = %.5f\n", index, t, h, index,gpu_params->ode_dimension - 4, device_y[gpu_params->ode_dimension - 4]);
         }
         t += t_delta;
 
@@ -511,23 +537,27 @@ void calculate_stf(double* stf_d[], GPUParameters* gpu_params, FluParameters* fl
         if (SAMPLE_PHI_LENGTH == 0) {
             stf_d[ode_index][day_index] = 1.0;
         }
-        double remainder = day_index - t;
-        int xx = day_index % 3650;
-        double yy = (double) xx + remainder;
-        // put yy into the sine function, let it return the beta value
-        t = yy;
-        double sine_function_value = 0.0;
+        else{
+            double remainder = day_index - t;
+            int xx = day_index % 3650;
+            double yy = (double) xx + remainder;
+            // put yy into the sine function, let it return the beta value
+            t = yy;
+            float sine_function_value = 0.0;
 
-        for (int i = 0; i < SAMPLE_PHI_LENGTH; i++) {
-            if (fabs(t - flu_params->phi[ode_index*SAMPLE_PHI_LENGTH + i]) < (flu_params->v_d_i_epidur_d2)) {
-                sine_function_value = sin(flu_params->pi_x2 * (flu_params->phi[ode_index*SAMPLE_PHI_LENGTH + i] - t + (flu_params->v_d_i_epidur_d2)) /
-                                          (flu_params->v_d_i_epidur_x2));
+            for (int i = 0; i < SAMPLE_PHI_LENGTH; i++) {
+                if (fabs(t - flu_params->phi[ode_index*SAMPLE_PHI_LENGTH + i]) < (flu_params->v_d_i_epidur_d2)) {
+                    sine_function_value = __sinf(flu_params->pi_x2 * (flu_params->phi[ode_index*SAMPLE_PHI_LENGTH + i] - t + (flu_params->v_d_i_epidur_d2)) /
+                                                 (flu_params->v_d_i_epidur_x2));
+                }
             }
-        }
 //        printf("index %d SAMPLE_PHI_LENGTH %d %f sine_function_value %1.3f\n",index,flu_params->SAMPLE_PHI_LENGTH,t,sine_function_value);
 //        printf("index %d day %f return %1.5f\n",index,day_index,t,1.0 + flu_params[ode_index]->v_d_i_amp * sine_function_value);
-        stf_d[ode_index][day_index] = 1.0 + flu_params->v_d_i_amp * sine_function_value;
-//        printf("index %d ODE %d day %d stf_d[%d][%d] = %.5f\n", index, ode_index, day_index, ode_index, day_index, stf_d[ode_index][day_index]);
+            stf_d[ode_index][day_index] = 1.0 + flu_params->v_d_i_amp * sine_function_value;
+//            if(day_index < 10){
+//                printf("index %d ODE %d day %d stf_d[%d][%d] = %.5f\n", index, ode_index, day_index, ode_index, day_index, stf_d[ode_index][day_index]);
+//            }
 //        printf("%d = %.5f\n", day_index, stf_d[ode_index][day_index]);
+        }
     }
 }
