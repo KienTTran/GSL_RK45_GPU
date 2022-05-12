@@ -10,9 +10,9 @@ GPUParameters::GPUParameters(){
     ode_output_day = 0;
     ode_number = 0;
     ode_dimension = 0;
-    t_target = 0.0;
-    t0 = 0.0;
-    h = 1e-6;
+    ode_t_target = 0.0;
+    ode_t0 = 0.0;
+    ode_h = 1e-6;
     num_blocks = 256;
     block_size = 1;
 }
@@ -22,9 +22,9 @@ GPUParameters::~GPUParameters(){
     ode_output_day = 0;
     ode_number = 0;
     ode_dimension = 0;
-    t_target = 0.0;
-    t0 = 0.0;
-    h = 1e-6;
+    ode_t_target = 0.0;
+    ode_t0 = 0.0;
+    ode_h = 1e-6;
     num_blocks = 256;
     block_size = 1;
 }

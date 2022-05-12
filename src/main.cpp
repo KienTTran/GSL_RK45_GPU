@@ -9,10 +9,10 @@ int main(int argc, char* argv[])
     gpu_params->ode_dimension = DIM;
     gpu_params->agg_dimension = 6;
     gpu_params->display_number = 1;
-    gpu_params->t_target = gpu_params->ode_output_day;
-    gpu_params->t0 = 0.0;
-    gpu_params->step = 1.0;
-    gpu_params->h = 1e-6;
+    gpu_params->ode_t_target = gpu_params->ode_output_day;
+    gpu_params->ode_t0 = 0.0;
+    gpu_params->ode_step = 1.0;
+    gpu_params->ode_h = 1e-6;
     gpu_params->mcmc_loop = MCMC_ITER;
 
     GPUFlu* gpu_flu = new GPUFlu();

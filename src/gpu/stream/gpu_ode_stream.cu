@@ -464,7 +464,7 @@ void rk45_gpu_evolve_apply_stream(double t, double t_target, double t_delta, dou
 
 __device__
 void solve_ode_one_stream(double *y_ode_input_d, double *y_ode_output_d, double *y_agg_input_d, double *y_agg_output_d,  double stf[], int index, GPUParameters *gpu_params, FluParameters* flu_params) {
-    rk45_gpu_evolve_apply_stream(gpu_params->t0, gpu_params->t_target, gpu_params->step, gpu_params->h, y_ode_input_d, y_ode_output_d, y_agg_input_d, y_agg_output_d, stf, index, gpu_params, flu_params);
+    rk45_gpu_evolve_apply_stream(gpu_params->ode_t0, gpu_params->ode_t_target, gpu_params->ode_step, gpu_params->ode_h, y_ode_input_d, y_ode_output_d, y_agg_input_d, y_agg_output_d, stf, index, gpu_params, flu_params);
     return;
 }
 

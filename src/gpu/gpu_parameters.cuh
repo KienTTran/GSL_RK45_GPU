@@ -19,7 +19,7 @@
 
 class GPUParameters {
 public:
-    __device__ __host__ explicit GPUParameters();
+    explicit GPUParameters();
     ~GPUParameters();
     int num_blocks;
     int block_size;
@@ -32,10 +32,10 @@ public:
     int data_dimension;
     CSVParameters data_params;
     int display_number;
-    double t_target;
-    double t0;
-    double h;
-    double step;
+    double ode_t_target;
+    double ode_t0;
+    double ode_h;
+    double ode_step;
     double** y_ode_input;
     double** y_data_input;
     double** y_ode_output;

@@ -342,7 +342,7 @@ void GPUFlu::run() {
 
     printf("[GPU FLU] GPU Time for transfer data from CPU to GPU: %f milliseconds which is %f seconds\n",transfer_h2d_ms,(transfer_h2d_ms/1e3));
     printf("[GPU FLU] GPU Time for compute %d MCMC chain in %d iteration, each chain has 1 ODE system with %d equations, step %f in %f days on GPU: %f milliseconds which is %f seconds\n",
-           gpu_params->ode_number,gpu_params->mcmc_loop,gpu_params->ode_dimension,gpu_params->h,gpu_params->t_target,compute_ms,(compute_ms/1e3));
+           gpu_params->ode_number,gpu_params->mcmc_loop,gpu_params->ode_dimension,gpu_params->ode_h,gpu_params->ode_t_target,compute_ms,(compute_ms/1e3));
     printf("[GPU FLU] GPU Time for transfer data from GPU on CPU: %f milliseconds which is %f seconds\n",transfer_d2h_ms,(transfer_d2h_ms/1e3));
     printf("[GPU FLU] GPU Time for complete %d MCMC chain in %d iteration, each chain has 1 ODE system with %d equations: %f milliseconds which is %f seconds\n",
            gpu_params->ode_number,gpu_params->mcmc_loop,gpu_params->ode_dimension,all_ms,(all_ms/1e3));

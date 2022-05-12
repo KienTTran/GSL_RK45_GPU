@@ -410,7 +410,7 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
 //        if(index == 0) {
 //            printf("[evolve apply] Index = %d t = %f h = %f end one day\n", index, t, h);
 //        }
-        if(NUMODE == 1  || (index > 0 && index % (NUMODE / 2) == 0) && t == NUMDAYSOUTPUT - 1) {
+        if(NUMODE == 1  && t == NUMDAYSOUTPUT - 1 || (index > 0 && index % (NUMODE / 2) == 0) && t == NUMDAYSOUTPUT - 1) {
             printf("ODE %d t = %f h = %f end, y[%d][%d] = %.5f\n", index, t, h, index,gpu_params->ode_dimension - 4, device_y[gpu_params->ode_dimension - 4]);
         }
         t += t_delta;
@@ -491,7 +491,7 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
 
 __device__
 void solve_ode_one(double *y_ode_input_d[], double *y_ode_output_d[], double *y_agg_input_d[], double *y_agg_output_d[],  double stf[], int index, GPUParameters *gpu_params, FluParameters* flu_params) {
-    rk45_gpu_evolve_apply(gpu_params->t0, gpu_params->t_target, gpu_params->step, gpu_params->h, y_ode_input_d, y_ode_output_d, y_agg_input_d, y_agg_output_d, stf, index, gpu_params, flu_params);
+    rk45_gpu_evolve_apply(gpu_params->ode_t0, gpu_params->ode_t_target, gpu_params->ode_step, gpu_params->ode_h, y_ode_input_d, y_ode_output_d, y_agg_input_d, y_agg_output_d, stf, index, gpu_params, flu_params);
     return;
 }
 
