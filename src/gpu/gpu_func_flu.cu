@@ -22,9 +22,9 @@ void gpu_func_flu(double t, const double y[], double f[], double stf, int index,
 //        printf("  eta = %1.5f \n", flu_params->eta[2][2]);
 //        printf("  trr = %1.5f \n", flu_params->trr);
 //        printf("  v_d_i_nu = %1.5f \n", flu_params->v_d_i_nu);
-//        printf("phis_length = %d\n",flu_params->SAMPLE_PHI_LENGTH);
+//        printf("phis_length = %d\n",SAMPLE_PHI_LENGTH);
 //        for(int i=0; i<SAMPLE_PHI_LENGTH; i++){
-//            printf("  phi = %5.1f \n", flu_params->phi[ode_index*SAMPLE_PHI_LENGTH + i]);
+//            printf("  phi = %5.1f \n", flu_params->phi[index*SAMPLE_PHI_LENGTH + i]);
 //        }
 //    }
 

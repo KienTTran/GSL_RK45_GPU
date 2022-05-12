@@ -24,6 +24,7 @@ private:
     float one_iter_ms;
     float one_mcmc_ms;
     float one_ode_ms;
+    float one_stf_ms;
     float one_update_ms;
 
     cudaEvent_t start_event, stop_event;
@@ -31,6 +32,7 @@ private:
     cudaEvent_t start_one_ode_event, stop_one_ode_event;
     cudaEvent_t start_one_mcmc_event, stop_one_mcmc_event;
     cudaEvent_t start_one_update_event, stop_one_update_event;
+    cudaEvent_t start_one_stf_event, stop_one_stf_event;
     cudaEvent_t start_event_all, stop_event_all;
 
     //temp pointers
@@ -93,6 +95,12 @@ private:
     /* curand_state_d - on device */
     curandState *curand_state_d;
 
+    /* norm_d and norm_sd_d - on device */
+    double *norm_d = 0;
+    double *norm_sd_d = 0;
+    double *norm_h;
+    size_t norm_size;
+
     /* r_denom/r_num - on host */
     double *r_h = 0;
 
@@ -101,6 +109,7 @@ private:
 
     /* r_num - on device */
     double* r_num_d = 0;
+
 };
 
 #endif

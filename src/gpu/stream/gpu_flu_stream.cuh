@@ -1,8 +1,9 @@
 #ifndef GPU_FLU_STREAM_H
 #define GPU_FLU_STREAM_H
 
-#include "gpu_parameters.cuh"
+#include "../gpu_parameters.cuh"
 #include "gpu_ode_stream.cuh"
+#include "../gpu_mcmc.cuh"
 
 class GPUStreamFlu{
 public:

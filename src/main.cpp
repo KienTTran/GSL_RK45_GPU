@@ -1,8 +1,5 @@
 #include "gpu/gpu_flu.cuh"
-#include "gpu/gpu_flu_stream.cuh"
-#include <chrono>
 #include <iostream>
-#include <thread>
 
 int main(int argc, char* argv[])
 {
@@ -23,12 +20,6 @@ int main(int argc, char* argv[])
     gpu_flu->init();
     gpu_flu->run();
     delete gpu_flu;
-
-//    GPUStreamFlu* gpu_flu_stream = new GPUStreamFlu();
-//    gpu_flu_stream->set_gpu_parameters(gpu_params);
-//    gpu_flu_stream->init();
-//    gpu_flu_stream->run();
-//    delete gpu_flu_stream;
 
     delete gpu_params;
     return 0;

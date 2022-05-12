@@ -169,18 +169,24 @@ void GPUStreamFlu::run() {
     cudaDeviceProp prop;
     cudaGetDeviceProperties(&prop, 0);
     /* Blocks to process other things, must be equal number of ODE */
-    gpu_params->block_size = GPU_ODE_THREADS; //max is 1024
-    gpu_params->num_blocks = (gpu_params->ode_number + gpu_params->block_size - 1) / gpu_params->block_size;
+//    gpu_params->block_size = GPU_ODE_THREADS; //max is 1024
+//    gpu_params->num_blocks = (gpu_params->ode_number + gpu_params->block_size - 1) / gpu_params->block_size;
+    gpu_params->block_size = 1; //max is 1024
+    gpu_params->num_blocks = 1;
     /* Blocks to process reduction sum with padding, must be divided by 1024 */
     int num_block = ceil(prop.maxBlocksPerMultiProcessor * prop.maxThreadsPerBlock / GPU_REDUCE_THREADS);
     printf("max threads = %d block = %d\n",prop.maxBlocksPerMultiProcessor * prop.maxThreadsPerBlock, num_block);
 
-    for(int ode_index = 0; ode_index < gpu_params->ode_number; ode_index++){
-        solve_ode_n_stream<<<gpu_params->num_blocks, gpu_params->block_size, 0, streams[ode_index]>>>(y_ode_input_d[ode_index], y_ode_output_d[ode_index],
-                                                                 y_agg_input_d[ode_index], y_agg_output_d[ode_index],
-                                                                 stf_d[ode_index],
-                                                                 gpu_params_d, flu_params_new_d);
+    for(int iter = 0; iter < gpu_params->mcmc_loop; iter++){
+        for(int ode_index = 0; ode_index < gpu_params->ode_number; ode_index++){
+            solve_ode_n_stream<<<gpu_params->num_blocks, gpu_params->block_size, 0, streams[ode_index]>>>(y_ode_input_d[ode_index], y_ode_output_d[ode_index],
+                                                                                                          y_agg_input_d[ode_index], y_agg_output_d[ode_index],
+                                                                                                          stf_d[ode_index],
+                                                                                                          gpu_params_d, flu_params_new_d);
 //        checkCuda(cudaStreamSynchronize(streams[ode_index]));
+        }
+        checkCuda(cudaDeviceSynchronize());
+        printf("==== iter %d done ====\n\n",iter);
     }
 
     //    cudaProfilerStop();

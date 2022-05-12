@@ -46,7 +46,7 @@ public:
     double beta_sd[NUMSEROTYPES] = {
             0.05, // for beta_H1
             0.05, // for beta_B
-            0.05, // for beta_H3
+            0.05 // for beta_H3
     };
     double phi_sd = 15;
     double tau_sd[SAMPLE_TAU_LENGTH] = {

@@ -299,4 +299,5 @@ void FluParameters::init() {
     v_d_i_epidur_d2 = v_d_i_epidur / 2.0;
     v_d_i_epidur_x2 = v_d_i_epidur * 2.0;
     pi_x2 = 2.0 * M_PI;
+
 }

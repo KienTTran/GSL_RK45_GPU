@@ -125,22 +125,124 @@ void mcmc_dnorm_padding(double *y_data_input_d[], double *y_ode_agg_d[], double 
 }
 
 __global__
-void mcmc_setup_states_for_random(curandState* curand_state_d)
-{
+void mcmc_setup_states_for_random(curandState* curand_state_d, int size){
     int index_gpu = threadIdx.x + blockIdx.x * blockDim.x;
     int stride = blockDim.x * gridDim.x;
-    for (int index = index_gpu; index < NUMODE; index += stride) {
-        curand_init(1234, index, 0, &curand_state_d[index]);
+    for (int index = index_gpu; index < size; index += stride) {
+        curand_init(clock64(), index, 0, &curand_state_d[index]);
     }
 }
 
 __global__
-void mcmc_update_parameters(GPUParameters* gpu_params_d, FluParameters* flu_params_current_d, FluParameters* flu_params_new_d, curandState* curand_state_d){
+void mcmc_generate_norm(double* norm_d, size_t norm_size, curandState* curand_state_d){
+    int index_gpu = threadIdx.x + blockIdx.x * blockDim.x;
+    int stride = blockDim.x * gridDim.x;
+    for (int index = index_gpu; index < norm_size; index += stride) {
+        curandState local_state = curand_state_d[index];
+        norm_d[index] = curand_normal(&local_state);
+        curand_state_d[index] = local_state;
+//        if(NUMODE == 1  || (index > 0 && index % (NUMODE / 2) == 0)) {
+//            const int ode_index = index / SAMPLE_LENGTH;
+//            printf("ODE %d norm_d[%d] = %.5f\n",ode_index, index, norm_d[index]);
+//            printf("Index %d Norm Random = %.5f\n",index, norm_d[index]);
+//        }
+    }
+}
+
+__global__
+void mcmc_generate_norm_2(double* norm_d[], size_t norm_size, curandState* curand_state_d){
+    int index_gpu = threadIdx.x + blockIdx.x * blockDim.x;
+    int stride = blockDim.x * gridDim.x;
+    for (int index = index_gpu; index < norm_size; index += stride) {
+        const int ode_index = index / SAMPLE_LENGTH;
+        const int sample_index = index % SAMPLE_LENGTH;
+        curandState local_state = curand_state_d[index];
+        norm_d[ode_index][sample_index] = curand_normal(&local_state);
+        curand_state_d[index] = local_state;
+//        if(NUMODE == 1  || (index > 0 && index % (NUMODE / 2) == 0)) {
+//            const int ode_index = index / SAMPLE_LENGTH;
+//            printf("ODE %d norm_d[%d] = %.5f\n",ode_index, index, norm_d[index]);
+//            printf("Index %d Norm Random = %.5f\n",index, norm_d[index]);
+//        }
+    }
+}
+
+__global__ void mcmc_compute_norm_sd(FluParameters* flu_params_d, double* norm_d, double* norm_sd_d, size_t norm_size){
+    int index_gpu = threadIdx.x + blockIdx.x * blockDim.x;
+    int stride = blockDim.x * gridDim.x;
+
+    for (int index = index_gpu; index < norm_size; index += stride){
+        const int ode_index = index / SAMPLE_LENGTH;
+        const int sample_index = index % SAMPLE_LENGTH;
+        for(int i = 0; i < NUMSEROTYPES; i++){
+            const int beta_index = ode_index * NUMSEROTYPES + i;
+            const int norm_beta_index = ode_index * SAMPLE_LENGTH + i;
+            norm_sd_d[norm_beta_index] = norm_d[norm_beta_index] * flu_params_d->beta_sd[i];
+        }
+        /* Index 3 */
+        const int norm_phi0_index = ode_index * SAMPLE_LENGTH + SAMPLE_PHI_0_INDEX;
+        norm_sd_d[norm_phi0_index] = norm_d[norm_phi0_index] * flu_params_d->phi_sd;
+        /* Index 4 - 12 */
+        for(int i = 0; i < SAMPLE_TAU_LENGTH; i++){
+            const int tau_index = ode_index * SAMPLE_TAU_LENGTH + i;
+            const int norm_phi_index = ode_index * SAMPLE_LENGTH + ((SAMPLE_PHI_0_INDEX + 1) + i);
+            norm_sd_d[norm_phi_index] = norm_d[norm_phi_index] * flu_params_d->tau_sd[i];
+        }
+    }
+}
+
+__global__
+void mcmc_update_parameters(GPUParameters* gpu_params_d,
+                            FluParameters* flu_params_current_d, FluParameters* flu_params_new_d,
+                            curandState* curand_state_d){
     int index_gpu = threadIdx.x + blockIdx.x * blockDim.x;
     int stride = blockDim.x * gridDim.x;
 
     for (int index = index_gpu; index < gpu_params_d->ode_number; index += stride){
         curandState local_state = curand_state_d[index];
+        if(NUMODE == 1  || (index > 0 && index % (NUMODE / 2) == 0)) {
+            printf("ODE %d Old phi: ",index);
+            for(int i = 0; i < SAMPLE_PHI_LENGTH; i++){
+                printf("%.2f\t",flu_params_current_d->phi[i]);
+            }
+            printf("\n");
+            for(int i = 0; i < NUMSEROTYPES; i++){
+                printf("ODE %d Old flu_params_current_d->beta[%d] = %.9f\n", index, index*NUMSEROTYPES + i, flu_params_current_d->G_CLO_BETA[index*NUMSEROTYPES + i]);
+            }
+        }
+
+        for(int i = 0; i < NUMSEROTYPES; i++){
+            flu_params_new_d->G_CLO_BETA[index*NUMSEROTYPES + i] = flu_params_current_d->G_CLO_BETA[index*NUMSEROTYPES + i] + flu_params_current_d->beta_sd[i]*curand_normal(&local_state);
+//            flu_params_new_d->beta[index*NUMSEROTYPES + i] = flu_params_new_d->G_CLO_BETA[index*NUMSEROTYPES + i] / POPSIZE_MAIN;
+            flu_params_new_d->beta[index*NUMSEROTYPES + i] = flu_params_new_d->G_CLO_BETA[index*NUMSEROTYPES + i] * BETA_OVER_POP_MAIN;
+        }    // NOTE this is in a density-dependent transmission scheme
+        flu_params_new_d->phi_0 = flu_params_current_d->phi_0 + flu_params_current_d->phi_sd * curand_normal(&local_state);
+        flu_params_new_d->phi[index*SAMPLE_PHI_LENGTH] = flu_params_new_d->phi_0;
+        for(int i = 1; i < SAMPLE_PHI_LENGTH; i++){
+            flu_params_new_d->tau[index*SAMPLE_TAU_LENGTH + (i - 1)] = flu_params_current_d->tau[index*SAMPLE_TAU_LENGTH + (i - 1)] + flu_params_current_d->tau_sd[(i - 1)]*curand_normal(&local_state);
+            flu_params_new_d->phi[index*SAMPLE_PHI_LENGTH + i] = flu_params_new_d->phi[index*SAMPLE_PHI_LENGTH + (i - 1)] + flu_params_new_d->tau[index*SAMPLE_TAU_LENGTH + (i - 1)];
+        }
+        curand_state_d[index] = local_state;
+
+        if(NUMODE == 1  || (index > 0 && index % (NUMODE / 2) == 0)) {
+            printf("\nODE %d Updated Phi: ", index);
+            for (int i = 0; i < SAMPLE_PHI_LENGTH; i++) {
+                printf("%.2f\t", flu_params_new_d->phi[index*SAMPLE_PHI_LENGTH + i]);
+            }
+            printf("\n");
+            for(int i = 0; i < NUMSEROTYPES; i++){
+                printf("ODE %d Updated flu_params_new_d->beta[%d] = %.9f\n", index, index*NUMSEROTYPES + i, flu_params_new_d->G_CLO_BETA[index*NUMSEROTYPES + i]);
+            }
+        }
+    }
+}
+
+__global__
+void mcmc_update_parameters_with_norm_sd(GPUParameters* gpu_params_d, FluParameters* flu_params_current_d, FluParameters* flu_params_new_d, double* norm_sd_d){
+    int index_gpu = threadIdx.x + blockIdx.x * blockDim.x;
+    int stride = blockDim.x * gridDim.x;
+
+    for (int index = index_gpu; index < gpu_params_d->ode_number; index += stride){
 //        if(NUMODE == 1  || (index > 0 && index % (NUMODE / 2) == 0)) {
 //            printf("ODE %d Old phi: ",index);
 //            for(int i = 0; i < SAMPLE_PHI_LENGTH; i++){
@@ -152,17 +254,35 @@ void mcmc_update_parameters(GPUParameters* gpu_params_d, FluParameters* flu_para
 //            }
 //        }
 
+        /* Index 0 - 2 */
         for(int i = 0; i < NUMSEROTYPES; i++){
-            flu_params_new_d->G_CLO_BETA[index*NUMSEROTYPES + i] = flu_params_current_d->G_CLO_BETA[index*NUMSEROTYPES + i] + flu_params_current_d->beta_sd[i]*curand_uniform(&local_state);
-            flu_params_new_d->beta[index*NUMSEROTYPES + i] = flu_params_new_d->G_CLO_BETA[index*NUMSEROTYPES + i] / POPSIZE_MAIN;
-        }    // NOTE this is in a density-dependent transmission scheme
-        flu_params_new_d->phi_0 = flu_params_current_d->phi_0 + flu_params_current_d->phi_sd * curand_uniform(&local_state);
+            const int beta_index = index * NUMSEROTYPES + i;
+            const int norm_beta_index = index * SAMPLE_LENGTH + i;
+            flu_params_new_d->G_CLO_BETA[beta_index] = flu_params_current_d->G_CLO_BETA[beta_index] + norm_sd_d[norm_beta_index];
+            flu_params_new_d->beta[beta_index] = flu_params_new_d->G_CLO_BETA[beta_index] / POPSIZE_MAIN;
+//            flu_params_new_d->beta[beta_index] = flu_params_new_d->G_CLO_BETA[beta_index] * flu_params_current_d->beta_over_pop_main;
+//            printf("ODE %d beta[%d] beta_index = %d norm_index = %d\n",index, i, beta_index, norm_index);
+        }
+        /* Index 3 */
+        const int norm_phi0_index = index * SAMPLE_LENGTH + SAMPLE_PHI_0_INDEX;
+        flu_params_new_d->phi_0 = flu_params_current_d->phi_0 + flu_params_current_d->phi_sd + norm_sd_d[norm_phi0_index];
+//        printf("ODE %d phi_0_index = %d norm_index = %d\n",index, phi_0_index, norm_index);
+        /* Index 4 - 12 */
         flu_params_new_d->phi[index*SAMPLE_PHI_LENGTH] = flu_params_new_d->phi_0;
         for(int i = 1; i < SAMPLE_PHI_LENGTH; i++){
-            flu_params_new_d->tau[index*SAMPLE_TAU_LENGTH + (i - 1)] = flu_params_current_d->tau[index*SAMPLE_TAU_LENGTH + (i - 1)] + flu_params_current_d->tau_sd[(i - 1)]*curand_uniform(&local_state);
-            flu_params_new_d->phi[index*SAMPLE_PHI_LENGTH + i] = flu_params_new_d->phi[index*SAMPLE_PHI_LENGTH + (i - 1)] + flu_params_new_d->tau[index*SAMPLE_TAU_LENGTH + (i - 1)];
+            const int tau_index = index * SAMPLE_TAU_LENGTH + (i - 1);
+            const int norm_tau_index = index * SAMPLE_LENGTH + ((SAMPLE_PHI_0_INDEX + 1) + (i - 1));
+            flu_params_new_d->tau[tau_index] = flu_params_current_d->tau[tau_index] +  norm_sd_d[norm_tau_index];
+            flu_params_new_d->phi[index*SAMPLE_PHI_LENGTH + i] = flu_params_new_d->phi[index*SAMPLE_PHI_LENGTH + (i - 1)] + flu_params_new_d->tau[tau_index];
+//            printf("ODE %d tau[%d] tau_index = %d norm_index = %d\n",index, (i - 1), tau_index, norm_index);
         }
-        curand_state_d[index] = local_state;
+
+//        if(index == 32){
+//            for(int i = 0; i < SAMPLE_LENGTH; i++){
+//                const int norm_index = index * SAMPLE_LENGTH + i;
+//                printf("ODE %d norm_index %d norm_d[%d] = %.5f\n",index, norm_index, norm_index, norm_d[norm_index]);
+//            }
+//        }
 
 //        if(NUMODE == 1  || (index > 0 && index % (NUMODE / 2) == 0)) {
 //            printf("\nODE %d Updated Phi: ", index);

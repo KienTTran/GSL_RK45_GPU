@@ -41,6 +41,8 @@ void rk45_gpu_adjust_h(double y[], double y_err[], double dydt_out[],
     static double a_y = 1.0;
     static double a_dydt = 0.0;
     static unsigned int ord = 5;
+    static double one_over_ord = 0.2;// 1/5
+    static double one_over_ord_plus_one = 0.166666667;// 1/6
     const double S = 0.9;
     double h_old;
     if (final_step) {
@@ -76,7 +78,7 @@ void rk45_gpu_adjust_h(double y[], double y_err[], double dydt_out[],
     if (r_max > 1.1) {
         /* decrease step, no more than factor of 5, but a fraction S more
            than scaling suggests (for better accuracy) */
-        double r = S / pow(r_max, 1.0 / ord);
+        double r = S / pow(r_max, one_over_ord);
 
         if (r < 0.2)
             r = 0.2;
@@ -86,7 +88,7 @@ void rk45_gpu_adjust_h(double y[], double y_err[], double dydt_out[],
         adjustment_out = -1;
     } else if (r_max < 0.5) {
         /* increase step, no more than factor of 5 */
-        double r = S / pow(r_max, 1.0 / (ord + 1.0));
+        double r = S / pow(r_max, one_over_ord_plus_one);
 
         if (r > 5.0)
             r = 5.0;
@@ -237,7 +239,8 @@ void rk45_gpu_step_apply(double t, double h, double y[], double y_err[], double 
 
 __device__
 void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, double *y[], double *y_output[],
-                           double *y_agg_input[],  double *y_agg_output[],  double stf[], int index, GPUParameters *gpu_params, FluParameters* flu_params) {
+                           double *y_agg_input[],  double *y_agg_output[],  double stf[], int index,
+                           GPUParameters *gpu_params, FluParameters* flu_params) {
     double device_y[DIM];
     double device_y_0[DIM];
     double device_y_err[DIM];
@@ -270,7 +273,7 @@ void rk45_gpu_evolve_apply(double t, double t_target, double t_delta, double h, 
 //        printf("  v_d_i_nu = %1.5f \n", flu_params->v_d_i_nu);
 //        printf("phis_length = %d\n",flu_params->SAMPLE_PHI_LENGTH);
 //        for(int i=0; i<SAMPLE_PHI_LENGTH; i++){
-//            printf("  phi = %5.1f \n", flu_params->phi[ode_index*SAMPLE_PHI_LENGTH + i]);
+//            printf("  phi = %5.1f \n", flu_params->phi[index*SAMPLE_PHI_LENGTH + i]);
 //        }
 //    }
 
